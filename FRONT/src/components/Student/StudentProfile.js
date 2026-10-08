@@ -23,6 +23,7 @@ import {
   FileCheck,
   RefreshCw,
   Check,
+  Clock,
 } from "lucide-react";
 import { API_URL, BACKEND_URL } from "../../config/api";
 
@@ -210,6 +211,7 @@ const StudentProfile = () => {
     code: "",
     career: "",
     semester: "",
+    estado: "Pendiente",
 
     // Datos Personales y Complementarios (tabla datos_estudiante) - Modificables
     bio: "",
@@ -340,6 +342,7 @@ const StudentProfile = () => {
         // Foto y documentos
         photoPreview: normalizePhotoUrl(detailsData.photoPreview, id) || prev.photoPreview,
         documentsInDB: docsInDB,
+        estado: detailsData.estado || initialData.estado || prev.estado || "Pendiente",
       }));
       setPhotoError(false);
     } catch (err) {
@@ -705,9 +708,33 @@ const StudentProfile = () => {
                 </span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                {profile.name || "Estudiante"} {profile.lastName || ""}
-              </h1>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+                  {profile.name || "Estudiante"} {profile.lastName || ""}
+                </h1>
+
+                {/* Estado académico avalado por el docente tutor */}
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs ${
+                    (profile.estado || "").toLowerCase() === "activo"
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800"
+                      : "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800"
+                  }`}
+                  title={`Estado institucional determinado por el docente tutor: ${profile.estado || "Pendiente"}`}
+                >
+                  {(profile.estado || "").toLowerCase() === "activo" ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Activo</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Pendiente</span>
+                    </>
+                  )}
+                </span>
+              </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs sm:text-sm text-gray-600 dark:text-zinc-400">
                 <span className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400">

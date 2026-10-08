@@ -267,9 +267,9 @@ export const generateProfessionalCertificate = (cert = {}) => {
     }
   }
 
-  const institutionName = (instSettings.name || cert.institutionName || "Universidad Pedagógica y Tecnológica de Colombia").toUpperCase();
-  const facultyName = instSettings.faculty || cert.faculty || "Facultad de Ciencias de la Salud";
-  const mainLogo = instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || null;
+  const institutionName = (instSettings.name || instSettings.nombre || cert.institutionName || "Universidad Pedagógica y Tecnológica de Colombia").toUpperCase();
+  const facultyName = instSettings.faculty || instSettings.facultad || cert.faculty || "Facultad de Ciencias de la Salud";
+  const mainLogo = instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || cert.mainLogo || null;
   const facultyLogo = instSettings.logo_facultad || cert.facultyLogo || null;
 
   // ── 3. Logos en el encabezado ──

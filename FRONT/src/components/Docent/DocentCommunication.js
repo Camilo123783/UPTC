@@ -533,12 +533,7 @@ const DocentCommunication = () => {
                     const isFromAuditor = m.autor_rol === "auditor";
                     const isClinicalReport = (m.mensaje || "").includes("[REPORTE CLÍNICO DEL AUDITOR]");
                     const isDocentSender = !isFromAuditor;
-                    const createdAtTime = m.created_at ? new Date(m.created_at).getTime() : 0;
-                    const elapsedMs = currentTime - createdAtTime;
-                    const canDelete = isDocentSender && elapsedMs >= 0 && elapsedMs <= 5 * 60 * 1000;
-                    const remainingSeconds = Math.max(0, Math.ceil((5 * 60 * 1000 - elapsedMs) / 1000));
-                    const minsLeft = Math.floor(remainingSeconds / 60);
-                    const secsLeft = remainingSeconds % 60;
+                    const canDelete = isDocentSender;
 
                     return (
                       <div
@@ -595,11 +590,11 @@ const DocentCommunication = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteMessage(m)}
-                                  title="Eliminar mensaje (solo disponible durante los primeros 5 minutos)"
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/20 hover:bg-rose-600 text-white text-[10px] font-bold shadow-sm transition"
+                                  title="Eliminar mensaje"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/20 hover:bg-rose-600 text-white text-[10px] font-bold shadow-sm transition cursor-pointer"
                                 >
                                   <Trash2 className="w-2.5 h-2.5" />
-                                  <span>Eliminar ({minsLeft}:{secsLeft < 10 ? `0${secsLeft}` : secsLeft})</span>
+                                  <span>Eliminar</span>
                                 </button>
                               )}
                               <span

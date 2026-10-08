@@ -99,7 +99,11 @@ router.get("/profile/:studentId", verifyToken, async (req, res, next) => {
         T1.codigo                  AS code,
         T1.correo_institucional    AS email,
         T1.cedula                  AS studentId,
-        T2.nombreprograma          AS career
+        T2.nombreprograma          AS career,
+        COALESCE(
+          (SELECT pe.estado FROM practica_estudiante pe WHERE pe.estudiante_cedula = T1.cedula ORDER BY pe.id DESC LIMIT 1),
+          'Pendiente'
+        ) AS estado
       FROM estudiante T1
       LEFT JOIN programa T2 ON T1.programa_id = T2.id
       WHERE T1.cedula = ?
@@ -149,7 +153,11 @@ router.get("/details/:studentId", verifyToken, async (req, res, next) => {
         (de.riesgos_profesionales_arl IS NOT NULL) AS professionalRisks,
         (de.copia_documento_identidad IS NOT NULL) AS idCopy,
         (de.copia_carnet_estudiantil  IS NOT NULL) AS carnetCopy,
-        (de.carnet_vacunas            IS NOT NULL) AS vaccines
+        (de.carnet_vacunas            IS NOT NULL) AS vaccines,
+        COALESCE(
+          (SELECT pe.estado FROM practica_estudiante pe WHERE pe.estudiante_cedula = e.cedula ORDER BY pe.id DESC LIMIT 1),
+          'Pendiente'
+        ) AS estado
 
       FROM estudiante e
       LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante
@@ -215,8 +223,11 @@ router.get(["/download/:studentId/:columnName", "/view/:studentId/:columnName"],
 
     if (req.user.role === "auditor") {
       const rel = await queryDB(
-        "SELECT 1 FROM practica pr JOIN practica_estudiante pe ON pr.id = pe.practica_id WHERE pr.auditor_cedula = ? AND pe.estudiante_cedula = ? LIMIT 1",
-        [req.user.cedula, studentId]
+        `SELECT 1 FROM practica pr 
+         JOIN practica_estudiante pe ON pr.id = pe.practica_id 
+         WHERE (pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+           AND pe.estudiante_cedula = ? LIMIT 1`,
+        [req.user.cedula, req.user.cedula, studentId]
       );
       if (rel.length === 0) {
         return res.status(403).json({
@@ -545,51 +556,6 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
     const practiceIds = rows.map((r) => r.id);
     const placeholders = practiceIds.map(() => "?").join(",");
 
-    // Obtener las observaciones generales de la práctica O específicas para este estudiante
-    const observations = await queryDB(`
-      SELECT 
-        o.id,
-        o.practica_id,
-        o.autor_rol,
-        o.autor_cedula,
-        o.autor_nombre,
-        o.docente_cedula,
-        o.auditor_cedula,
-        o.admin_cedula,
-        o.estudiante_cedula,
-        o.titulo,
-        o.observacion,
-        o.tipo,
-        o.created_at,
-        COALESCE(NULLIF(o.autor_nombre, ''), CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, ''))) AS docente_nombre,
-        COALESCE(d.correo_institucional, '') AS docente_correo
-      FROM observacion_practica o
-      LEFT JOIN docente d ON o.docente_cedula = d.cedula
-      WHERE o.practica_id IN (${placeholders})
-        AND (o.estudiante_cedula IS NULL OR o.estudiante_cedula = ?)
-      ORDER BY o.created_at DESC
-    `, [...practiceIds, studentId]);
-
-    const obsMap = {};
-    observations.forEach((obs) => {
-      if (!obsMap[obs.practica_id]) obsMap[obs.practica_id] = [];
-      obsMap[obs.practica_id].push({
-        id: obs.id,
-        practica_id: obs.practica_id,
-        autor_rol: obs.autor_rol || "docente",
-        autor_cedula: obs.autor_cedula || obs.docente_cedula,
-        autor_nombre: obs.docente_nombre?.trim() || "Autor Institucional",
-        docente_cedula: obs.docente_cedula,
-        docente_nombre: obs.docente_nombre?.trim() || "Docente Asesor",
-        docente_correo: obs.docente_correo || "",
-        es_general: !obs.estudiante_cedula,
-        titulo: obs.titulo,
-        observacion: obs.observacion,
-        tipo: obs.tipo || "General",
-        created_at: obs.created_at,
-      });
-    });
-
     const result = rows.map((r) => {
       const hCumplidas = Number(r.horas_cumplidas || 0);
       const hAsignadas = Number(r.horas_asignadas || r.horas_totales || 120);
@@ -602,8 +568,8 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
         horas_totales: hAsignadas,
         progreso_horas: progresoHoras,
         calificacion: r.calificacion !== null ? Number(r.calificacion) : null,
-        observaciones: obsMap[r.id] || [],
-        total_observaciones: (obsMap[r.id] || []).length,
+        observaciones: [],
+        total_observaciones: 0,
       };
     });
 
@@ -1159,21 +1125,9 @@ router.delete("/communication/messages/:id", verifyToken, async (req, res, next)
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
-    // Validación estricta de 5 minutos
-    const createdAtTime = new Date(msg.created_at).getTime();
-    const nowTime = Date.now();
-    const diffMinutes = (nowTime - createdAtTime) / (1000 * 60);
-
-    if (diffMinutes > 5) {
-      return res.status(403).json({
-        success: false,
-        message: "No se puede eliminar el mensaje. Solo estuvo disponible durante los primeros 5 minutos posteriores a su envío.",
-      });
-    }
-
     await queryDB("DELETE FROM mensaje_estudiante_docente WHERE id = ?", [id]);
 
-    console.log(`🗑️ Mensaje #${id} eliminado por estudiante ${studentCedula} dentro de los 5 minutos.`);
+    console.log(`🗑️ Mensaje #${id} eliminado por estudiante ${studentCedula}.`);
     res.status(200).json({ success: true, message: "Mensaje eliminado exitosamente." });
   } catch (err) {
     next(err);

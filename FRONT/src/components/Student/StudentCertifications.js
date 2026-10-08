@@ -76,6 +76,42 @@ const StudentCertifications = () => {
   // ── Modal de Vista Previa de Diploma ──
   const [previewCert, setPreviewCert] = useState(null);
 
+  // ── Configuración institucional dinámica ──
+  const [instSettings, setInstSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("institutionSettings")) || {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      try {
+        setInstSettings(JSON.parse(localStorage.getItem("institutionSettings")) || {});
+      } catch (e) {}
+    };
+    window.addEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/institution-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.name || data.nombre)) {
+            setInstSettings(data);
+            try {
+              localStorage.setItem("institutionSettings", JSON.stringify(data));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+
+    return () => window.removeEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+  }, []);
+
   // ── Obtener datos del estudiante autenticado ──
   const { user } = useAuth();
 
@@ -419,6 +455,7 @@ const StudentCertifications = () => {
         directorName: DEFAULT_DIRECTOR,
         directorRole: DEFAULT_DIRECTOR_ROLE,
         issueDate: req.fecha_respuesta ? req.fecha_respuesta.substring(0, 10) : new Date().toISOString().substring(0, 10),
+        institutionSettings: instSettings,
       });
       toast.success("Reporte institucional generado y descargado exitosamente en PDF.");
     } catch (err) {
@@ -448,6 +485,7 @@ const StudentCertifications = () => {
         directorName: cert.directorName,
         directorRole: cert.directorRole,
         issueDate: cert.issueDate,
+        institutionSettings: instSettings,
       });
     } else {
       const savedSig = typeof window !== "undefined" ? localStorage.getItem("uptc_cert_signature") : null;
@@ -468,6 +506,7 @@ const StudentCertifications = () => {
         directorName: cert.directorName || DEFAULT_DIRECTOR,
         directorRole: cert.directorRole || "Coordinador(a) de Práctica",
         signatureImage: cert.signatureImage || cert.docente_foto_firma || savedSig || null,
+        institutionSettings: instSettings,
       });
     }
 
@@ -1495,18 +1534,29 @@ const StudentCertifications = () => {
                 <div className="relative z-10 pt-1">
                   <div className="flex items-center justify-between px-3 mb-2">
                     <div className="w-20 sm:w-24 flex items-center">
-                      <img src={uptcLogo} alt="Logo UPTC" className="h-9 sm:h-11 w-auto object-contain" />
+                      <img
+                        src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || uptcLogo}
+                        alt="Logo Institución"
+                        className="h-9 sm:h-11 w-auto object-contain"
+                        onError={(e) => {
+                          if (e.currentTarget.src !== uptcLogo) e.currentTarget.src = uptcLogo;
+                        }}
+                      />
                     </div>
                     <div className="w-20 sm:w-24 flex items-center justify-end">
-                      <img src={facultySeal} alt="Sello Facultad" className="h-9 sm:h-11 w-auto object-contain" />
+                      {instSettings.logo_facultad ? (
+                        <img src={instSettings.logo_facultad} alt="Logo Facultad" className="h-9 sm:h-11 w-auto object-contain" />
+                      ) : (
+                        <div className="h-9 sm:h-11 w-10"></div>
+                      )}
                     </div>
                   </div>
                   <div className="text-center px-2">
                     <h2 className="font-serif text-xs sm:text-sm font-bold tracking-wider uppercase leading-snug" style={{ color: "#0f172a" }}>
-                      UNIVERSIDAD PEDAGÓGICA Y TECNOLÓGICA DE COLOMBIA
+                      {(instSettings.name || instSettings.nombre || "UNIVERSIDAD PEDAGÓGICA Y TECNOLÓGICA DE COLOMBIA").toUpperCase()}
                     </h2>
                     <p className="font-serif italic text-xs sm:text-sm mt-0.5" style={{ color: "#334155" }}>
-                      Facultad de Ciencias de la Salud
+                      {instSettings.faculty || instSettings.facultad || "Facultad de Ciencias de la Salud"}
                     </p>
                   </div>
                   <div className="w-3/5 mx-auto h-[1px] bg-gradient-to-r from-transparent via-amber-600/60 to-transparent mt-2.5"></div>

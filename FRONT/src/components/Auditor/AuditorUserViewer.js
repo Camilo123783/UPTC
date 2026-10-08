@@ -26,9 +26,9 @@ import {
   ClipboardList,
   Globe,
   Building2,
-  UserCheck,
   FileSpreadsheet,
   Download,
+  FileText,
 } from "lucide-react";
 import StudentAvatar from "../Shared/StudentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
@@ -657,7 +657,7 @@ const AuditorUserViewer = () => {
                                   <th className="py-3 px-4">Programa / Carrera</th>
                                   <th className="py-3 px-4">Horas Cumplidas</th>
                                   <th className="py-3 px-4 text-center">Informe Clínico</th>
-                                  <th className="py-3 px-4 text-center">Ficha</th>
+                                  <th className="py-3 px-4 text-center">Documentos / Ficha</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60 bg-white dark:bg-zinc-900">
@@ -765,16 +765,16 @@ const AuditorUserViewer = () => {
                                         )}
                                       </td>
 
-                                      {/* Ver Ficha Integral */}
+                                      {/* Ver Documentos y Ficha Integral */}
                                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                         <button
                                           type="button"
                                           onClick={() => setSelectedStudentForFicha(studentForFicha)}
                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition cursor-pointer shadow-sm"
-                                          title={`Ver ficha integral de ${st.nombre_completo || st.nombre}`}
+                                          title={`Ver documentos oficiales y ficha integral de ${st.nombre_completo || st.nombre}`}
                                         >
-                                          <User className="w-3.5 h-3.5" />
-                                          <span>Ficha</span>
+                                          <FileText className="w-3.5 h-3.5" />
+                                          <span>Documentos</span>
                                         </button>
                                       </td>
                                     </tr>

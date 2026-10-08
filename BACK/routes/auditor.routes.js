@@ -986,20 +986,9 @@ router.delete(["/practices/:practiceId/messages/:messageId", "/messages/:message
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
-    // Validación estricta de 5 minutos
-    const createdAtTime = new Date(msg.created_at).getTime();
-    const diffMinutes = (Date.now() - createdAtTime) / (1000 * 60);
-
-    if (diffMinutes > 5) {
-      return res.status(403).json({
-        success: false,
-        message: "No se puede eliminar el mensaje. Solo estuvo disponible durante los primeros 5 minutos posteriores a su envío.",
-      });
-    }
-
     await queryDB("DELETE FROM observacion_practica WHERE id = ?", [messageId]);
 
-    console.log(`🗑️ Mensaje #${messageId} eliminado por auditor ${auditorCedula} dentro del límite de 5 minutos.`);
+    console.log(`🗑️ Mensaje #${messageId} eliminado por auditor ${auditorCedula}.`);
     res.status(200).json({ success: true, message: "Mensaje eliminado exitosamente." });
   } catch (err) {
     next(err);

@@ -514,23 +514,7 @@ const StudentPractices = () => {
                   </div>
                 )}
 
-                {/* Observaciones del Docente (si existen) */}
-                {practice.observaciones && practice.observaciones.length > 0 && (
-                  <div className="mb-4 p-3.5 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-900/60">
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Observaciones del Docente ({practice.observaciones.length})
-                      </span>
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                        {practice.observaciones[0]?.tipo || "Nota"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                      {practice.observaciones[0]?.observacion}
-                    </p>
-                  </div>
-                )}
+
 
                 {/* Barra de Progreso de Horas Asistenciales Reales */}
                 <div className="mb-5 p-4 rounded-2xl bg-gray-50/70 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800">
@@ -864,62 +848,6 @@ const StudentPractices = () => {
                 )}
               </div>
 
-              {/* Sección 6: Observaciones y Retroalimentación del Docente */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-blue-500" />
-                  Observaciones del Docente ({selectedPractice.observaciones?.length || 0})
-                </h4>
-
-                {!selectedPractice.observaciones || selectedPractice.observaciones.length === 0 ? (
-                  <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-gray-400 text-center">
-                    El docente aún no ha registrado notas u observaciones para esta rotación.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedPractice.observaciones.map((obs) => (
-                      <div
-                        key={obs.id}
-                        className="p-3.5 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800 space-y-1.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                              {obs.tipo || "General"}
-                            </span>
-                            {obs.es_general ? (
-                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                <Megaphone className="w-3 h-3" /> Para toda la rotación
-                              </span>
-                            ) : (
-                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                                <User className="w-3 h-3" /> Retroalimentación Personal para ti
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-400 dark:text-gray-500">
-                            {formatDate(obs.created_at)}
-                          </span>
-                        </div>
-
-                        {obs.titulo && (
-                          <h5 className="font-bold text-sm text-gray-900 dark:text-white">
-                            {obs.titulo}
-                          </h5>
-                        )}
-
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                          {obs.observacion}
-                        </p>
-
-                        <div className="pt-1 text-xs text-gray-400">
-                          <span>Docente: {obs.docente_nombre}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Footer del Modal */}

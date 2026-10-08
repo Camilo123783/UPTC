@@ -126,9 +126,9 @@ export const generatePdf = (data, filename = "reporte.pdf") => {
       instSettings = JSON.parse(localStorage.getItem("institutionSettings")) || {};
     } catch (e) {}
 
-    const institutionName = (instSettings.name || "Universidad Pedagógica y Tecnológica de Colombia").toUpperCase();
-    const facultyName = instSettings.faculty || "Facultad de Ciencias de la Salud";
-    const slogan = instSettings.slogan || "Sistema Oficial de Prácticas Formativas";
+    const institutionName = (instSettings.name || instSettings.nombre || "Universidad Pedagógica y Tecnológica de Colombia").toUpperCase();
+    const facultyName = instSettings.faculty || instSettings.facultad || "Facultad de Ciencias de la Salud";
+    const slogan = instSettings.slogan || instSettings.eslogan || "Sistema Oficial de Prácticas Formativas";
 
     // Franja Superior Slate UPTC
     doc.setFillColor(30, 41, 59); // #1E293B
@@ -324,8 +324,8 @@ export const generateConstanciaPracticaVigente = (constancia = {}) => {
     }
   }
 
-  const institutionName = (instSettings.name || constancia.institutionName || "Universidad Pedagógica y Tecnológica de Colombia").toUpperCase();
-  const facultyName = instSettings.faculty || constancia.faculty || "Facultad de Ciencias de la Salud";
+  const institutionName = (instSettings.name || instSettings.nombre || constancia.institutionName || "Universidad Pedagógica y Tecnológica de Colombia").toUpperCase();
+  const facultyName = instSettings.faculty || instSettings.facultad || constancia.faculty || "Facultad de Ciencias de la Salud";
   const mainLogo = instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || null;
   const facultyLogo = instSettings.logo_facultad || constancia.facultyLogo || null;
 

@@ -474,12 +474,7 @@ const AuditorCommunication = () => {
                   ) : (
                     filteredMessages.map((msg) => {
                       const isFromMe = msg.autor_rol === "auditor";
-                      const createdAtTime = msg.created_at ? new Date(msg.created_at).getTime() : 0;
-                      const elapsedMs = currentTime - createdAtTime;
-                      const canDelete = isFromMe && elapsedMs >= 0 && elapsedMs <= 5 * 60 * 1000;
-                      const remainingSeconds = Math.max(0, Math.ceil((5 * 60 * 1000 - elapsedMs) / 1000));
-                      const minsLeft = Math.floor(remainingSeconds / 60);
-                      const secsLeft = remainingSeconds % 60;
+                      const canDelete = isFromMe;
 
                       return (
                         <div
@@ -534,11 +529,11 @@ const AuditorCommunication = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteMessage(msg)}
-                                    title="Eliminar mensaje (solo disponible durante los primeros 5 minutos)"
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/20 hover:bg-rose-600 text-white text-[10px] font-bold shadow-sm transition"
+                                    title="Eliminar mensaje"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/20 hover:bg-rose-600 text-white text-[10px] font-bold shadow-sm transition cursor-pointer"
                                   >
                                     <Trash2 className="w-2.5 h-2.5" />
-                                    <span>Eliminar ({minsLeft}:{secsLeft < 10 ? `0${secsLeft}` : secsLeft})</span>
+                                    <span>Eliminar</span>
                                   </button>
                                 )}
                                 <span

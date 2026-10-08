@@ -116,6 +116,24 @@ const AdminCertificateDesigner = () => {
       } catch (e) {}
     };
     window.addEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+
+    // Si aún no están cargados en localStorage, consultarlos del backend
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/institution-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.name || data.nombre)) {
+            setInstSettings(data);
+            try {
+              localStorage.setItem("institutionSettings", JSON.stringify(data));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+
     return () => window.removeEventListener("institutionSettingsUpdated", handleSettingsUpdate);
   }, []);
 
@@ -429,6 +447,7 @@ const AdminCertificateDesigner = () => {
         deanName: certificateData.directorName,
         customTitle: certificateData.customTitle,
         signatureImage: certificateData.signatureImage,
+        institutionSettings: instSettings,
       });
       if (isDocent) {
         toast.success(
@@ -491,6 +510,7 @@ const AdminCertificateDesigner = () => {
           deanName: directorName,
           customTitle,
           signatureImage,
+          institutionSettings: instSettings,
         });
       }, idx * 600);
       count++;
@@ -1119,13 +1139,13 @@ const AdminCertificateDesigner = () => {
                           className="font-serif text-xs sm:text-sm font-bold tracking-wider uppercase leading-snug"
                           style={{ color: "#0f172a" }}
                         >
-                          {instSettings.name || "UNIVERSIDAD PEDAGÓGICA Y TECNOLÓGICA DE COLOMBIA"}
+                          {(instSettings.name || instSettings.nombre || "UNIVERSIDAD PEDAGÓGICA Y TECNOLÓGICA DE COLOMBIA").toUpperCase()}
                         </h2>
                         <p
                           className="font-serif italic text-xs sm:text-sm mt-0.5"
                           style={{ color: "#334155" }}
                         >
-                          {instSettings.faculty || "Facultad de Ciencias de la Salud"}
+                          {instSettings.faculty || instSettings.facultad || "Facultad de Ciencias de la Salud"}
                         </p>
                       </div>
 

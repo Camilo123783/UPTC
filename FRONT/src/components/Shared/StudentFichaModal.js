@@ -17,10 +17,9 @@ import {
   Sparkles,
   ZoomIn,
   ZoomOut,
-  RotateCw,
-  ExternalLink,
-  UserCheck,
   Shield,
+  Eye,
+  Download,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import StudentAvatar from "./StudentAvatar";
@@ -344,25 +343,66 @@ const StudentFichaModal = ({
                     <strong className="text-gray-800 dark:text-zinc-200">{loadedCount} de 6 documentos</strong>
                   </div>
 
-                  {/* Badges de los 6 documentos */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
-                    {docItems.map((d) => (
-                      <div
-                        key={d.key}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-semibold flex items-center justify-between border ${
-                          d.loaded
-                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                            : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 border-gray-200 dark:border-zinc-700"
-                        }`}
-                      >
-                        <span className="truncate">{d.label}</span>
-                        {d.loaded ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0 ml-1" />
-                        ) : (
-                          <X className="w-3 h-3 text-gray-400 shrink-0 ml-1" />
-                        )}
-                      </div>
-                    ))}
+                  {/* Tarjetas interactivas de los 6 documentos */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {docItems.map((d) => {
+                      const handleViewPdf = () => {
+                        const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("token") || sessionStorage.getItem("token")) : null;
+                        const url = `${BACKEND_URL}/api/student/view/${cedula}/${d.dbColumn}?inline=true${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+                        window.open(url, "_blank");
+                      };
+
+                      const handleDownloadPdf = () => {
+                        const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("token") || sessionStorage.getItem("token")) : null;
+                        const url = `${BACKEND_URL}/api/student/download/${cedula}/${d.dbColumn}?${token ? `token=${encodeURIComponent(token)}` : ''}`;
+                        window.open(url, "_blank");
+                      };
+
+                      return (
+                        <div
+                          key={d.key}
+                          className={`p-2.5 rounded-xl text-xs font-semibold flex flex-col justify-between border transition-all ${
+                            d.loaded
+                              ? "bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 border-emerald-200 dark:border-emerald-800"
+                              : "bg-gray-50 dark:bg-zinc-800/60 text-gray-400 dark:text-zinc-500 border-gray-200 dark:border-zinc-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <span className="truncate font-bold text-[11px]">{d.label}</span>
+                            {d.loaded ? (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-gray-400 dark:text-zinc-500 font-medium">
+                                <X className="w-3 h-3" /> Sin cargar
+                              </span>
+                            )}
+                          </div>
+                          {d.loaded && (
+                            <div className="flex items-center gap-1.5 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/60">
+                              <button
+                                type="button"
+                                onClick={handleViewPdf}
+                                className="flex-1 py-1 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[10px] font-bold transition flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                                title={`Ver ${d.label} en el visor PDF`}
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Ver PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleDownloadPdf}
+                                className="p-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:hover:bg-emerald-800 text-emerald-800 dark:text-emerald-200 text-[10px] transition cursor-pointer"
+                                title={`Descargar ${d.label}`}
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {onValidateAction && (

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { BACKEND_URL } from "../config/api";
 
 const ThemeContext = createContext();
 
@@ -38,6 +39,29 @@ export const ThemeProvider = ({ children }) => {
       return null;
     }
   });
+
+  // Cargar configuración institucional actualizada desde el backend al montar
+  useEffect(() => {
+    const fetchInstitutionSettings = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/institution-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.name || data.nombre)) {
+            setInstitutionSettings(data);
+            applyInstitutionColors(data, theme);
+            try {
+              localStorage.setItem("institutionSettings", JSON.stringify(data));
+              window.dispatchEvent(new Event("institutionSettingsUpdated"));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {
+        console.warn("No se pudo cargar la configuración institucional desde backend:", e);
+      }
+    };
+    fetchInstitutionSettings();
+  }, [theme]);
 
   useEffect(() => {
     localStorage.setItem("appTheme", theme);
