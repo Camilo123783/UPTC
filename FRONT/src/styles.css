@@ -1,0 +1,401 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   SISTEMA DE TEMAS: MODO CLARO Y MODO OSCURO
+   ============================================================ */
+
+/* Transición suave al alternar tema */
+body, aside, header, main, div, table, tr, th, td, input, select, textarea {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* ───────────────────────────────────────────────────────────
+   MODO OSCURO (.dark): Negro, gris grafito y azul oscuro
+   ─────────────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #09090b;
+  color: #f4f4f5;
+}
+
+/* Tarjetas, paneles y contenedores */
+.dark .bg-white {
+  background-color: #18181b !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #101014 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #27272a !important;
+}
+
+.dark .bg-gray-200 {
+  background-color: #3f3f46 !important;
+}
+
+/* Tipografía en modo oscuro */
+.dark .text-gray-900 {
+  color: #fafafa !important;
+}
+
+.dark .text-gray-800 {
+  color: #f4f4f5 !important;
+}
+
+.dark .text-gray-700 {
+  color: #e4e4e7 !important;
+}
+
+.dark .text-gray-600 {
+  color: #a1a1aa !important;
+}
+
+.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* ============================================================
+   CERTIFICADO OFICIAL UPTC: PROTECCIÓN DE BLANCO ABSOLUTO
+   Garantiza que la previsualización del certificado SIEMPRE sea
+   blanca y legible sin importar si el sistema está en modo oscuro
+   ============================================================ */
+.certificate-preview-sheet,
+.certificate-preview-sheet *,
+.dark .certificate-preview-sheet,
+.dark .certificate-preview-sheet * {
+  box-sizing: border-box;
+}
+
+.certificate-preview-sheet,
+.dark .certificate-preview-sheet,
+.certificate-preview-sheet.bg-white,
+.dark .certificate-preview-sheet.bg-white {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.dark .certificate-preview-sheet h1,
+.dark .certificate-preview-sheet h2,
+.dark .certificate-preview-sheet h3,
+.dark .certificate-preview-sheet h4,
+.dark .certificate-preview-sheet .text-slate-950,
+.dark .certificate-preview-sheet .text-slate-900,
+.dark .certificate-preview-sheet .text-zinc-900,
+.dark .certificate-preview-sheet .text-gray-900 {
+  color: #0f172a !important;
+}
+
+.dark .certificate-preview-sheet p,
+.dark .certificate-preview-sheet .text-slate-800,
+.dark .certificate-preview-sheet .text-zinc-800,
+.dark .certificate-preview-sheet .text-gray-800 {
+  color: #1e293b !important;
+}
+
+.dark .certificate-preview-sheet .text-slate-700,
+.dark .certificate-preview-sheet .text-zinc-700,
+.dark .certificate-preview-sheet .text-gray-700 {
+  color: #334155 !important;
+}
+
+.dark .certificate-preview-sheet .text-slate-600,
+.dark .certificate-preview-sheet .text-zinc-600,
+.dark .certificate-preview-sheet .text-gray-600 {
+  color: #475569 !important;
+}
+
+.dark .certificate-preview-sheet .text-slate-500,
+.dark .certificate-preview-sheet .text-zinc-500,
+.dark .certificate-preview-sheet .text-gray-500 {
+  color: #64748b !important;
+}
+
+.dark .certificate-preview-sheet .text-amber-700 {
+  color: #b45309 !important;
+}
+
+.dark .certificate-preview-sheet .text-amber-800 {
+  color: #92400e !important;
+}
+
+.dark .certificate-preview-sheet .text-amber-600 {
+  color: #d97706 !important;
+}
+
+.dark .certificate-preview-sheet .border-slate-200,
+.dark .certificate-preview-sheet .border-gray-200 {
+  border-color: #e2e8f0 !important;
+}
+
+.dark .certificate-preview-sheet .border-slate-300,
+.dark .certificate-preview-sheet .border-gray-300 {
+  border-color: #cbd5e1 !important;
+}
+
+.dark .certificate-preview-sheet .border-slate-400,
+.dark .certificate-preview-sheet .border-gray-400 {
+  border-color: #94a3b8 !important;
+}
+
+/* ============================================================
+   MODALES Y DIFUMINADOS GLOBALES DE LA PLATAFORMA
+   Garantiza que el backdrop difuminado cubra el 100% de la ventana
+   sin dejar descubierta la barra superior ni bordes laterales
+   ============================================================ */
+[class*="backdrop-blur"] {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* Bordes y divisores en modo oscuro */
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: #27272a !important;
+}
+
+.dark .border-gray-300,
+.dark .border-gray-400 {
+  border-color: #3f3f46 !important;
+}
+
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a !important;
+}
+
+/* Inputs, Selects y Textareas en modo claro (por defecto) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+  background-color: #ffffff;
+  color: #0f172a !important;
+  border-color: #d1d5db;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b !important;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* Inputs, Selects y Textareas en modo oscuro */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="date"],
+.dark select,
+.dark textarea {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+  border-color: #3f3f46 !important;
+}
+
+.dark select option {
+  background-color: #18181b;
+  color: #f4f4f5;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #71717a !important;
+}
+
+/* Tablas en modo oscuro */
+.dark thead.bg-gray-50,
+.dark thead {
+  background-color: #202026 !important;
+}
+
+.dark th {
+  color: #cbd5e1 !important;
+}
+
+.dark tbody tr:hover,
+.dark .hover\:bg-gray-50:hover {
+  background-color: #27272a !important;
+}
+
+/* Sombras en modo oscuro más tenues y elegantes */
+.dark .shadow-xl,
+.dark .shadow-2xl,
+.dark .shadow-md,
+.dark .shadow-lg {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Scrollbars estilizados para modo oscuro */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* ============================================================
+   UBICACIÓN GLOBAL DE NOTIFICACIONES / TOASTS (PARTE INFERIOR DERECHA)
+   Garantiza que todas las notificaciones, alertas y mensajes del
+   sistema para todos los usuarios y roles se posicionen en la
+   esquina inferior derecha de la pantalla con alta prioridad visual
+   ============================================================ */
+:root {
+  --toastify-toast-bottom: 24px;
+  --toastify-toast-right: 24px;
+  --toastify-toast-top: auto;
+  --toastify-toast-left: auto;
+}
+
+.Toastify__toast-container {
+  top: auto !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  align-items: flex-end !important;
+  z-index: 999999 !important;
+}
+
+.Toastify__toast-container--top-left,
+.Toastify__toast-container--top-center,
+.Toastify__toast-container--top-right,
+.Toastify__toast-container--bottom-left,
+.Toastify__toast-container--bottom-center,
+.Toastify__toast-container--bottom-right {
+  top: auto !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  transform: none !important;
+  align-items: flex-end !important;
+}
+
+@media only screen and (max-width: 480px) {
+  .Toastify__toast-container,
+  .Toastify__toast-container--top-left,
+  .Toastify__toast-container--top-center,
+  .Toastify__toast-container--top-right,
+  .Toastify__toast-container--bottom-left,
+  .Toastify__toast-container--bottom-center,
+  .Toastify__toast-container--bottom-right {
+    bottom: 16px !important;
+    right: 16px !important;
+    left: 16px !important;
+    width: calc(100vw - 32px) !important;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────
+   CERTIFICADO OFICIAL: SIEMPRE HOJA BLANCA CON TEXTO NÍTIDO
+   (Inmune a modo claro y modo oscuro)
+   ─────────────────────────────────────────────────────────── */
+.certificate-preview-sheet,
+.dark .certificate-preview-sheet,
+.certificate-preview-sheet.bg-white,
+.dark .certificate-preview-sheet.bg-white {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.certificate-preview-sheet h4,
+.dark .certificate-preview-sheet h4 {
+  color: #0f172a !important;
+}
+
+.certificate-preview-sheet h2,
+.dark .certificate-preview-sheet h2 {
+  color: #020617 !important;
+}
+
+.certificate-preview-sheet p,
+.dark .certificate-preview-sheet p {
+  color: #334155 !important;
+}
+
+.certificate-preview-sheet strong,
+.dark .certificate-preview-sheet strong {
+  color: #0f172a !important;
+}
+
+.certificate-preview-sheet .text-amber-800,
+.dark .certificate-preview-sheet .text-amber-800 {
+  color: #92400e !important;
+}
+
+.certificate-preview-sheet .text-amber-600,
+.dark .certificate-preview-sheet .text-amber-600 {
+  color: #d97706 !important;
+}
+
+.certificate-preview-sheet .text-slate-900,
+.dark .certificate-preview-sheet .text-slate-900,
+.certificate-preview-sheet .text-slate-950,
+.dark .certificate-preview-sheet .text-slate-950 {
+  color: #020617 !important;
+}
+
+.certificate-preview-sheet .text-slate-800,
+.dark .certificate-preview-sheet .text-slate-800 {
+  color: #1e293b !important;
+}
+
+.certificate-preview-sheet .text-slate-700,
+.dark .certificate-preview-sheet .text-slate-700,
+.certificate-preview-sheet .text-slate-600,
+.dark .certificate-preview-sheet .text-slate-600 {
+  color: #475569 !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   DIFUMINADO TOTAL Y ELEGANTE DE FONDOS (BACKDROP BLUR)
+   Garantiza soporte universal multiplataforma y cubre 100% viewport
+   ─────────────────────────────────────────────────────────── */
+.backdrop-blur-xs,
+[class*="backdrop-blur-xs"] {
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.backdrop-blur-sm,
+[class*="backdrop-blur-sm"] {
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.backdrop-blur-md,
+[class*="backdrop-blur-md"] {
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.backdrop-blur-lg,
+[class*="backdrop-blur-lg"] {
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+}

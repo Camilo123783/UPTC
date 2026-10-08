@@ -1,0 +1,176 @@
+# ============================================================
+# .gitignore — Raíz del Proyecto UPTC-PRACTICA
+# Sistema de Gestión de Prácticas Formativas en Salud (UPTC)
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Dependencias de Node.js y Gestores de Paquetes
+# ------------------------------------------------------------
+node_modules/
+*/node_modules/
+BACK/node_modules/
+FRONT/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.pnp
+.pnp.js
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+
+# ------------------------------------------------------------
+# 2. Variables de Entorno, Credenciales y Secretos
+#    (NUNCA deben subirse a repositorios públicos ni privados)
+# ------------------------------------------------------------
+.env
+.env.*
+*.env
+BACK/.env
+BACK/.env.*
+FRONT/.env
+FRONT/.env.*
+FRONT/.env.local
+FRONT/.env.development.local
+FRONT/.env.test.local
+FRONT/.env.production.local
+
+# Permitir explícitamente las plantillas de ejemplo
+!.env.example
+!*.env.example
+!BACK/.env.example
+!FRONT/.env.example
+
+# Certificados, claves privadas y tokens de servicio
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.id_rsa
+id_rsa*
+*credentials.json
+*serviceAccount*.json
+*.token
+
+# ------------------------------------------------------------
+# 3. Compilaciones, Bundles y Artefactos de Producción
+# ------------------------------------------------------------
+dist/
+/dist
+BACK/dist/
+FRONT/dist/
+build/
+/build
+FRONT/build/
+out/
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
+
+# ------------------------------------------------------------
+# 4. Cargas Dinámicas de Usuarios y Archivos Temporales
+# ------------------------------------------------------------
+BACK/uploads/*
+uploads/*
+!BACK/uploads/.gitkeep
+!uploads/.gitkeep
+*.tmp
+*.temp
+
+# ------------------------------------------------------------
+# 5. Logs y Archivos de Depuración
+# ------------------------------------------------------------
+logs/
+BACK/logs/
+FRONT/logs/
+*.log
+pid
+*.pid
+*.seed
+*.pid.lock
+
+# ------------------------------------------------------------
+# 6. Cobertura de Pruebas y Reportes de Testing
+# ------------------------------------------------------------
+coverage/
+*/coverage/
+BACK/coverage/
+FRONT/coverage/
+.nyc_output/
+*.lcov
+
+# ------------------------------------------------------------
+# 7. Archivos Generados por el Sistema Operativo
+# ------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.fuse_hidden*
+
+# ------------------------------------------------------------
+# 8. Configuraciones de Editores e IDEs
+# ------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-project
+*.sublime-workspace
+
+# ------------------------------------------------------------
+# 9. Cachés de Lenguajes y Python Bytecode
+# ------------------------------------------------------------
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# ------------------------------------------------------------
+# 10. Artefactos de Auditoría, Scratch y Asistentes IA
+# ------------------------------------------------------------
+.agent/
+.agents/
+docs/security/
+.security-audit-run/
+docs/**/scratch/
+scratch/
+*/scratch/
+
+# ------------------------------------------------------------
+# 11. Respaldos Locales y Dumps de Base de Datos
+# ------------------------------------------------------------
+*.bak
+*.old
+*.orig
+*.backup
+*.dump
+*.sql.gz
+back.md

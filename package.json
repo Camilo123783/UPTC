@@ -1,0 +1,16 @@
+{
+  "name": "uptc-practica",
+  "version": "1.0.0",
+  "description": "Sistema de Gestión de Prácticas Formativas en Salud - UPTC",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --raw --names \"BACK,FRONT\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix BACK\" \"npm start --prefix FRONT\"",
+    "dev:back": "npm run dev --prefix BACK",
+    "dev:front": "npm start --prefix FRONT",
+    "build:front": "npm run build --prefix FRONT",
+    "install:all": "npm install --prefix BACK && npm install --prefix FRONT"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
