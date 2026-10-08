@@ -297,6 +297,7 @@ const DocentEvaluations = () => {
                             cedula={ev.cedula}
                             name={ev.student}
                             size="md"
+                            hasPhoto={ev.tiene_foto}
                           />
                         </div>
                         <div className="min-w-0">

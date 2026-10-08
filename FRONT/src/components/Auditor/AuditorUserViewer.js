@@ -115,9 +115,12 @@ const AuditorUserViewer = () => {
         "Periodo": practice.periodo || "N/A",
         "Institución / Sede": practice.institucion_nombre || "Hospital Universitario",
         "Servicio Clínico": practice.servicio_nombre || "N/A",
+        "Programa": practice.programa_nombre || "Medicina",
+        "Asignatura": practice.asignatura_nombre || "Práctica Clínica",
         "Docente a Cargo": practice.docente_nombre || "N/A",
         "Docente Cédula": practice.docente_cedula || "N/A",
         "Docente Correo": practice.docente_correo || "N/A",
+        "Auditor a Cargo": practice.auditor_nombre || "Sin auditor",
         "Estudiante Nombre": st.nombre_completo || st.nombre || `Estudiante #${st.cedula}`,
         "Estudiante Cédula": st.cedula || "N/A",
         "Código Estudiantil": st.codigo || "N/A",
@@ -129,6 +132,8 @@ const AuditorUserViewer = () => {
         "Porcentaje Avance": `${pct}%`,
         "Estado": st.estado || "Asignado",
         "Calificación": st.calificacion !== null && st.calificacion !== undefined ? st.calificacion : "Sin calificar",
+        "Estado Evaluación": st.estado_evaluacion || (st.calificacion !== null ? "Completada" : "Pendiente"),
+        "Documentos Soportes": st.docs_count !== undefined ? `${st.docs_count}/6 cargados` : "Verificar soportes",
         "Informe Clínico": st.report_id ? (st.report_titulo || "Registrado") : "Pendiente",
       };
     });
@@ -411,7 +416,7 @@ const AuditorUserViewer = () => {
                           title={`Descargar CSV con información de estudiantes vinculados`}
                         >
                           <FileSpreadsheet className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">CSV</span>
+                          <span>CSV</span>
                         </button>
 
                         <button
@@ -440,6 +445,22 @@ const AuditorUserViewer = () => {
                         </button>
                       </div>
                     </div>
+
+                    {/* Botón directo expandido de descarga cuando la práctica está seleccionada */}
+                    {isSelected && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadPracticeCsv(pr);
+                        }}
+                        className="mt-3 w-full py-2 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                        title={`Descargar archivo CSV con los ${studentsTotal} estudiantes vinculados`}
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Descargar CSV de Estudiantes ({studentsTotal})</span>
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -673,6 +694,7 @@ const AuditorUserViewer = () => {
                                             cedula={st.cedula}
                                             name={st.nombre_completo || st.nombre}
                                             size="sm"
+                                            hasPhoto={st.tiene_foto}
                                             className="group-hover:scale-105 transition-transform"
                                           />
                                           <div>

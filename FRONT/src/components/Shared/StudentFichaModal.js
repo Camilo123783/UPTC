@@ -39,6 +39,7 @@ const StudentFichaModal = ({
   role = "docent",
   onPrimaryAction,
   primaryActionLabel,
+  onValidateAction,
 }) => {
   const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
@@ -294,6 +295,96 @@ const StudentFichaModal = ({
             </div>
           </div>
 
+          {/* Estado de Documentación y Aval de Práctica */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100/60 dark:from-zinc-800/80 dark:to-zinc-800/40 border border-gray-200 dark:border-zinc-700 space-y-3 text-xs">
+            {(() => {
+              const isActivo = student.estado === "Activo" || student.estado_asignacion === "Activo";
+              const docItems = [
+                { key: "has_cv", label: "Hoja de Vida", loaded: Boolean(student.has_cv) },
+                { key: "has_eps", label: "EPS", loaded: Boolean(student.has_eps) },
+                { key: "has_arl", label: "ARL", loaded: Boolean(student.has_arl) },
+                { key: "has_id", label: "Cédula", loaded: Boolean(student.has_id) },
+                { key: "has_carnet", label: "Carnet UPTC", loaded: Boolean(student.has_carnet) },
+                { key: "has_vaccines", label: "Vacunas", loaded: Boolean(student.has_vaccines) },
+              ];
+              const loadedCount = student.docs_count !== undefined
+                ? Number(student.docs_count)
+                : docItems.filter((d) => d.loaded).length;
+
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-700 dark:text-zinc-300 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-blue-500" />
+                      Estado de Documentos y Aval:
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border shadow-2xs ${
+                        isActivo
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800"
+                      }`}
+                    >
+                      {isActivo ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          <span>Activo (Aval Otorgado)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span>Pendiente de Aval</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-zinc-400">
+                    <span>Soportes cargados por el estudiante:</span>
+                    <strong className="text-gray-800 dark:text-zinc-200">{loadedCount} de 6 documentos</strong>
+                  </div>
+
+                  {/* Badges de los 6 documentos */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+                    {docItems.map((d) => (
+                      <div
+                        key={d.key}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-semibold flex items-center justify-between border ${
+                          d.loaded
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                            : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 border-gray-200 dark:border-zinc-700"
+                        }`}
+                      >
+                        <span className="truncate">{d.label}</span>
+                        {d.loaded ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0 ml-1" />
+                        ) : (
+                          <X className="w-3 h-3 text-gray-400 shrink-0 ml-1" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {onValidateAction && (
+                    <div className="pt-2 border-t border-gray-200/80 dark:border-zinc-700/80 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onValidateAction(student);
+                        }}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Verificar Documentos y Gestionar Aval</span>
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
           {/* Calificación y Retroalimentación */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100/60 dark:from-zinc-800/80 dark:to-zinc-800/40 border border-gray-200 dark:border-zinc-700 space-y-2 text-xs">
             <div className="flex items-center justify-between">
@@ -335,7 +426,7 @@ const StudentFichaModal = ({
         </div>
 
         {/* Footer con botones de acción */}
-        <div className="p-5 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-end gap-2.5 bg-gray-50/50 dark:bg-zinc-900/50">
+        <div className="p-5 border-t border-gray-100 dark:border-zinc-800 flex flex-wrap items-center justify-end gap-2.5 bg-gray-50/50 dark:bg-zinc-900/50">
           <button
             type="button"
             onClick={onClose}
@@ -343,6 +434,21 @@ const StudentFichaModal = ({
           >
             Cerrar Ficha
           </button>
+
+          {onValidateAction && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onValidateAction(student);
+              }}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs shadow-sm transition cursor-pointer flex items-center gap-1.5"
+              title="Verificar los 6 documentos y dar aval de activo o pendiente"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Verificar Documentos</span>
+            </button>
+          )}
 
           {onPrimaryAction && (
             <button

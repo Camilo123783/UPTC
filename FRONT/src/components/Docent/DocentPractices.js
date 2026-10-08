@@ -1075,6 +1075,7 @@ const DocentPractices = () => {
                                 cedula={st.cedula}
                                 name={st.nombre_completo}
                                 size="md"
+                                hasPhoto={st.tiene_foto}
                                 className="group-hover:scale-105 transition-transform"
                               />
                               <div className="min-w-0">

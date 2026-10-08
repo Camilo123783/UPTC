@@ -24,7 +24,7 @@ import {
   RefreshCw,
   Check,
 } from "lucide-react";
-import { API_URL } from "../../config/api";
+import { API_URL, BACKEND_URL } from "../../config/api";
 
 // --- RESOLUCIÓN ROBUSTA DE SESIÓN Y CREDENCIALES ---
 const getStoredUser = () => {
@@ -67,6 +67,85 @@ const getAuthToken = () => {
     sessionStorage.getItem("token") ||
     ""
   );
+};
+
+/**
+ * Normaliza la URL de la foto de perfil para que apunte con absoluta certeza
+ * a la URL base activa del backend y no a rutas relativas rotas o puertos cruzados.
+ */
+const normalizePhotoUrl = (rawUrl, cedula) => {
+  if (!rawUrl && !cedula) return null;
+  if (rawUrl && (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:"))) return rawUrl;
+  let path = `/api/student/photo/${cedula}`;
+  if (rawUrl) {
+    if (rawUrl.startsWith("/api/student/photo/")) {
+      path = rawUrl;
+    } else if (rawUrl.includes("/api/student/photo/")) {
+      path = rawUrl.substring(rawUrl.indexOf("/api/student/photo/"));
+    }
+  }
+  const sep = path.includes("?") ? "&" : "?";
+  return `${BACKEND_URL}${path}${sep}v=${Date.now()}`;
+};
+
+/**
+ * Comprime y redimensiona la imagen de perfil en el cliente usando HTML5 Canvas.
+ * Convierte a JPEG estándar de alta calidad (500x500 máx, ~40-60 KB) para carga instantánea
+ * universal sin problemas de compatibilidad en ningún navegador.
+ */
+const compressImage = (file, maxWidth = 500, maxHeight = 500, quality = 0.85) => {
+  return new Promise((resolve) => {
+    if (!file) {
+      resolve({ file, dataUrl: null });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        // Fondo blanco para imágenes transparentes que se convierten a JPEG
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve({ file, dataUrl: e.target.result });
+              return;
+            }
+            const cleanName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+            const compressedFile = new File([blob], cleanName, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
+            resolve({ file: compressedFile, dataUrl });
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => resolve({ file, dataUrl: e.target.result });
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve({ file, dataUrl: null });
+    reader.readAsDataURL(file);
+  });
 };
 
 // --- CONSTANTES DE ENDPOINTS ---
@@ -152,6 +231,7 @@ const StudentProfile = () => {
   const [error, setError] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [photoError, setPhotoError] = useState(false);
   const [previewModal, setPreviewModal] = useState({
     isOpen: false,
     title: "",
@@ -258,9 +338,10 @@ const StudentProfile = () => {
           detailsData.familyContactPhone ?? prev.familyContactPhone ?? "",
 
         // Foto y documentos
-        photoPreview: detailsData.photoPreview || prev.photoPreview,
+        photoPreview: normalizePhotoUrl(detailsData.photoPreview, id) || prev.photoPreview,
         documentsInDB: docsInDB,
       }));
+      setPhotoError(false);
     } catch (err) {
       console.error("Error al obtener expediente del estudiante:", err);
       setError("No se pudo cargar la información del perfil.");
@@ -301,8 +382,8 @@ const StudentProfile = () => {
     }
   };
 
-  // Manejador de foto de perfil
-  const handlePhotoChange = (e) => {
+  // Manejador de foto de perfil con compresión automática
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       if (!file.name.toLowerCase().match(/\.(jpg|jpeg|png|webp)$/)) {
@@ -310,14 +391,27 @@ const StudentProfile = () => {
         return;
       }
       setErrorMessage("");
-      const reader = new FileReader();
-      reader.onloadend = () =>
+      try {
+        const { file: compressedFile, dataUrl } = await compressImage(file);
         setProfile((prev) => ({
           ...prev,
-          photoFile: file,
-          photoPreview: reader.result,
+          photoFile: compressedFile,
+          photoPreview: dataUrl,
         }));
-      reader.readAsDataURL(file);
+        setPhotoError(false);
+      } catch (err) {
+        console.warn("Fallo en compresión de imagen, usando archivo original:", err);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProfile((prev) => ({
+            ...prev,
+            photoFile: file,
+            photoPreview: reader.result,
+          }));
+          setPhotoError(false);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -468,7 +562,28 @@ const StudentProfile = () => {
         throw new Error(serverMsg);
       }
 
+      let updatedPhotoUrl = `${BACKEND_URL}/api/student/photo/${currentCedula}?t=${Date.now()}`;
+      try {
+        const resText = await response.text();
+        const resJson = JSON.parse(resText);
+        if (resJson.photoUrl) {
+          updatedPhotoUrl = `${BACKEND_URL}${resJson.photoUrl}`;
+        }
+      } catch (e) {}
+
       setSuccessMessage("¡Perfil y documentación actualizados correctamente!");
+      setProfile((prev) => ({
+        ...prev,
+        photoFile: null,
+        photoPreview: prev.photoPreview || updatedPhotoUrl,
+      }));
+      setPhotoError(false);
+      window.dispatchEvent(
+        new CustomEvent("uptc:profile-updated", {
+          detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
+        })
+      );
+      // Refrescar expediente del estudiante
       fetchStudentData(currentCedula);
 
       setTimeout(() => {
@@ -542,14 +657,18 @@ const StudentProfile = () => {
             {/* Foto de Perfil */}
             <div className="relative group shrink-0">
               <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 flex items-center justify-center shadow-sm">
-                {profile.photoPreview ? (
+                {profile.photoPreview && !photoError ? (
                   <img
                     src={profile.photoPreview}
                     alt="Foto de perfil"
                     className="w-full h-full object-cover"
+                    onError={() => setPhotoError(true)}
+                    onLoad={() => setPhotoError(false)}
                   />
                 ) : (
-                  <User className="w-12 h-12 text-gray-400 dark:text-zinc-500" />
+                  <div className="w-full h-full flex items-center justify-center bg-blue-50 dark:bg-zinc-800 text-blue-700 dark:text-blue-300 font-extrabold text-2xl select-none">
+                    {((profile.name || "E").trim().charAt(0)).toUpperCase()}
+                  </div>
                 )}
               </div>
               <label

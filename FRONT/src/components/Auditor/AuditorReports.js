@@ -498,6 +498,7 @@ const AuditorReports = () => {
                                           cedula={st.cedula}
                                           name={st.nombre_completo || st.nombre}
                                           size="md"
+                                          hasPhoto={st.tiene_foto}
                                         />
                                       </div>
                                       <div className="min-w-0">

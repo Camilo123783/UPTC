@@ -1374,41 +1374,6 @@ router.post("/practices/:practiceId/students/:cedula/add-hours", async (req, res
   }
 });
 
-// ──────────────────────────────────────────────
-// POST /api/docent/practices/:practiceId/students/:cedula/validate
-// Aval y validación de documentación del estudiante por el docente
-// ──────────────────────────────────────────────
-router.post("/practices/:practiceId/students/:cedula/validate", async (req, res, next) => {
-  try {
-    const { practiceId, cedula } = req.params;
-    const { estado } = req.body;
-
-    const nuevoEstado = String(estado).trim() === "Activo" ? "Activo" : "Pendiente";
-
-    const updateRes = await queryDB(
-      `UPDATE practica_estudiante SET estado = ? WHERE practica_id = ? AND estudiante_cedula = ?`,
-      [nuevoEstado, practiceId, cedula]
-    );
-
-    if (updateRes.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No se encontró la vinculación del estudiante en esta práctica.",
-      });
-    }
-
-    console.log(`✅ Estudiante ${cedula} en práctica ${practiceId} validado a estado '${nuevoEstado}' por docente.`);
-    res.status(200).json({
-      success: true,
-      message: `El estudiante ha sido avalado y marcado como "${nuevoEstado}".`,
-      estado: nuevoEstado,
-      practica_id: practiceId,
-      estudiante_cedula: cedula,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
 
 // ──────────────────────────────────────────────
 // POST /api/docent/evaluations (Registrar o Actualizar Calificación Real 0.0 - 5.0)
@@ -2493,6 +2458,8 @@ router.post("/practices/:practiceId/students/:cedula/validate", async (req, res,
       success: true,
       message: `El estudiante ha sido marcado como ${validState} exitosamente.`,
       estado: validState,
+      practica_id: practiceId,
+      estudiante_cedula: cedula,
     });
   } catch (err) {
     next(err);

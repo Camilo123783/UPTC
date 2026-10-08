@@ -15,6 +15,7 @@ const StudentAvatar = ({
   size = "md",
   className = "",
   border = true,
+  hasPhoto = null,
   fallbackBg = "bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-300",
 }) => {
   const [hasError, setHasError] = useState(false);
@@ -23,7 +24,7 @@ const StudentAvatar = ({
   useEffect(() => {
     setHasError(false);
     setLoaded(false);
-  }, [cedula]);
+  }, [cedula, hasPhoto]);
 
   const sizeClasses = {
     xs: "w-6 h-6 text-[10px]",
@@ -36,8 +37,12 @@ const StudentAvatar = ({
   }[size] || size;
 
   const initial = (name && typeof name === "string" ? name.trim().charAt(0) : "E").toUpperCase();
+  // Si sabemos con certeza que el estudiante no tiene foto cargada, no hacer petición HTTP
+  const shouldFetchPhoto = hasPhoto !== false && Boolean(cedula);
   const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken")) : null;
-  const photoUrl = cedula ? `${API_BASE_URL}/api/student/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}` : null;
+  const photoUrl = shouldFetchPhoto
+    ? `${API_BASE_URL}/api/student/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`
+    : null;
 
   return (
     <div

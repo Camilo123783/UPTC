@@ -140,7 +140,7 @@ router.get("/details/:studentId", verifyToken, async (req, res, next) => {
         de.telefono_familiar         AS familyContactPhone,
 
         CASE WHEN de.foto_perfil IS NOT NULL
-          THEN CONCAT('${backendUrl}/api/student/photo/', e.cedula)
+          THEN CONCAT('/api/student/photo/', e.cedula)
           ELSE NULL
         END AS photoPreview,
 
@@ -251,22 +251,54 @@ router.get(["/download/:studentId/:columnName", "/view/:studentId/:columnName"],
   }
 });
 
+// Caché ultrarrápida en memoria RAM para fotos de perfil (tiempo de respuesta < 1ms)
+const photoMemoryCache = new Map();
+// Caché negativa en memoria para evitar consultas repetidas a MySQL de estudiantes sin foto
+const missingPhotoCache = new Map();
+
 // ──────────────────────────────────────────────
 // GET /api/student/photo/:studentId
-// Con caché local de disco, soporte de tipos MIME dinámicos y encabezados HTTP de alta velocidad
+// Con caché en memoria RAM, caché en disco, ETag HTTP 304 y encabezados universales
 // ──────────────────────────────────────────────
 router.get("/photo/:studentId", async (req, res, next) => {
   try {
     const { studentId } = req.params;
+    const studentKey = String(studentId);
+
+    // Encabezados CORS y de recursos cruzados para permitir visualización en cualquier <img>
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+    const ifNoneMatch = req.headers["if-none-match"];
+
+    // 1. Verificación en caché de memoria RAM (Ultra rápido: < 1ms)
+    const inMem = photoMemoryCache.get(studentKey);
+    if (inMem && inMem.buffer) {
+      if (ifNoneMatch && ifNoneMatch === inMem.etag) {
+        return res.status(304).end();
+      }
+      res.setHeader("Content-Type", inMem.mimeType);
+      res.setHeader("ETag", inMem.etag);
+      res.setHeader("Content-Length", inMem.buffer.length);
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      return res.end(inMem.buffer);
+    }
+
+    // 1.1 Si recientemente se verificó que este estudiante no tiene foto (TTL 60s), responder 404 inmediato
+    const missingTime = missingPhotoCache.get(studentKey);
+    if (missingTime && (Date.now() - missingTime < 60000)) {
+      return res.status(404).json({ success: false, message: "Foto no encontrada." });
+    }
+
     const avatarDir = path.join(__dirname, "../uploads/avatars");
     if (!fs.existsSync(avatarDir)) {
       fs.mkdirSync(avatarDir, { recursive: true });
     }
 
-    const cachedFilePath = path.join(avatarDir, `${studentId}.bin`);
-    const metaFilePath = path.join(avatarDir, `${studentId}.meta`);
+    const cachedFilePath = path.join(avatarDir, `${studentKey}.bin`);
+    const metaFilePath = path.join(avatarDir, `${studentKey}.meta`);
 
-    // 1. Si existe en caché local en disco, servir de inmediato
+    // 2. Si existe en caché local en disco, cargar a memoria y servir de inmediato
     if (fs.existsSync(cachedFilePath)) {
       try {
         const fileBuffer = fs.readFileSync(cachedFilePath);
@@ -277,29 +309,43 @@ router.get("/photo/:studentId", async (req, res, next) => {
           mimeType = getMimeTypeFromBuffer(fileBuffer);
         }
 
+        const etag = `W/"photo-${studentKey}-${fileBuffer.length}"`;
+        photoMemoryCache.set(studentKey, { buffer: fileBuffer, mimeType, etag });
+        missingPhotoCache.delete(studentKey);
+
+        if (ifNoneMatch && ifNoneMatch === etag) {
+          return res.status(304).end();
+        }
+
         res.setHeader("Content-Type", mimeType);
+        res.setHeader("ETag", etag);
+        res.setHeader("Content-Length", fileBuffer.length);
         res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
-        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
         return res.end(fileBuffer);
       } catch (cacheErr) {
         console.warn("Aviso al servir desde caché de disco:", cacheErr.message);
       }
     }
 
-    // 2. Si no está en disco, consultar la BD
+    // 3. Si no está en disco ni en memoria, consultar la BD remota
     const rows = await queryDB(
       `SELECT foto_perfil FROM datos_estudiante WHERE cedula_estudiante = ? LIMIT 1`,
-      [studentId]
+      [studentKey]
     );
 
     if (rows.length === 0 || !rows[0].foto_perfil) {
+      missingPhotoCache.set(studentKey, Date.now());
       return res.status(404).json({ success: false, message: "Foto no encontrada." });
     }
 
     const fileBuffer = rows[0].foto_perfil;
     const mimeType = getMimeTypeFromBuffer(fileBuffer);
+    const etag = `W/"photo-${studentKey}-${fileBuffer.length}"`;
 
-    // Guardar en disco para que próximas cargas sean instantáneas
+    // Guardar en memoria RAM y en disco
+    photoMemoryCache.set(studentKey, { buffer: fileBuffer, mimeType, etag });
+    missingPhotoCache.delete(studentKey);
+
     try {
       fs.writeFileSync(cachedFilePath, fileBuffer);
       fs.writeFileSync(metaFilePath, mimeType, "utf8");
@@ -307,9 +353,14 @@ router.get("/photo/:studentId", async (req, res, next) => {
       console.warn("Aviso al escribir foto en disco:", diskErr.message);
     }
 
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return res.status(304).end();
+    }
+
     res.setHeader("Content-Type", mimeType);
+    res.setHeader("ETag", etag);
+    res.setHeader("Content-Length", fileBuffer.length);
     res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     res.end(fileBuffer);
   } catch (err) {
     next(err);
@@ -376,22 +427,36 @@ router.post("/insert", verifyToken, cpUpload, async (req, res, next) => {
       ON DUPLICATE KEY UPDATE ${updateClauses}
     `, fieldValues);
 
-    // Si se subió foto_perfil, guardar inmediatamente en caché de disco para velocidad máxima
+    // Si se subió foto_perfil, guardar inmediatamente en memoria RAM y disco para velocidad máxima
+    let updatedPhotoUrl = null;
     if (files?.foto_perfil?.[0]?.buffer) {
       try {
-        const avatarDir = path.join(__dirname, "../uploads/avatars");
-        if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
+        const studentKey = String(cedula);
         const buf = files.foto_perfil[0].buffer;
         const mime = getMimeTypeFromBuffer(buf);
-        fs.writeFileSync(path.join(avatarDir, `${cedula}.bin`), buf);
-        fs.writeFileSync(path.join(avatarDir, `${cedula}.meta`), mime, "utf8");
+        const etag = `W/"photo-${studentKey}-${buf.length}"`;
+
+        // Actualizar caché en memoria de inmediato
+        photoMemoryCache.set(studentKey, { buffer: buf, mimeType: mime, etag });
+        missingPhotoCache.delete(studentKey);
+
+        const avatarDir = path.join(__dirname, "../uploads/avatars");
+        if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
+        fs.writeFileSync(path.join(avatarDir, `${studentKey}.bin`), buf);
+        fs.writeFileSync(path.join(avatarDir, `${studentKey}.meta`), mime, "utf8");
+
+        updatedPhotoUrl = `/api/student/photo/${studentKey}?t=${Date.now()}`;
       } catch (cacheErr) {
         console.warn("Aviso al guardar avatar en disco:", cacheErr.message);
       }
     }
 
     console.log(`✅ Perfil guardado/actualizado correctamente para ${cedula}`);
-    res.status(201).json({ success: true, message: "Datos del estudiante guardados correctamente." });
+    res.status(201).json({
+      success: true,
+      message: "Datos del estudiante guardados correctamente.",
+      photoUrl: updatedPhotoUrl,
+    });
   } catch (err) {
     if (err.code === "ER_NO_REFERENCED_ROW_2") {
       return res.status(400).json({

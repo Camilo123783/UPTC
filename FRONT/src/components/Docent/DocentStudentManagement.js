@@ -421,9 +421,49 @@ const DocentStudentManagement = () => {
   };
 
   // ─── Apertura y Acción de Validación Documental ───
-  const handleOpenValidationModal = (student) => {
+  const handleOpenValidationModal = async (student) => {
     setValidatingStudent(student);
     setIsValidatingModalOpen(true);
+
+    // Consultar el expediente en vivo del estudiante para garantizar datos frescos
+    try {
+      const token =
+        localStorage.getItem('authToken') ||
+        sessionStorage.getItem('authToken') ||
+        localStorage.getItem('token') ||
+        sessionStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/student/details/${student.cedula}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.data) {
+          const d = json.data;
+          setValidatingStudent((prev) => {
+            if (!prev || String(prev.cedula) !== String(student.cedula)) return prev;
+            return {
+              ...prev,
+              has_cv: !!d.cvDigital,
+              has_eps: !!d.socialSecurity,
+              has_arl: !!d.professionalRisks,
+              has_id: !!d.idCopy,
+              has_carnet: !!d.carnetCopy,
+              has_vaccines: !!d.vaccines,
+              docs_count: [
+                d.cvDigital,
+                d.socialSecurity,
+                d.professionalRisks,
+                d.idCopy,
+                d.carnetCopy,
+                d.vaccines,
+              ].filter(Boolean).length,
+            };
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo refrescar el expediente en vivo del estudiante:', e);
+    }
   };
 
   const handleUpdateStudentValidation = async (nuevoEstado) => {
@@ -1004,6 +1044,7 @@ const DocentStudentManagement = () => {
                                   cedula={st.cedula}
                                   name={st.fullName || `${st.name} ${st.lastName}`.trim()}
                                   size="md"
+                                  hasPhoto={st.tiene_foto}
                                 />
                               </div>
                               <div className="min-w-0">
@@ -1088,15 +1129,15 @@ const DocentStudentManagement = () => {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleOpenValidationModal(st)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1 ${
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 ${
                                   isActivo
                                     ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                    : 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                                    : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
                                 }`}
-                                title="Verificar los 6 documentos requeridos y dar el aval"
+                                title="Verificar los 6 documentos requeridos y gestionar el aval del estudiante"
                               >
-                                <ShieldCheck className="w-3 h-3" />
-                                <span>Verificar Docs</span>
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>{isActivo ? 'Verificar Docs (Activo)' : 'Verificar Documentos'}</span>
                               </button>
 
                               <button
@@ -1234,6 +1275,7 @@ const DocentStudentManagement = () => {
                               cedula={st.cedula}
                               name={st.fullName || `${st.name} ${st.lastName}`.trim()}
                               size="md"
+                              hasPhoto={st.tiene_foto}
                             />
                           </div>
                           <div className="min-w-0">
@@ -1315,15 +1357,15 @@ const DocentStudentManagement = () => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleOpenValidationModal(st)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1 ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5 ${
                               isActivo
                                 ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
                             }`}
-                            title="Verificar los 6 documentos requeridos y dar el aval"
+                            title="Verificar los 6 documentos requeridos y gestionar el aval del estudiante"
                           >
-                            <ShieldCheck className="w-3 h-3" />
-                            <span>Verificar Docs</span>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>{isActivo ? 'Verificar Docs (Activo)' : 'Verificar Documentos'}</span>
                           </button>
 
                           <button
@@ -1552,6 +1594,9 @@ const DocentStudentManagement = () => {
           handleOpenEvaluation(st);
         }}
         primaryActionLabel="Evaluar Estudiante"
+        onValidateAction={(st) => {
+          handleOpenValidationModal(st);
+        }}
       />
 
       {/* ─── Modal Profesional de Verificación Documental y Aval Docente ─── */}

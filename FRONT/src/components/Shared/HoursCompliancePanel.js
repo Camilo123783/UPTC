@@ -472,6 +472,63 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
     toast.success(`Reporte exportado exitosamente.`);
   };
 
+  // ─── Descargar CSV Específico de la Práctica con Información Completa de Estudiantes Asociados ───
+  const handleDownloadPracticeCsv = (practice) => {
+    const targetPractice = practice || currentPractice;
+    if (!targetPractice) {
+      toast.warn("Por favor selecciona una práctica primero.");
+      return;
+    }
+    const students = targetPractice.estudiantes || [];
+    if (students.length === 0) {
+      toast.warn(`La práctica "${targetPractice.titulo || targetPractice.id}" no tiene estudiantes vinculados para exportar.`);
+      return;
+    }
+
+    const exportRows = students.map((st, idx) => {
+      const key = `${targetPractice.id}_${st.cedula}`;
+      const edited = editedHours[key];
+      const horasAsignadas = edited?.horas_asignadas !== undefined
+        ? edited.horas_asignadas
+        : (st.horas_asignadas || targetPractice.horas_totales || 120);
+      const horasCumplidas = edited?.horas_cumplidas !== undefined
+        ? edited.horas_cumplidas
+        : (st.horas_cumplidas || 0);
+      const pct = Math.min(100, Math.round((horasCumplidas / (horasAsignadas || 1)) * 100));
+
+      return {
+        "N°": idx + 1,
+        "Práctica ID": targetPractice.id,
+        "Práctica Título": targetPractice.titulo || "Práctica Formativa",
+        "Periodo": targetPractice.periodo || "N/A",
+        "Institución / Sede": targetPractice.institucion_nombre || "Hospital Universitario",
+        "Servicio Clínico": targetPractice.servicio_nombre || "Servicio Asistencial",
+        "Programa": targetPractice.programa_nombre || "Medicina",
+        "Asignatura": targetPractice.asignatura_nombre || "Práctica Clínica",
+        "Docente a Cargo": targetPractice.docente_nombre || "Sin docente",
+        "Docente Cédula": targetPractice.docente_cedula || "N/A",
+        "Auditor a Cargo": targetPractice.auditor_nombre || "Sin auditor",
+        "Estudiante Nombre": st.nombre_completo || `${st.nombre || ""} ${st.apellidos || ""}`.trim() || `Estudiante #${st.cedula}`,
+        "Estudiante Cédula": String(st.cedula),
+        "Código Estudiantil": st.codigo || "N/A",
+        "Correo Institucional": st.correo || st.correo_institucional || "N/A",
+        "Teléfono": st.telefono || "N/A",
+        "Carrera / Programa": st.carrera || targetPractice.programa_nombre || "Medicina",
+        "Horas Asignadas (Meta)": horasAsignadas,
+        "Horas Cumplidas (Hechas)": horasCumplidas,
+        "Porcentaje Cumplimiento": `${pct}%`,
+        "Estado": st.estado || "Asignado",
+        "Calificación": st.calificacion !== null && st.calificacion !== undefined ? st.calificacion : "Sin calificar",
+        "Estado Evaluación": st.estado_evaluacion || (st.calificacion !== null ? "Completada" : "Pendiente"),
+        "Documentos Soportes": st.docs_count !== undefined ? `${st.docs_count}/6 cargados` : "Verificar soportes",
+      };
+    });
+
+    const safeTitle = (targetPractice.titulo || "Practica").replace(/[^a-zA-Z0-9_-]/g, "_");
+    generateCsv(exportRows, `Estudiantes_${safeTitle}_${targetPractice.periodo || "2026"}.csv`);
+    toast.success(`CSV descargado exitosamente con ${exportRows.length} estudiantes vinculados.`);
+  };
+
   // Contar cambios pendientes en la práctica activa
   const pendingCountForCurrentPractice = Object.keys(editedHours).filter((k) =>
     k.startsWith(`${currentPractice?.id}_`)
@@ -763,28 +820,42 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectPractice(p.id);
-                      }}
-                      className={`w-full py-2.5 px-3 text-xs font-bold rounded-xl transition text-center flex items-center justify-center gap-2 cursor-pointer ${
-                        isSelected
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                          : "bg-gray-100 hover:bg-blue-600 hover:text-white dark:bg-zinc-800 dark:hover:bg-blue-600 text-gray-800 dark:text-gray-200"
-                      }`}
-                    >
-                      {isSelected ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" /> Práctica Seleccionada
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardList className="w-3.5 h-3.5" /> Seleccionar para Cuadrar Horas
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadPracticeCsv(p);
+                        }}
+                        className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
+                        title={`Descargar CSV con estudiantes de "${p.titulo}"`}
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectPractice(p.id);
+                        }}
+                        className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-xl transition text-center flex items-center justify-center gap-2 cursor-pointer ${
+                          isSelected
+                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
+                            : "bg-gray-100 hover:bg-blue-600 hover:text-white dark:bg-zinc-800 dark:hover:bg-blue-600 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        {isSelected ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" /> Práctica Seleccionada
+                          </>
+                        ) : (
+                          <>
+                            <ClipboardList className="w-3.5 h-3.5" /> Seleccionar para Cuadrar Horas
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -823,8 +894,18 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
                 </p>
               </div>
 
-              {/* Indicadores Rápidos de la Práctica Seleccionada */}
-              <div className="flex items-center gap-3">
+              {/* Indicadores Rápidos y Descarga CSV de la Práctica Seleccionada */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPracticeCsv(currentPractice)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  title={`Descargar CSV con todos los estudiantes vinculados a "${currentPractice.titulo}"`}
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Descargar CSV Estudiantes</span>
+                </button>
+
                 <div className="px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 text-center">
                   <span className="block text-[10px] uppercase font-bold text-gray-400">Inscritos</span>
                   <span className="text-sm font-black text-gray-900 dark:text-white">
