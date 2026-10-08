@@ -717,7 +717,7 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
             );
           } else if (rawRole === "superadmin") {
             await queryDB(
-              `INSERT INTO superadmin (rol_id, nombre, apellido, cedula, correo_institucional, password) VALUES (?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO superadmin (rol_id, nombre, apellidos, cedula, correo_institucional, password) VALUES (?, ?, ?, ?, ?, ?)`,
               [1, nombre, apellidos, cedula, correo || null, passwordHash]
             );
           }

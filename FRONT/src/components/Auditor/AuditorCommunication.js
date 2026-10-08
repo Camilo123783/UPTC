@@ -28,6 +28,16 @@ import {
   Mail,
 } from "lucide-react";
 
+const getAuthToken = () => {
+  return (
+    localStorage.getItem("authToken") ||
+    sessionStorage.getItem("authToken") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token") ||
+    ""
+  );
+};
+
 const AuditorCommunication = () => {
   const [practices, setPractices] = useState([]);
   const [selectedPracticeId, setSelectedPracticeId] = useState(null);
@@ -71,7 +81,7 @@ const AuditorCommunication = () => {
       return;
     }
 
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token = getAuthToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
@@ -95,7 +105,7 @@ const AuditorCommunication = () => {
   const fetchPractices = useCallback(async () => {
     setIsLoadingPractices(true);
     setError(null);
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token = getAuthToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
@@ -123,7 +133,7 @@ const AuditorCommunication = () => {
   const fetchMessages = useCallback(async (practiceId) => {
     if (!practiceId) return;
     setIsLoadingMessages(true);
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token = getAuthToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
@@ -207,7 +217,7 @@ const AuditorCommunication = () => {
     setError(null);
     setFeedbackSuccess(null);
 
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token = getAuthToken();
     const headers = {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

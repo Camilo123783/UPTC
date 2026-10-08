@@ -364,7 +364,11 @@ const AdminCsvImportModal = ({
     setImportResult(null);
 
     try {
-      const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        sessionStorage.getItem("token") ||
+        localStorage.getItem("token");
       const headersReq = { "Content-Type": "application/json" };
       if (token) headersReq["Authorization"] = `Bearer ${token}`;
 

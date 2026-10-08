@@ -339,19 +339,11 @@ const AdminInstitutionSettings = () => {
 
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-      let res = await fetch(`${API_BASE_URL}/api/admin/institution-logo`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/institution-logo`, {
         method: "POST",
         headers: authHeaders,
         body: formData,
       });
-
-      if (!res.ok) {
-        res = await fetch(`${API_BASE_URL}/api/institution-logo`, {
-          method: "POST",
-          headers: authHeaders,
-          body: formData,
-        });
-      }
 
       const result = await res.json();
       const savedLogo = (res.ok && (result.logo_institucion || result.logo_url || result.logoPreview))
@@ -452,19 +444,11 @@ const AdminInstitutionSettings = () => {
 
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-      let res = await fetch(`${API_BASE_URL}/api/admin/login-bg`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/login-bg`, {
         method: "POST",
         headers: authHeaders,
         body: formData,
       });
-
-      if (!res.ok) {
-        res = await fetch(`${API_BASE_URL}/api/login-bg`, {
-          method: "POST",
-          headers: authHeaders,
-          body: formData,
-        });
-      }
 
       const result = await res.json();
       const savedBg = (res.ok && (result.fondo_institucion || result.login_bg_url || result.loginBgUrl))
@@ -562,19 +546,11 @@ const AdminInstitutionSettings = () => {
 
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-      let res = await fetch(`${API_BASE_URL}/api/admin/faculty-logo`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/faculty-logo`, {
         method: "POST",
         headers: authHeaders,
         body: formData,
       });
-
-      if (!res.ok) {
-        res = await fetch(`${API_BASE_URL}/api/faculty-logo`, {
-          method: "POST",
-          headers: authHeaders,
-          body: formData,
-        });
-      }
 
       const result = await res.json();
       const savedLogo = (res.ok && result.logo_facultad) ? result.logo_facultad : immediateData;

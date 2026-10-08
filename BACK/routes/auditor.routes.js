@@ -75,10 +75,6 @@ router.get("/dashboard-stats", async (req, res, next) => {
       const uniqueStudentCedulas = new Set(studentsList.map((st) => String(st.estudiante_cedula)));
       totalStudents = uniqueStudentCedulas.size;
 
-      // Conteo de docentes tutores únicos
-      const uniqueDocents = new Set(practices.map((p) => p.docente_cedula).filter(Boolean));
-      const totalDocents = uniqueDocents.size;
-
       totalHoursAudited = studentsList.reduce((acc, st) => acc + Number(st.horas_cumplidas || 0), 0);
       completedAssessments = studentsList.filter((st) => st.report_id !== null).length;
       pendingAssessments = Math.max(0, studentsList.length - completedAssessments);

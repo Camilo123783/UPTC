@@ -177,7 +177,11 @@ const AdminReports = () => {
   // Cargar automáticamente la firma digital del docente si está en sesión docente
   useEffect(() => {
     if (isDocent && !docentSignature) {
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
       if (token) {
         fetch(`${BACKEND_URL}/api/docent/profile`, { headers: { Authorization: `Bearer ${token}` } })
           .then((r) => r.json())

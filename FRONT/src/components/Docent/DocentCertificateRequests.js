@@ -296,8 +296,8 @@ const DocentCertificateRequests = () => {
             endDate: req.practica_fecha_fin,
             grade: req.estudiante_calificacion || req.calificacion,
             date: `Tunja, ${new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}`,
-            directorName: "?????",
-            directorRole: "Coordinador(a) de Práctica",
+            directorName: req.docente_nombre || docentProfile?.nombre_completo || user?.nombre || "Docente Supervisor UPTC",
+            directorRole: "Docente / Coordinador(a) de Práctica",
             signatureImage: signaturePreview,
           });
           toast.success("Descargando certificado avalado...");

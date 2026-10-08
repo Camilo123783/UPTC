@@ -10,7 +10,7 @@ const mysql = require("mysql2/promise");
 // Pool de conexiones usando variables de entorno
 // ──────────────────────────────────────────────
 // Resolver host de DB (soporta IP directa para evitar fallos de DNS CNAME en Node.js)
-const dbHost = process.env.DB_HOST === "srv655.hstgr.io" ? "195.35.61.122" : (process.env.DB_HOST || "195.35.61.122");
+const dbHost = process.env.DB_HOST === "srv655.hstgr.io" ? "195.35.61.122" : (process.env.DB_HOST || "localhost");
 
 const pool = mysql.createPool({
   host: dbHost,

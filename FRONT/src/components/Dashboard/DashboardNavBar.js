@@ -52,10 +52,7 @@ const DashboardLayout = ({
 
   const fetchInstitutionInfo = async () => {
     try {
-      let res = await fetch(`${BACKEND_URL}/api/admin/institution-settings`);
-      if (!res.ok) {
-        res = await fetch(`${BACKEND_URL}/api/institution-settings`);
-      }
+      const res = await fetch(`${BACKEND_URL}/api/institution-settings`);
       if (res.ok) {
         const data = await res.json();
         setInstitutionInfo((prev) => ({ ...prev, ...data }));

@@ -271,7 +271,7 @@ const missingPhotoCache = new Map();
 // GET /api/student/photo/:studentId
 // Con caché en memoria RAM, caché en disco, ETag HTTP 304 y encabezados universales
 // ──────────────────────────────────────────────
-router.get("/photo/:studentId", async (req, res, next) => {
+router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
   try {
     const { studentId } = req.params;
     const studentKey = String(studentId);

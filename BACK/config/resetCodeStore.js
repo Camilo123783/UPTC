@@ -111,6 +111,20 @@ function clearResetCode(identifier) {
   codeStore.delete(key);
 }
 
+// Limpieza automática periódica de entradas expiradas (cada 5 minutos)
+const cleanupTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of codeStore.entries()) {
+    if (now > entry.expiresAt) {
+      codeStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+if (cleanupTimer.unref) {
+  cleanupTimer.unref();
+}
+
 module.exports = {
   saveResetCode,
   verifyResetCode,

@@ -172,7 +172,11 @@ const AdminCertificateDesigner = () => {
   // Cargar automáticamente la firma digital del docente si está en sesión docente
   useEffect(() => {
     if (isDocent && !signatureImage) {
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
       if (token) {
         fetch(`${API_BASE_URL}/api/docent/profile`, { headers: { Authorization: `Bearer ${token}` } })
           .then((r) => r.json())

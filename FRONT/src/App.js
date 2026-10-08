@@ -337,7 +337,8 @@ const App = () => {
         />
 
         {/* ─── Módulos de Administrador ─── */}
-        {userRole === "admin" && (
+        {/* ─── Módulos de Administrador y Super Administrador ─── */}
+        {(userRole === "admin" || userRole === "superadmin") && (
           <>
             <Route
               path="/admin/users"
@@ -349,20 +350,12 @@ const App = () => {
               element={<AdminCertificateDesigner />}
             />
             <Route path="/admin/reports" element={<AdminReports />} />
-          </>
-        )}
-
-        {/* ─── Módulos de Super Administrador ─── */}
-        {userRole === "superadmin" && (
-          <>
-            <Route
-              path="/admin/settings"
-              element={<AdminInstitutionSettings />}
-            />
-            <Route
-              path="/admin/users"
-              element={<AdminUserManagement userRole={userRole} />}
-            />
+            {userRole === "superadmin" && (
+              <Route
+                path="/admin/settings"
+                element={<AdminInstitutionSettings />}
+              />
+            )}
           </>
         )}
 

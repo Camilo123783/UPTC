@@ -85,8 +85,11 @@ const normalizePhotoUrl = (rawUrl, cedula) => {
       path = rawUrl.substring(rawUrl.indexOf("/api/student/photo/"));
     }
   }
+  const token = getAuthToken();
   const sep = path.includes("?") ? "&" : "?";
-  return `${BACKEND_URL}${path}${sep}v=${Date.now()}`;
+  const tokenParam = token ? `${sep}token=${encodeURIComponent(token)}` : "";
+  const sepV = tokenParam ? "&" : (path.includes("?") ? "&" : "?");
+  return `${BACKEND_URL}${path}${tokenParam}${sepV}v=${Date.now()}`;
 };
 
 /**

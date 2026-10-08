@@ -12,7 +12,7 @@ const { Resend } = require("resend");
  */
 function createTransporter() {
   const user = (process.env.SMTP_USER || "enfermeriauptc2026@gmail.com").trim();
-  const pass = (process.env.SMTP_PASS || "ozpv gbux uozi lvfy").trim();
+  const pass = (process.env.SMTP_PASS || "").trim();
 
   const timeoutOptions = {
     connectionTimeout: 4000,
@@ -214,8 +214,8 @@ async function sendAdminForgotPasswordNotification({
           <td style="padding: 8px; border: 1px solid #e2e8f0;"><a href="mailto:${userEmail}">${userEmail}</a></td>
         </tr>
         <tr>
-          <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Código Enviado:</td>
-          <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #2563eb;">${code}</td>
+          <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Estado del Código:</td>
+          <td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold; color: #16a34a;">Generado y enviado al buzón privado del usuario (vigencia 15 min)</td>
         </tr>
       </table>
     </div>

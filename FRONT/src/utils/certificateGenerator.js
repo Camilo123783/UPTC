@@ -420,7 +420,7 @@ export const generateProfessionalCertificate = (cert = {}) => {
   doc.line(sigStartX, sigY, sigStartX + sigWidth, sigY);
 
   // Nombre y cargo oficial bajo la línea (centrados y en negrita)
-  const signerName = cert.directorName || cert.deanName || "?????";
+  const signerName = cert.directorName || cert.deanName || "Coordinador(a) de Prácticas Formativas UPTC";
   const signerRole = cert.directorRole || "Coordinador(a) de Práctica";
 
   doc.setFont("helvetica", "bold");

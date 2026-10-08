@@ -463,11 +463,11 @@ router.post("/practices/:practiceId/observations", async (req, res, next) => {
           adminCedula = authorCedula;
           autorNombre = `${admRows[0].nombre || ""} ${admRows[0].apellidos || ""}`.trim();
         } else {
-          const saRows = await queryDB("SELECT nombre, apellido FROM superadmin WHERE cedula = ? LIMIT 1", [authorCedula]);
+          const saRows = await queryDB("SELECT nombre, apellidos FROM superadmin WHERE cedula = ? LIMIT 1", [authorCedula]);
           if (saRows.length > 0) {
             autorRol = "superadmin";
             docenteCedula = null;
-            autorNombre = `${saRows[0].nombre || ""} ${saRows[0].apellido || ""}`.trim();
+            autorNombre = `${saRows[0].nombre || ""} ${saRows[0].apellidos || ""}`.trim();
           }
         }
       }
