@@ -48,7 +48,7 @@ import facultySeal from "../../assets/images/logooo.png";
 const API_BASE_URL = BACKEND_URL;
 
 // Constantes institucionales
-const DEFAULT_DIRECTOR = "?????";
+const DEFAULT_DIRECTOR = "Dirección de Escuela";
 const DEFAULT_DIRECTOR_ROLE = "Director(a) de Escuela";
 
 const StudentCertifications = () => {
@@ -217,7 +217,7 @@ const StudentCertifications = () => {
             hours: r.horas_totales || matchPr?.horas_totales || matchPr?.horas_asignadas || 120,
             issueDate: r.fecha_respuesta ? r.fecha_respuesta.substring(0, 10) : new Date().toISOString().substring(0, 10),
             docentName: r.docente_nombre || matchPr?.docente_nombre || "Docente UPTC",
-            directorName: DEFAULT_DIRECTOR,
+            directorName: instSettings.director_nombre || instSettings.representante || DEFAULT_DIRECTOR,
             directorRole: DEFAULT_DIRECTOR_ROLE,
             period: r.practica_periodo || matchPr?.periodo || "2026-1",
             state: "Emitido Oficial",
@@ -452,7 +452,7 @@ const StudentCertifications = () => {
         totalHours: req.horas_totales || matchPr?.horas_totales || matchPr?.horas_asignadas || 120,
         accumulatedHours: matchPr?.horas_cumplidas || 0,
         period: req.practica_periodo || matchPr?.periodo || "2026-2",
-        directorName: DEFAULT_DIRECTOR,
+        directorName: instSettings.director_nombre || instSettings.representante || DEFAULT_DIRECTOR,
         directorRole: DEFAULT_DIRECTOR_ROLE,
         issueDate: req.fecha_respuesta ? req.fecha_respuesta.substring(0, 10) : new Date().toISOString().substring(0, 10),
         institutionSettings: instSettings,

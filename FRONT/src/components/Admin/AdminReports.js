@@ -105,8 +105,58 @@ const AdminReports = () => {
     ];
     return `Tunja, ${today.getDate()} de ${meses[today.getMonth()]} de ${today.getFullYear()}`;
   });
-  const [directorName, setDirectorName] = useState("?????");
+
+  const [instSettings, setInstSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("institutionSettings")) || {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const [directorName, setDirectorName] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem("institutionSettings")) || {};
+      return s.director_nombre || s.representante || "Dirección de Escuela";
+    } catch {
+      return "Dirección de Escuela";
+    }
+  });
   const [directorRole, setDirectorRole] = useState("Director(a) de Escuela");
+
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      try {
+        const s = JSON.parse(localStorage.getItem("institutionSettings")) || {};
+        setInstSettings(s);
+        if (s.director_nombre || s.representante) {
+          setDirectorName(s.director_nombre || s.representante);
+        }
+      } catch (e) {}
+    };
+    window.addEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/institution-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.name || data.nombre)) {
+            setInstSettings(data);
+            try {
+              localStorage.setItem("institutionSettings", JSON.stringify(data));
+            } catch (e) {}
+            if (data.director_nombre || data.representante) {
+              setDirectorName((prev) => (prev === "?????" || prev === "Dirección de Escuela" ? (data.director_nombre || data.representante) : prev));
+            }
+          }
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+
+    return () => window.removeEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+  }, []);
 
   // Fotos / Imágenes digitalizadas de las firmas oficiales (Director(a) y Docente)
   const [directorSignature, setDirectorSignature] = useState(
@@ -507,6 +557,7 @@ const AdminReports = () => {
         directorRole,
         directorSignature,
         docentSignature,
+        institutionSettings: instSettings,
       });
 
       if (isDocent) {
@@ -565,6 +616,7 @@ const AdminReports = () => {
           directorRole,
           directorSignature,
           docentSignature,
+          institutionSettings: instSettings,
         });
       }, idx * 600);
       count++;
@@ -1337,23 +1389,34 @@ const AdminReports = () => {
                       <div>
                         <div className="flex items-center justify-between mt-1 mb-2">
                           <img
-                            src={uptcLogo}
-                            alt="Logo Oficial UPTC"
+                            src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || uptcLogo}
+                            alt="Logo Institución"
                             className="h-8 sm:h-9 w-auto object-contain"
+                            onError={(e) => {
+                              if (e.currentTarget.src !== uptcLogo) e.currentTarget.src = uptcLogo;
+                            }}
                           />
-                          <img
-                            src={facultyLogo}
-                            alt="Facultad Ciencias de la Salud"
-                            className="h-10 sm:h-11 w-auto object-contain"
-                          />
+                          {instSettings.logo_facultad ? (
+                            <img
+                              src={instSettings.logo_facultad}
+                              alt="Logo Facultad"
+                              className="h-9 sm:h-10 w-auto object-contain"
+                            />
+                          ) : (
+                            <img
+                              src={facultyLogo}
+                              alt="Facultad Ciencias de la Salud"
+                              className="h-10 sm:h-11 w-auto object-contain"
+                            />
+                          )}
                         </div>
 
                         <div className="text-center border-b border-slate-200 pb-2">
                           <h4 className="font-bold text-[10px] sm:text-xs text-slate-900 uppercase tracking-wide">
-                            Universidad Pedagógica y Tecnológica de Colombia
+                            {instSettings.name || instSettings.nombre || "Universidad Pedagógica y Tecnológica de Colombia"}
                           </h4>
                           <p className="font-bold text-[9px] sm:text-[10.5px] text-slate-700">
-                            Facultad de Ciencias de la Salud
+                            {instSettings.faculty || instSettings.facultad || "Facultad de Ciencias de la Salud"}
                           </p>
                           <p className="text-[8px] sm:text-[9px] text-slate-500 italic">
                             Programa de {(() => {
@@ -1382,7 +1445,7 @@ const AdminReports = () => {
                           La Dirección del programa de {(() => {
                             const raw = currentPractice?.programa_nombre || currentStudent?.carrera || "Medicina";
                             return raw.replace(/^programa\s+(de\s+)?/i, "").trim();
-                          })()} de la Facultad de Ciencias de la Salud de la Universidad Pedagógica y Tecnológica de Colombia (UPTC), hace constar que el(la) estudiante:
+                          })()} de la {instSettings.faculty || instSettings.facultad || "Facultad de Ciencias de la Salud"} de la {instSettings.name || instSettings.nombre || "Universidad Pedagógica y Tecnológica de Colombia (UPTC)"}, hace constar que el(la) estudiante:
                         </p>
 
                         {/* Recuadro Estudiante */}

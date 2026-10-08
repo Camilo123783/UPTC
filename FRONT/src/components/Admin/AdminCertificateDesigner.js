@@ -87,8 +87,22 @@ const AdminCertificateDesigner = () => {
   const [focusedStudent, setFocusedStudent] = useState(null);
 
   // Parámetros institucionales configurables
-  const [issueDate, setIssueDate] = useState("Tunja, 14 de mayo de 2026");
-  const [directorName, setDirectorName] = useState("?????");
+  const [issueDate, setIssueDate] = useState(() => {
+    const today = new Date();
+    const meses = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    ];
+    return `Tunja, ${today.getDate()} de ${meses[today.getMonth()]} de ${today.getFullYear()}`;
+  });
+  const [directorName, setDirectorName] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem("institutionSettings")) || {};
+      return s.director_nombre || s.representante || "Dirección de Escuela";
+    } catch {
+      return "Dirección de Escuela";
+    }
+  });
   const [directorRole, setDirectorRole] = useState("Director(a) de Escuela");
   const [customTitle, setCustomTitle] = useState(
     "Mención de Reconocimiento y Acreditación a:"
@@ -112,7 +126,11 @@ const AdminCertificateDesigner = () => {
   useEffect(() => {
     const handleSettingsUpdate = () => {
       try {
-        setInstSettings(JSON.parse(localStorage.getItem("institutionSettings")) || {});
+        const s = JSON.parse(localStorage.getItem("institutionSettings")) || {};
+        setInstSettings(s);
+        if (s.director_nombre || s.representante) {
+          setDirectorName((prev) => (prev === "?????" || prev === "Dirección de Escuela" ? (s.director_nombre || s.representante) : prev));
+        }
       } catch (e) {}
     };
     window.addEventListener("institutionSettingsUpdated", handleSettingsUpdate);
@@ -128,6 +146,9 @@ const AdminCertificateDesigner = () => {
             try {
               localStorage.setItem("institutionSettings", JSON.stringify(data));
             } catch (e) {}
+            if (data.director_nombre || data.representante) {
+              setDirectorName((prev) => (prev === "?????" || prev === "Dirección de Escuela" ? (data.director_nombre || data.representante) : prev));
+            }
           }
         }
       } catch (e) {}

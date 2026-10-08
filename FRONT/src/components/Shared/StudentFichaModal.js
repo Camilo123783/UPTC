@@ -47,6 +47,54 @@ const StudentFichaModal = ({
   const [zoomScale, setZoomScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [zoomImageError, setZoomImageError] = useState(false);
+  const [docDetails, setDocDetails] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !student) {
+      setDocDetails(null);
+      return;
+    }
+    const studentCedula = String(student.cedula || student.id || "");
+    if (!studentCedula) return;
+
+    if (student.has_cv !== undefined || student.cvDigital !== undefined) {
+      setDocDetails({
+        has_cv: student.has_cv || student.cvDigital,
+        has_eps: student.has_eps || student.socialSecurity,
+        has_arl: student.has_arl || student.professionalRisks,
+        has_id: student.has_id || student.idCopy,
+        has_carnet: student.has_carnet || student.carnetCopy,
+        has_vaccines: student.has_vaccines || student.vaccines,
+        estado: student.estado || student.estado_asignacion,
+      });
+      return;
+    }
+
+    const token =
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    fetch(`${BACKEND_URL}/api/student/details/${studentCedula}`, { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.data) {
+          const d = data.data;
+          setDocDetails({
+            has_cv: !!d.cvDigital,
+            has_eps: !!d.socialSecurity,
+            has_arl: !!d.professionalRisks,
+            has_id: !!d.idCopy,
+            has_carnet: !!d.carnetCopy,
+            has_vaccines: !!d.vaccines,
+            estado: d.estado,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, student]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -300,18 +348,48 @@ const StudentFichaModal = ({
           {/* Estado de Documentación y Aval de Práctica */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100/60 dark:from-zinc-800/80 dark:to-zinc-800/40 border border-gray-200 dark:border-zinc-700 space-y-3 text-xs">
             {(() => {
-              const isActivo = student.estado === "Activo" || student.estado_asignacion === "Activo";
+              const currentEstado = docDetails?.estado || student.estado || student.estado_asignacion || "Pendiente";
+              const isActivo =
+                currentEstado.toLowerCase() === "activo" || currentEstado.toLowerCase() === "activa";
+
+              const hasCv = docDetails ? docDetails.has_cv : (student.has_cv || student.cvDigital);
+              const hasEps = docDetails ? docDetails.has_eps : (student.has_eps || student.socialSecurity);
+              const hasArl = docDetails ? docDetails.has_arl : (student.has_arl || student.professionalRisks);
+              const hasId = docDetails ? docDetails.has_id : (student.has_id || student.idCopy);
+              const hasCarnet = docDetails ? docDetails.has_carnet : (student.has_carnet || student.carnetCopy);
+              const hasVaccines = docDetails ? docDetails.has_vaccines : (student.has_vaccines || student.vaccines);
+
               const docItems = [
-                { key: "has_cv", label: "Hoja de Vida", loaded: Boolean(student.has_cv) },
-                { key: "has_eps", label: "EPS", loaded: Boolean(student.has_eps) },
-                { key: "has_arl", label: "ARL", loaded: Boolean(student.has_arl) },
-                { key: "has_id", label: "Cédula", loaded: Boolean(student.has_id) },
-                { key: "has_carnet", label: "Carnet UPTC", loaded: Boolean(student.has_carnet) },
-                { key: "has_vaccines", label: "Vacunas", loaded: Boolean(student.has_vaccines) },
+                { key: "has_cv", label: "Hoja de Vida", dbColumn: "hoja_vida_digital", loaded: Boolean(hasCv) },
+                { key: "has_eps", label: "EPS", dbColumn: "seguridad_social_eps", loaded: Boolean(hasEps) },
+                { key: "has_arl", label: "ARL", dbColumn: "riesgos_profesionales_arl", loaded: Boolean(hasArl) },
+                { key: "has_id", label: "Cédula", dbColumn: "copia_documento_identidad", loaded: Boolean(hasId) },
+                { key: "has_carnet", label: "Carnet UPTC", dbColumn: "copia_carnet_estudiantil", loaded: Boolean(hasCarnet) },
+                { key: "has_vaccines", label: "Vacunas", dbColumn: "carnet_vacunas", loaded: Boolean(hasVaccines) },
               ];
-              const loadedCount = student.docs_count !== undefined
-                ? Number(student.docs_count)
-                : docItems.filter((d) => d.loaded).length;
+              const loadedCount = docItems.filter((d) => d.loaded).length;
+
+              const handleDownloadAllDocs = () => {
+                const loadedDocs = docItems.filter((d) => d.loaded);
+                if (loadedDocs.length === 0) return;
+                const token =
+                  localStorage.getItem("authToken") ||
+                  sessionStorage.getItem("authToken") ||
+                  localStorage.getItem("token") ||
+                  sessionStorage.getItem("token");
+                loadedDocs.forEach((d, idx) => {
+                  setTimeout(() => {
+                    const url = `${BACKEND_URL}/api/student/download/${cedula}/${d.dbColumn}?token=${encodeURIComponent(token || "")}`;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${d.label}_${cedula}.pdf`;
+                    a.target = "_blank";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }, idx * 400);
+                });
+              };
 
               return (
                 <>
@@ -342,8 +420,21 @@ const StudentFichaModal = ({
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-zinc-400">
-                    <span>Soportes cargados por el estudiante:</span>
-                    <strong className="text-gray-800 dark:text-zinc-200">{loadedCount} de 6 documentos</strong>
+                    <span>
+                      Soportes cargados por el estudiante:{" "}
+                      <strong className="text-gray-800 dark:text-zinc-200">{loadedCount} de 6 documentos</strong>
+                    </span>
+                    {loadedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDownloadAllDocs}
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                        title="Descargar todos los soportes cargados en PDF"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Descargar Todos ({loadedCount})</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* Tarjetas interactivas de los 6 documentos */}

@@ -680,33 +680,37 @@ const StudentPractices = () => {
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
                   <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Docente Supervisor</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Docente Supervisor</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm block">
                       {selectedPractice.docente_nombre || "Por asignar"}
                     </span>
                     {selectedPractice.docente_correo && (
-                      <a
-                        href={`mailto:${selectedPractice.docente_correo}`}
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
-                      >
-                        <Mail className="w-3 h-3" />
-                        {selectedPractice.docente_correo}
-                      </a>
+                      <div className="mt-1">
+                        <a
+                          href={`mailto:${selectedPractice.docente_correo}`}
+                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{selectedPractice.docente_correo}</span>
+                        </a>
+                      </div>
                     )}
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Auditor Clínico</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Auditor Clínico</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm block">
                       {selectedPractice.auditor_nombre || "No asignado"}
                     </span>
                     {selectedPractice.auditor_correo && (
-                      <a
-                        href={`mailto:${selectedPractice.auditor_correo}`}
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
-                      >
-                        <Mail className="w-3 h-3" />
-                        {selectedPractice.auditor_correo}
-                      </a>
+                      <div className="mt-1">
+                        <a
+                          href={`mailto:${selectedPractice.auditor_correo}`}
+                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{selectedPractice.auditor_correo}</span>
+                        </a>
+                      </div>
                     )}
                   </div>
                 </div>

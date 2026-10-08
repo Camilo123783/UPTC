@@ -68,6 +68,42 @@ const DocentCertificateRequests = () => {
   const [isSavingSignature, setIsSavingSignature] = useState(false);
   const [pendingActionAfterSig, setPendingActionAfterSig] = useState(null);
 
+  // Configuración institucional viva
+  const [instSettings, setInstSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("institutionSettings")) || {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      try {
+        setInstSettings(JSON.parse(localStorage.getItem("institutionSettings")) || {});
+      } catch (e) {}
+    };
+    window.addEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/institution-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.name || data.nombre)) {
+            setInstSettings(data);
+            try {
+              localStorage.setItem("institutionSettings", JSON.stringify(data));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+
+    return () => window.removeEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+  }, []);
+
   // Obtener la cédula del docente
   const getDocentCedula = useCallback(() => {
     if (user?.cedula) return user.cedula;
@@ -288,7 +324,7 @@ const DocentCertificateRequests = () => {
             career: req.estudiante_carrera || "Medicina",
             practiceName: req.servicio_nombre || req.practica_titulo,
             serviceName: req.servicio_nombre || req.practica_titulo,
-            institution: req.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
+            institution: req.institucion_nombre || instSettings.name || instSettings.nombre || "Hospital Universitario San Rafael de Tunja",
             docentName: req.docente_nombre || docentProfile?.nombre_completo || user?.nombre || "Docente UPTC",
             hours: req.horas_totales || 144,
             period: req.practica_periodo || "2026-2",
@@ -296,9 +332,11 @@ const DocentCertificateRequests = () => {
             endDate: req.practica_fecha_fin,
             grade: req.estudiante_calificacion || req.calificacion,
             date: `Tunja, ${new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}`,
-            directorName: req.docente_nombre || docentProfile?.nombre_completo || user?.nombre || "Docente Supervisor UPTC",
-            directorRole: "Docente / Coordinador(a) de Práctica",
+            directorName: instSettings.director_nombre || instSettings.representante || "Dirección de Escuela",
+            directorRole: "Director(a) de Escuela",
+            deanName: instSettings.director_nombre || instSettings.representante || "Dirección de Escuela",
             signatureImage: signaturePreview,
+            institutionSettings: instSettings,
           });
           toast.success("Descargando certificado avalado...");
         }
@@ -425,7 +463,7 @@ const DocentCertificateRequests = () => {
       career: req.estudiante_carrera || "Medicina",
       practiceName: req.servicio_nombre || req.practica_titulo,
       serviceName: req.servicio_nombre || req.practica_titulo,
-      institution: req.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
+      institution: req.institucion_nombre || instSettings.name || instSettings.nombre || "Hospital Universitario San Rafael de Tunja",
       docentName: req.docente_nombre || docentProfile?.nombre_completo || user?.nombre || "Docente UPTC",
       hours: req.horas_totales || 144,
       period: req.practica_periodo || "2026-2",
@@ -433,9 +471,11 @@ const DocentCertificateRequests = () => {
       endDate: req.practica_fecha_fin,
       grade: req.estudiante_calificacion || req.calificacion,
       date: `Tunja, ${new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}`,
-      directorName: "?????",
-      directorRole: "Coordinador(a) de Práctica",
+      directorName: instSettings.director_nombre || instSettings.representante || "Dirección de Escuela",
+      directorRole: "Director(a) de Escuela",
+      deanName: instSettings.director_nombre || instSettings.representante || "Dirección de Escuela",
       signatureImage: savedSig,
+      institutionSettings: instSettings,
     });
     toast.success("Descargando certificado avalado...");
   };

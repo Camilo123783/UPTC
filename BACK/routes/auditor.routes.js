@@ -248,6 +248,12 @@ router.get("/practices", async (req, res, next) => {
         de.correo_personal,
         de.biografia,
         (de.foto_perfil IS NOT NULL) AS tiene_foto,
+        (de.hoja_vida_digital IS NOT NULL) AS has_cv,
+        (de.seguridad_social_eps IS NOT NULL) AS has_eps,
+        (de.riesgos_profesionales_arl IS NOT NULL) AS has_arl,
+        (de.copia_documento_identidad IS NOT NULL) AS has_id,
+        (de.copia_carnet_estudiantil IS NOT NULL) AS has_carnet,
+        (de.carnet_vacunas IS NOT NULL) AS has_vaccines,
         ra.id AS report_id,
         ra.conocimiento_teorico,
         ra.habilidades_practicas,
@@ -273,13 +279,14 @@ router.get("/practices", async (req, res, next) => {
       if (!studentsMap[st.practica_id]) {
         studentsMap[st.practica_id] = [];
       }
+      const docsCount = [st.has_cv, st.has_eps, st.has_arl, st.has_id, st.has_carnet, st.has_vaccines].filter(Boolean).length;
       studentsMap[st.practica_id].push({
         id: st.estudiante_cedula,
         cedula: String(st.estudiante_cedula),
         codigo: st.codigo || null,
         nombre: st.nombre,
         apellidos: st.apellidos,
-        nombre_completo: st.nombre_completo.trim() || `Estudiante #${st.estudiante_cedula}`,
+        nombre_completo: (st.nombre_completo || "").trim() || `Estudiante #${st.estudiante_cedula}`,
         correo: st.correo_institucional,
         carrera: st.carrera || "Salud",
         telefono: st.telefono || null,
@@ -287,6 +294,13 @@ router.get("/practices", async (req, res, next) => {
         biografia: st.biografia || null,
         tiene_foto: !!st.tiene_foto,
         foto_url: st.tiene_foto ? `/api/student/photo/${st.estudiante_cedula}` : null,
+        has_cv: !!st.has_cv,
+        has_eps: !!st.has_eps,
+        has_arl: !!st.has_arl,
+        has_id: !!st.has_id,
+        has_carnet: !!st.has_carnet,
+        has_vaccines: !!st.has_vaccines,
+        docs_count: docsCount,
         estado: st.estado_asignacion,
         calificacion: st.calificacion !== null ? Number(st.calificacion) : null,
         score: st.calificacion !== null ? Number(st.calificacion) : null,
