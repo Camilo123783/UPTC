@@ -12,6 +12,7 @@ import {
   Users,
   Search,
   User,
+  UserCheck,
   Mail,
   CreditCard,
   Hash,
@@ -63,7 +64,11 @@ const AuditorUserViewer = () => {
   const fetchPracticesAndUsers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token =
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {

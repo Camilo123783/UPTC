@@ -34,6 +34,9 @@ export const saveActiveSession = (userRole, currentPage, userData, token) => {
   }
   if (token) {
     localStorage.setItem(KEYS.AUTH_TOKEN, token);
+    localStorage.setItem("token", token);
+    sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
+    sessionStorage.setItem("token", token);
   }
   localStorage.setItem(KEYS.LAST_ACTIVITY, String(Date.now()));
 };
@@ -151,9 +154,12 @@ export const clearActiveSession = () => {
   localStorage.removeItem(KEYS.USER_ROLE);
   localStorage.removeItem(KEYS.CURRENT_PAGE);
   localStorage.removeItem(KEYS.AUTH_TOKEN);
+  localStorage.removeItem("token");
   localStorage.removeItem(KEYS.LAST_ACTIVITY);
   sessionStorage.removeItem(KEYS.USER_ROLE);
   sessionStorage.removeItem(KEYS.USER_DATA);
+  sessionStorage.removeItem(KEYS.AUTH_TOKEN);
+  sessionStorage.removeItem("token");
 };
 
 /**

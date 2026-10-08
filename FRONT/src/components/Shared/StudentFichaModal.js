@@ -20,6 +20,9 @@ import {
   Shield,
   Eye,
   Download,
+  UserCheck,
+  RotateCw,
+  ExternalLink,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import StudentAvatar from "./StudentAvatar";

@@ -1611,7 +1611,7 @@ const DashboardLayout = ({
                             <span>{item.name}</span>
                             {showBadge && (
                               <span className="px-1.5 py-0.2 bg-red-600 text-white text-[10px] font-black rounded-full">
-                                {unreadMessages}
+                                {badgeCount > 99 ? "99+" : badgeCount}
                               </span>
                             )}
                           </div>
