@@ -578,7 +578,17 @@ export const generateConstanciaPracticaVigente = (constancia = {}) => {
     doc.text(sig.role, sx + sigColW / 2, sigY + 9, { align: "center" });
   });
 
-  // 14. Sin letras grises en el pie de página (eliminadas a solicitud)
+  // 14. Identificador Hexadecimal Único Oficial (Gris sutil, abajo a la derecha)
+  const hexIdentifier = (
+    constancia.id_hex ||
+    constancia.idHex ||
+    constancia.hexId ||
+    (Math.random().toString(16).substring(2, 10) + Math.random().toString(16).substring(2, 10))
+  ).toUpperCase();
+  doc.setFont("courier", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(156, 163, 175);
+  doc.text(`ID Verificación: #${hexIdentifier}`, pageWidth - 16, pageHeight - 9, { align: "right" });
 
   const safeName = (constancia.studentName || "Estudiante").replace(/\s+/g, "_");
   const filename = `Constancia_Practica_Vigente_${safeName}.pdf`;

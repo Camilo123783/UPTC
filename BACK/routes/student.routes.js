@@ -747,7 +747,37 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
       (tipo_certificado && tipo_certificado.toLowerCase().includes("reporte")) ||
       (tipo_certificado && tipo_certificado.toLowerCase().includes("constancia"));
 
-    const finalCategoria = isReport ? "reporte" : "certificado";
+    // Validar estado y fecha de la práctica formativa
+    const prCheck = await queryDB("SELECT estado, fecha_fin, docente_cedula FROM practica WHERE id = ? LIMIT 1", [practica_id]);
+    if (prCheck.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Práctica formativa no encontrada.",
+      });
+    }
+
+    const prInfo = prCheck[0];
+
+    // Regla 1: Práctica cancelada no permite emitir certificados ni reportes
+    if (prInfo.estado === "Cancelada") {
+      return res.status(400).json({
+        success: false,
+        message: "La práctica formativa está cancelada. No es posible solicitar ni emitir certificados o constancias.",
+      });
+    }
+
+    // Regla 2: Práctica finalizada solo permite emitir certificados hasta 30 días después
+    if (prInfo.estado === "Finalizada" && prInfo.fecha_fin) {
+      const endDate = new Date(prInfo.fecha_fin);
+      const now = new Date();
+      const diffDays = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays > 30) {
+        return res.status(400).json({
+          success: false,
+          message: `El plazo máximo de 30 días posteriores a la finalización de la práctica ha expirado (${Math.floor(diffDays)} días transcurridos). Ya no se admiten solicitudes de certificación para esta práctica.`,
+        });
+      }
+    }
 
     // Si es un certificado oficial, es OBLIGATORIO que la práctica tenga nota final registrada
     if (!isReport) {
@@ -772,13 +802,7 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
       }
     }
 
-    let finalDocenteCedula = docente_cedula;
-    if (!finalDocenteCedula) {
-      const prRows = await queryDB("SELECT docente_cedula FROM practica WHERE id = ? LIMIT 1", [practica_id]);
-      if (prRows.length > 0) {
-        finalDocenteCedula = prRows[0].docente_cedula;
-      }
-    }
+    let finalDocenteCedula = docente_cedula || prInfo.docente_cedula;
 
     const result = await queryDB(`
       INSERT INTO solicitud_certificado (

@@ -1760,20 +1760,75 @@ const handleRespondRequest = async (req, res, next) => {
       });
     }
 
+    // 1. Obtener detalles completos de la solicitud y de la práctica asociada
+    const reqDetails = await queryDB(`
+      SELECT sc.*, 
+             pr.estado AS practica_estado,
+             pr.fecha_fin AS practica_fecha_fin,
+             pr.fecha_inicio AS practica_fecha_inicio,
+             pr.titulo AS practica_titulo,
+             pr.periodo AS practica_periodo,
+             pr.horas_totales AS practica_horas,
+             i.nombreinstitucion AS institucion_nombre,
+             s.nombreservicio AS servicio_nombre,
+             prog.nombreprograma AS programa_nombre,
+             d.nombre AS d_nombre, d.apellidos AS d_apellidos,
+             e.nombre AS e_nombre, e.apellidos AS e_apellidos, e.codigo AS e_codigo, e.correo_institucional AS e_correo,
+             pe.calificacion AS estudiante_calificacion, pe.horas_cumplidas AS estudiante_horas_cumplidas
+      FROM solicitud_certificado sc
+      LEFT JOIN practica pr ON sc.practica_id = pr.id
+      LEFT JOIN institucion i ON pr.institucion_id = i.id
+      LEFT JOIN servicio s ON pr.servicio_id = s.id
+      LEFT JOIN programa prog ON pr.programa_id = prog.id
+      LEFT JOIN docente d ON pr.docente_cedula = d.cedula
+      LEFT JOIN estudiante e ON sc.estudiante_cedula = e.cedula
+      LEFT JOIN practica_estudiante pe ON sc.practica_id = pe.practica_id AND sc.estudiante_cedula = pe.estudiante_cedula
+      WHERE sc.id = ?
+      LIMIT 1
+    `, [id]);
+
+    if (reqDetails.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Solicitud de certificado no encontrada.",
+      });
+    }
+
+    const sol = reqDetails[0];
+
     // Verificar permisos: si el usuario es docente, debe tener asignada la solicitud o la práctica
     if (req.user?.role === "docent") {
-      const checkReq = await queryDB(`
-        SELECT sc.id 
-        FROM solicitud_certificado sc
-        LEFT JOIN practica pr ON sc.practica_id = pr.id
-        WHERE sc.id = ? AND (sc.docente_cedula = ? OR pr.docente_cedula = ?)
-      `, [id, req.user.cedula, req.user.cedula]);
-
-      if (checkReq.length === 0) {
+      const isAssigned = String(sol.docente_cedula) === String(req.user.cedula) ||
+                         (sol.practica_id && String(sol.docente_cedula) === String(req.user.cedula));
+      if (!isAssigned && sol.docente_cedula && String(sol.docente_cedula) !== String(req.user.cedula)) {
         return res.status(403).json({
           success: false,
           message: "No tienes permisos para responder a esta solicitud de certificado (no está asignada a tu cargo).",
         });
+      }
+    }
+
+    // Reglas de emisión según estado de la práctica al aprobar:
+    if (estado === "Aprobado") {
+      // 1. Si la práctica está cancelada: PROHIBIDO emitir
+      if (sol.practica_estado === "Cancelada") {
+        return res.status(400).json({
+          success: false,
+          message: "No es posible avalar ni emitir certificados para una práctica cancelada.",
+        });
+      }
+
+      // 2. Si la práctica está finalizada: máximo 30 días posteriores
+      if (sol.practica_estado === "Finalizada" && sol.practica_fecha_fin) {
+        const endDate = new Date(sol.practica_fecha_fin);
+        const now = new Date();
+        const diffDays = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays > 30) {
+          return res.status(400).json({
+            success: false,
+            message: `El plazo máximo de 30 días posteriores a la finalización de la práctica ha expirado (${Math.floor(diffDays)} días transcurridos). Por normativa institucional, ya no se pueden emitir certificados para esta práctica.`,
+          });
+        }
       }
     }
 
@@ -1783,10 +1838,73 @@ const handleRespondRequest = async (req, res, next) => {
       WHERE id = ?
     `, [estado, respuesta_docente || null, id]);
 
-    console.log(`✅ Solicitud #${id} actualizada por el docente a estado: ${estado}`);
+    // Si se aprueba, registrar automáticamente en historial_certificado con código hexadecimal único
+    let hexId = null;
+    if (estado === "Aprobado") {
+      const crypto = require("crypto");
+      hexId = crypto.randomBytes(8).toString("hex").toUpperCase();
+      const estNombre = `${sol.e_nombre || ""} ${sol.e_apellidos || ""}`.trim() || `Estudiante ${sol.estudiante_cedula}`;
+      const docNombre = `${sol.d_nombre || ""} ${sol.d_apellidos || ""}`.trim() || "Docente Tutor UPTC";
+
+      await queryDB(`
+        INSERT INTO historial_certificado (
+          id_hex,
+          estudiante_cedula,
+          estudiante_nombre,
+          estudiante_codigo,
+          estudiante_correo,
+          practica_id,
+          practica_titulo,
+          programa_nombre,
+          institucion_nombre,
+          servicio_nombre,
+          docente_nombre,
+          docente_cedula,
+          horas_totales,
+          calificacion,
+          periodo,
+          tipo_certificado,
+          categoria_solicitud,
+          motivo,
+          fecha_inicio,
+          fecha_fin,
+          fecha_emision,
+          fecha_expiracion_estudiante,
+          metadatos_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), ?)
+      `, [
+        hexId,
+        sol.estudiante_cedula,
+        estNombre,
+        sol.e_codigo || null,
+        sol.e_correo || null,
+        sol.practica_id,
+        sol.practica_titulo || "Práctica Formativa",
+        sol.programa_nombre || "Medicina",
+        sol.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
+        sol.servicio_nombre || "Servicio Clínico",
+        docNombre,
+        sol.docente_cedula,
+        sol.estudiante_horas_cumplidas || sol.practica_horas || 120,
+        sol.estudiante_calificacion || null,
+        sol.practica_periodo || "2026-1",
+        sol.tipo_certificado,
+        sol.categoria_solicitud || "certificado",
+        sol.motivo || "Aval Docente Oficial",
+        sol.practica_fecha_inicio,
+        sol.practica_fecha_fin,
+        JSON.stringify({
+          solicitud_id: id,
+          respuesta_docente: respuesta_docente,
+        }),
+      ]);
+    }
+
+    console.log(`✅ Solicitud #${id} actualizada por el docente a estado: ${estado}${hexId ? ` (ID Hex: ${hexId})` : ""}`);
     res.status(200).json({
       success: true,
       message: `Solicitud de certificado ${estado === "Aprobado" ? "aprobada" : "rechazada"} exitosamente.`,
+      id_hex: hexId,
     });
   } catch (err) {
     next(err);

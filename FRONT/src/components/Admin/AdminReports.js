@@ -522,10 +522,69 @@ const AdminReports = () => {
     };
   }, [activeStudentsList, activeDocentsList, activePractices]);
 
+  // ── Verificación normativa de emisión de constancias / certificados ──
+  const getPracticeEmissionStatus = useCallback((pr) => {
+    if (!pr) return { allowed: false, reason: "none", buttonText: "Seleccionar", tooltip: "" };
+    const estado = pr.estado || "";
+    if (estado === "Cancelada") {
+      return {
+        allowed: false,
+        reason: "cancelled",
+        badgeText: "Cancelada",
+        badgeClass: "bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-300 dark:border-rose-800",
+        buttonText: "Emisión Bloqueada (Cancelada)",
+        tooltip: "La práctica formativa está cancelada. Por normativa institucional, no se pueden emitir certificados ni constancias de prácticas canceladas.",
+      };
+    }
+    if (estado === "Finalizada") {
+      if (pr.fecha_fin) {
+        const endDate = new Date(pr.fecha_fin);
+        const diffDays = Math.floor((Date.now() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > 30) {
+          return {
+            allowed: false,
+            reason: "expired",
+            badgeText: `Finalizada (Plazo vencido: ${diffDays}d)`,
+            badgeClass: "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800",
+            buttonText: "Plazo Vencido (>30 días de finalizada)",
+            tooltip: `La práctica finalizó hace ${diffDays} días. El plazo máximo de 30 días posteriores a la finalización para emitir constancias ha expirado.`,
+          };
+        } else {
+          const remaining = 30 - diffDays;
+          return {
+            allowed: true,
+            reason: "finished_valid",
+            badgeText: `Finalizada (${remaining}d restantes)`,
+            badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800",
+            buttonText: "Gestionar y Emitir Constancias",
+            tooltip: `Práctica finalizada dentro del plazo permitido para emitir constancias (quedan ${remaining} días).`,
+          };
+        }
+      }
+    }
+    return {
+      allowed: true,
+      reason: "active",
+      badgeText: pr.estado || "Activa",
+      badgeClass:
+        (pr.estado || "").toLowerCase() === "planificada"
+          ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+          : "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
+      buttonText: "Gestionar y Emitir Constancias",
+      tooltip: "Práctica habilitada para emisión de constancias.",
+    };
+  }, []);
+
   // ── Emisión de Constancia Individual de Práctica Vigente ──
   const handleDownloadSingleConstancia = () => {
     if (!currentPractice || !currentStudent) {
       toast.warn("Por favor, selecciona una práctica activa y un estudiante.");
+      return;
+    }
+
+    const checkStatus = getPracticeEmissionStatus(currentPractice);
+    if (!checkStatus.allowed) {
+      toast.error(checkStatus.tooltip);
       return;
     }
 
@@ -560,6 +619,25 @@ const AdminReports = () => {
         institutionSettings: instSettings,
       });
 
+      // Registrar en el historial de certificados del backend de forma reactiva
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token") || localStorage.getItem("authToken");
+      fetch(`${API_BASE_URL}/api/history/certificates/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          estudiante_cedula: currentStudent.cedula,
+          practica_id: currentPractice.id,
+          tipo_certificado: "Constancia de Práctica Formativa Vigente / En Curso",
+          categoria_solicitud: "constancia",
+          motivo: "Constancia Oficial UPTC",
+          horas_totales: currentPractice.horas_totales || 120,
+          metadatos: { emitido_por: user?.name || "Administración" },
+        }),
+      }).catch(console.error);
+
       if (isDocent) {
         toast.success(
           `Constancia de "${currentStudent.nombre_completo}" generada y descargada para control docente (no notifica al estudiante).`
@@ -577,6 +655,17 @@ const AdminReports = () => {
 
   // ── Emisión en Lote de Constancias de Todos los Estudiantes de la Práctica ──
   const handleDownloadBatchConstancias = () => {
+    if (!currentPractice || !currentPractice.estudiantes || currentPractice.estudiantes.length === 0) {
+      toast.warn("No hay estudiantes registrados en esta práctica para generar constancias.");
+      return;
+    }
+
+    const checkStatus = getPracticeEmissionStatus(currentPractice);
+    if (!checkStatus.allowed) {
+      toast.error(checkStatus.tooltip);
+      return;
+    }
+
     if (isDocent && !docentSignature) {
       toast.warning(
         "Tienes que terminar de subir tus datos primero (foto de la firma en 'Datos Docente') para poder emitir constancias o reportes."
@@ -944,10 +1033,7 @@ const AdminReports = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredCatalogPractices.map((pr) => {
-                    const isPlanificada = (pr.estado || "").toLowerCase() === "planificada";
-                    const isActiva =
-                      (pr.estado || "").toLowerCase() === "activa" ||
-                      (pr.estado || "").toLowerCase() === "en curso";
+                    const emissionStatus = getPracticeEmissionStatus(pr);
                     const totalStudents = (pr.estudiantes || []).length;
                     const evaluatedCount = (pr.estudiantes || []).filter(
                       (s) => s.calificacion !== null && s.calificacion !== undefined
@@ -956,21 +1042,19 @@ const AdminReports = () => {
                     return (
                       <div
                         key={pr.id}
-                        className="p-6 border border-gray-200 dark:border-zinc-800 rounded-3xl bg-white dark:bg-zinc-900 shadow-md hover:shadow-xl transition-all flex flex-col justify-between group"
+                        className={`p-6 border rounded-3xl shadow-md hover:shadow-xl transition-all flex flex-col justify-between group ${
+                          !emissionStatus.allowed && emissionStatus.reason === "cancelled"
+                            ? "bg-rose-50/20 dark:bg-rose-950/10 border-rose-200 dark:border-rose-900/40"
+                            : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
+                        }`}
                       >
                         <div>
                           {/* Estado y Periodo */}
                           <div className="flex items-center justify-between gap-2 mb-3">
                             <span
-                              className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
-                                isPlanificada
-                                  ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                                  : isActiva
-                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                              }`}
+                              className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${emissionStatus.badgeClass}`}
                             >
-                              {pr.estado || "Activa"}
+                              {emissionStatus.badgeText}
                             </span>
                             <span className="text-xs font-bold text-gray-500 dark:text-zinc-400">
                               Periodo {pr.periodo || "2026-1"}
@@ -1043,7 +1127,12 @@ const AdminReports = () => {
 
                           <button
                             type="button"
+                            disabled={!emissionStatus.allowed}
                             onClick={() => {
+                              if (!emissionStatus.allowed) {
+                                toast.warning(emissionStatus.tooltip);
+                                return;
+                              }
                               setSelectedPracticeId(pr.id);
                               if (pr.estudiantes && pr.estudiantes.length > 0) {
                                 setSelectedStudentCedula(pr.estudiantes[0].cedula);
@@ -1051,11 +1140,16 @@ const AdminReports = () => {
                                 setSelectedStudentCedula(null);
                               }
                             }}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-xs sm:text-sm"
+                            className={`w-full py-2.5 px-4 font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-xs sm:text-sm ${
+                              !emissionStatus.allowed
+                                ? "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none border border-gray-200 dark:border-zinc-700"
+                                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white cursor-pointer active:scale-95"
+                            }`}
+                            title={emissionStatus.tooltip}
                           >
                             <ClipboardList className="w-4 h-4" />
-                            <span>Gestionar y Emitir Constancias</span>
-                            <span>→</span>
+                            <span>{emissionStatus.buttonText}</span>
+                            {emissionStatus.allowed && <span>→</span>}
                           </button>
                         </div>
                       </div>

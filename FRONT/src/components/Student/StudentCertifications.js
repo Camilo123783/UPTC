@@ -297,6 +297,19 @@ const StudentCertifications = () => {
 
   // ── Abrir Modal de Solicitud (Certificado Oficial o Reporte) ──
   const handleOpenRequestModal = (practice, category = "certificado") => {
+    if (practice.estado === "Cancelada") {
+      toast.error("La práctica está cancelada. Por normativa institucional, no es posible tramitar certificados ni reportes de prácticas canceladas.");
+      return;
+    }
+
+    if (practice.estado === "Finalizada" && practice.fecha_fin) {
+      const diffDays = Math.floor((Date.now() - new Date(practice.fecha_fin).getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays > 30) {
+        toast.error(`El plazo máximo reglamentario de 30 días posteriores a la finalización de la práctica ha expirado (${diffDays} días transcurridos). Ya no se admiten trámites de certificación para esta práctica.`);
+        return;
+      }
+    }
+
     setSelectedPracticeForRequest(practice);
     setRequestCategory(category);
     setRequestFormData({
@@ -314,6 +327,19 @@ const StudentCertifications = () => {
   const handleSubmitCertificateRequest = async (e) => {
     e.preventDefault();
     if (!selectedPracticeForRequest) return;
+
+    if (selectedPracticeForRequest.estado === "Cancelada") {
+      toast.error("No es posible solicitar certificados para una práctica cancelada.");
+      return;
+    }
+
+    if (selectedPracticeForRequest.estado === "Finalizada" && selectedPracticeForRequest.fecha_fin) {
+      const diffDays = Math.floor((Date.now() - new Date(selectedPracticeForRequest.fecha_fin).getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays > 30) {
+        toast.error("El plazo máximo de 30 días posteriores a la finalización de la práctica ha expirado.");
+        return;
+      }
+    }
 
     // Validación si intenta solicitar certificado sin nota
     const isReport = requestCategory === "reporte";

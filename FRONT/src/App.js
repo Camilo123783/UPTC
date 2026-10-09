@@ -44,6 +44,7 @@ import StudentPractices from "./components/Student/StudentPractices";
 import StudentProfile from "./components/Student/StudentProfile";
 import StudentDocentCommunication from "./components/Student/StudentDocentCommunication";
 import HistoryModule from "./components/History/HistoryModule";
+import CertificateHistoryModule from "./components/History/CertificateHistoryModule";
 
 import {
   loadActiveSession,
@@ -91,6 +92,7 @@ export const PAGE_TO_ROUTE = {
   adminInstitutionSettings: "/admin/settings",
   // Historial
   history: "/history",
+  certificateHistory: "/certificate-history",
 };
 
 export const ROUTE_TO_PAGE = Object.entries(PAGE_TO_ROUTE).reduce((acc, [page, route]) => {
@@ -102,6 +104,7 @@ export const ROUTE_TO_PAGE = Object.entries(PAGE_TO_ROUTE).reduce((acc, [page, r
 export const getPageKeyFromPath = (pathname) => {
   if (ROUTE_TO_PAGE[pathname]) return ROUTE_TO_PAGE[pathname];
 
+  if (pathname.includes("/certificate-history")) return "certificateHistory";
   if (pathname.includes("/history")) return "history";
 
   if (pathname.startsWith("/admin/practices")) return "adminPractices";
@@ -469,6 +472,11 @@ const App = () => {
         <Route path="/admin/history" element={<HistoryModule userRole={userRole} />} />
         <Route path="/docent/history" element={<HistoryModule userRole={userRole} />} />
         <Route path="/student/history" element={<HistoryModule userRole={userRole} />} />
+
+        {/* ─── Módulo Transversal de Historial de Certificados ─── */}
+        <Route path="/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
+        <Route path="/admin/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
+        <Route path="/student/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
 
         {/* Raíz redirige al dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -433,6 +433,18 @@ export const generateProfessionalCertificate = (cert = {}) => {
   doc.setTextColor(71, 85, 105);
   doc.text(signerRole, pageWidth / 2, sigY + 11, { align: "center" });
 
+  // ── 11. Identificador Hexadecimal Único Oficial (Gris Sutil, abajo a la derecha) ──
+  const hexIdentifier = (
+    cert.id_hex ||
+    cert.idHex ||
+    cert.hexId ||
+    (Math.random().toString(16).substring(2, 10) + Math.random().toString(16).substring(2, 10))
+  ).toUpperCase();
+  doc.setFont("courier", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(156, 163, 175); // Gris sutil (zinc/slate-400)
+  doc.text(`ID Verificación: #${hexIdentifier}`, pageWidth - 16, pageHeight - 9, { align: "right" });
+
   // ── 12. Descargar archivo PDF ──
   const safeName = studentName.replace(/\s+/g, "_");
   const filename = `Certificado_Oficial_UPTC_${safeName}.pdf`;

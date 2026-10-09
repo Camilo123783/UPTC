@@ -359,6 +359,19 @@ const DocentCertificateRequests = () => {
   // Abrir modal de acción (Verifica firma oficial para emisión automática)
   const handleOpenActionModal = (req, action) => {
     if (action === "approve") {
+      if (req.practica_estado === "Cancelada") {
+        toast.error("Esta práctica formativa está cancelada. Por normativa institucional, no es posible avalar certificados de prácticas canceladas.");
+        return;
+      }
+
+      if (req.practica_estado === "Finalizada" && req.practica_fecha_fin) {
+        const diffDays = Math.floor((Date.now() - new Date(req.practica_fecha_fin).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > 30) {
+          toast.error(`El plazo máximo reglamentario de 30 días posteriores a la finalización de la práctica ha expirado (${diffDays} días transcurridos). Ya no es posible avalar certificados para esta práctica.`);
+          return;
+        }
+      }
+
       const hasSignature = Boolean(
         docentProfile?.foto_firma ||
         docentProfile?.has_signature ||
