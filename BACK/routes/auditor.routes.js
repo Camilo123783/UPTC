@@ -165,6 +165,7 @@ router.get("/practices", async (req, res, next) => {
         pr.cupos,
         pr.estado,
         pr.descripcion,
+        pr.horario,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,

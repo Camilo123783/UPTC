@@ -282,7 +282,9 @@ const AdminReports = () => {
 
         if (resPractices.ok) {
           let practicesData = await resPractices.json();
-          practicesData = Array.isArray(practicesData) ? practicesData : [];
+          practicesData = (Array.isArray(practicesData) ? practicesData : []).filter(
+            (p) => (p.estado || "").toLowerCase() !== "cancelada"
+          );
           if (docCedula) {
             practicesData = practicesData.filter((p) => String(p.docente_cedula) === String(docCedula));
           }
@@ -301,7 +303,10 @@ const AdminReports = () => {
 
         if (resPractices.ok) {
           let practicesData = await resPractices.json();
-          setPractices(Array.isArray(practicesData) ? practicesData : []);
+          practicesData = (Array.isArray(practicesData) ? practicesData : []).filter(
+            (p) => (p.estado || "").toLowerCase() !== "cancelada"
+          );
+          setPractices(practicesData);
         } else {
           toast.error("Error al cargar el catálogo de prácticas.");
         }
@@ -374,6 +379,7 @@ const AdminReports = () => {
   const filteredCatalogPractices = useMemo(() => {
     return practices.filter((pr) => {
       const st = (pr.estado || "").toLowerCase();
+      if (st === "cancelada") return false;
       if (catalogFilterStatus === "activas" && st !== "activa" && st !== "en curso") return false;
       if (catalogFilterStatus === "planificadas" && st !== "planificada") return false;
       if (catalogFilterStatus === "finalizadas" && st !== "finalizada" && st !== "concluida") return false;
@@ -525,8 +531,8 @@ const AdminReports = () => {
   // ── Verificación normativa de emisión de constancias / certificados ──
   const getPracticeEmissionStatus = useCallback((pr) => {
     if (!pr) return { allowed: false, reason: "none", buttonText: "Seleccionar", tooltip: "" };
-    const estado = pr.estado || "";
-    if (estado === "Cancelada") {
+    const estado = (pr.estado || "").trim().toLowerCase();
+    if (estado === "cancelada") {
       return {
         allowed: false,
         reason: "cancelled",
@@ -536,7 +542,7 @@ const AdminReports = () => {
         tooltip: "La práctica formativa está cancelada. Por normativa institucional, no se pueden emitir certificados ni constancias de prácticas canceladas.",
       };
     }
-    if (estado === "Finalizada") {
+    if (estado === "finalizada" || estado === "concluida") {
       if (pr.fecha_fin) {
         const endDate = new Date(pr.fecha_fin);
         const diffDays = Math.floor((Date.now() - endDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -545,7 +551,7 @@ const AdminReports = () => {
             allowed: false,
             reason: "expired",
             badgeText: `Finalizada (Plazo vencido: ${diffDays}d)`,
-            badgeClass: "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800",
+            badgeClass: "bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-800",
             buttonText: "Plazo Vencido (>30 días de finalizada)",
             tooltip: `La práctica finalizó hace ${diffDays} días. El plazo máximo de 30 días posteriores a la finalización para emitir constancias ha expirado.`,
           };
@@ -555,23 +561,38 @@ const AdminReports = () => {
             allowed: true,
             reason: "finished_valid",
             badgeText: `Finalizada (${remaining}d restantes)`,
-            badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800",
+            badgeClass: "bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-800",
             buttonText: "Gestionar y Emitir Constancias",
             tooltip: `Práctica finalizada dentro del plazo permitido para emitir constancias (quedan ${remaining} días).`,
           };
         }
       }
+      return {
+        allowed: true,
+        reason: "finished_valid",
+        badgeText: "Finalizada",
+        badgeClass: "bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-300 dark:border-purple-800",
+        buttonText: "Gestionar y Emitir Constancias",
+        tooltip: "Práctica finalizada, habilitada para emisión de constancias.",
+      };
+    }
+    if (estado === "planificada") {
+      return {
+        allowed: true,
+        reason: "active",
+        badgeText: "Planificada",
+        badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
+        buttonText: "Gestionar y Emitir Constancias",
+        tooltip: "Práctica en estado planificada.",
+      };
     }
     return {
       allowed: true,
       reason: "active",
       badgeText: pr.estado || "Activa",
-      badgeClass:
-        (pr.estado || "").toLowerCase() === "planificada"
-          ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-          : "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
+      badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800",
       buttonText: "Gestionar y Emitir Constancias",
-      tooltip: "Práctica habilitada para emisión de constancias.",
+      tooltip: "Práctica activa habilitada para emisión de constancias.",
     };
   }, []);
 

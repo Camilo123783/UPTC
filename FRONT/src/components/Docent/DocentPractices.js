@@ -241,6 +241,7 @@ const DocentPractices = () => {
     cupos: 10,
     estado: "Planificada",
     motivo_cancelacion: "",
+    horario: "",
     auditor_cedula: "",
     estudiantes: [],
   };
@@ -507,6 +508,7 @@ const DocentPractices = () => {
       cupos: practice.cupos || 10,
       estado: computedEstado,
       motivo_cancelacion: practice.motivo_cancelacion || "",
+      horario: practice.horario || "",
       auditor_cedula: practice.auditor_cedula ? String(practice.auditor_cedula) : "",
       estudiantes: (practice.estudiantes || []).map((e) => String(e.cedula || e.Cédula || e)),
     });
@@ -1107,6 +1109,18 @@ const DocentPractices = () => {
                     </div>
                   </div>
 
+                  {selectedPractice.horario && (
+                    <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 rounded-xl text-xs text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-900/60">
+                      <div className="flex items-center gap-1.5 mb-1 text-blue-700 dark:text-blue-300 font-bold uppercase tracking-wide">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Horario de la Práctica (Días y Horas):</span>
+                      </div>
+                      <p className="font-semibold text-gray-800 dark:text-zinc-200 whitespace-pre-line text-xs">
+                        {selectedPractice.horario}
+                      </p>
+                    </div>
+                  )}
+
                   {selectedPractice.descripcion && (
                     <div className="p-3 bg-gray-50 dark:bg-slate-800/40 rounded-xl text-xs text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-slate-800">
                       <strong className="block text-gray-800 dark:text-gray-200 mb-0.5">Indicaciones:</strong>
@@ -1456,6 +1470,67 @@ const DocentPractices = () => {
                       onChange={handlePracticeInputChange}
                       className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
                     />
+                  </div>
+
+                  {/* Horario de la Práctica */}
+                  <div className="md:col-span-2 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5 uppercase tracking-wide">
+                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        Horario de la Práctica (Días y Horas)
+                      </label>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Visible para el docente, estudiantes vinculados y administración
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                        Seleccionar días frecuentes:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((dia) => {
+                          const isIncluded = (practiceFormData.horario || "").includes(dia);
+                          return (
+                            <button
+                              key={dia}
+                              type="button"
+                              onClick={() => {
+                                const current = practiceFormData.horario || "";
+                                let next;
+                                if (current.includes(dia)) {
+                                  next = current.replace(new RegExp(`${dia}(,?\\s*)?`, "gi"), "").trim().replace(/,\s*$/, "");
+                                } else {
+                                  next = current ? `${current}, ${dia}` : dia;
+                                }
+                                setPracticeFormData((prev) => ({ ...prev, horario: next }));
+                              }}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition border ${
+                                isIncluded
+                                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                  : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-blue-400"
+                              }`}
+                            >
+                              {dia}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        name="horario"
+                        placeholder="Ej: Lunes, Martes y Jueves de 07:00 a 13:00 (Rotación Clínica)"
+                        value={practiceFormData.horario || ""}
+                        onChange={handlePracticeInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-medium"
+                      />
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                        Especifica los días y horas exactos en que se llevará a cabo la práctica.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

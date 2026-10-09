@@ -238,6 +238,8 @@ const AdminCertificateDesigner = () => {
       if (res.ok) {
         let data = await res.json();
         data = Array.isArray(data) ? data : [];
+        // Por normativa institucional, las prácticas canceladas no se muestran en el módulo de emisión de certificados
+        data = data.filter((p) => (p.estado || "").toLowerCase() !== "cancelada");
         if (docFlag && docCedula) {
           data = data.filter((p) => String(p.docente_cedula) === String(docCedula));
         }
@@ -249,6 +251,7 @@ const AdminCertificateDesigner = () => {
           if (altRes.ok) {
             let data = await altRes.json();
             data = Array.isArray(data) ? data : [];
+            data = data.filter((p) => (p.estado || "").toLowerCase() !== "cancelada");
             if (docCedula) {
               data = data.filter((p) => String(p.docente_cedula) === String(docCedula));
             }
@@ -291,6 +294,8 @@ const AdminCertificateDesigner = () => {
   const filteredPractices = useMemo(() => {
     return practices.filter((pr) => {
       const status = (pr.estado || "").toLowerCase();
+      // Las prácticas canceladas no se muestran en emisión de certificados
+      if (status === "cancelada") return false;
       if (statusFilter === "activas") {
         if (status !== "activa" && status !== "en curso") return false;
       } else if (statusFilter === "finalizadas") {
@@ -698,10 +703,15 @@ const AdminCertificateDesigner = () => {
                       {/* Estado y Periodo */}
                       <div className="flex items-center justify-between gap-2 mb-3">
                         <span
-                          className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${isFinished
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                            }`}
+                          className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                            (pr.estado || "").toLowerCase() === "activa" || (pr.estado || "").toLowerCase() === "en curso"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                              : (pr.estado || "").toLowerCase() === "planificada"
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800"
+                              : (pr.estado || "").toLowerCase() === "finalizada" || (pr.estado || "").toLowerCase() === "concluida"
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-300 dark:border-purple-800"
+                              : "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-300 dark:border-rose-800"
+                          }`}
                         >
                           {pr.estado || "Activa"}
                         </span>
@@ -811,7 +821,17 @@ const AdminCertificateDesigner = () => {
                     <h2 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white">
                       {selectedPractice.servicio_nombre || selectedPractice.titulo}
                     </h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                        (selectedPractice.estado || "").toLowerCase() === "activa" || (selectedPractice.estado || "").toLowerCase() === "en curso"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                          : (selectedPractice.estado || "").toLowerCase() === "planificada"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border-blue-300 dark:border-blue-800"
+                          : (selectedPractice.estado || "").toLowerCase() === "finalizada" || (selectedPractice.estado || "").toLowerCase() === "concluida"
+                          ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border-purple-300 dark:border-purple-800"
+                          : "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800"
+                      }`}
+                    >
                       {selectedPractice.estado || "Activa"}
                     </span>
                   </div>
@@ -826,6 +846,14 @@ const AdminCertificateDesigner = () => {
                     <span>{selectedPractice.horas_totales || 180} Horas</span>
                     <span>·</span>
                     <span>Periodo {selectedPractice.periodo || "2026-1"}</span>
+                    {selectedPractice.horario && (
+                      <>
+                        <span>·</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                          Horario: {selectedPractice.horario}
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

@@ -144,6 +144,7 @@ const AdminPractices = () => {
     estado: "Planificada",
     motivo_cancelacion: "",
     descripcion: "",
+    horario: "",
     estudiantes: [], // Array de cédulas seleccionadas
   };
 
@@ -470,6 +471,7 @@ const AdminPractices = () => {
       estado: computedEstado,
       motivo_cancelacion: practice.motivo_cancelacion || "",
       descripcion: practice.descripcion || "",
+      horario: practice.horario || "",
       creado_por_rol: practice.creado_por_rol || "admin",
       creado_por_cedula: practice.creado_por_cedula || null,
       creador_nombre: practice.creador_nombre || "",
@@ -831,8 +833,15 @@ const AdminPractices = () => {
                 </div>
 
                 {p.descripcion && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
                     {p.descripcion}
+                  </p>
+                )}
+
+                {p.horario && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1 mb-4">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{p.horario}</span>
                   </p>
                 )}
 
@@ -1178,6 +1187,67 @@ const AdminPractices = () => {
                       onChange={handleInputChange}
                       className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
                     />
+                  </div>
+
+                  {/* Horario de la Práctica */}
+                  <div className="md:col-span-2 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5 uppercase tracking-wide">
+                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        Horario de la Práctica (Días de la semana y horas)
+                      </label>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Visible para el administrador y los participantes vinculados
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                        Seleccionar días frecuentes:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((dia) => {
+                          const isIncluded = (formData.horario || "").includes(dia);
+                          return (
+                            <button
+                              key={dia}
+                              type="button"
+                              onClick={() => {
+                                const current = formData.horario || "";
+                                let next;
+                                if (current.includes(dia)) {
+                                  next = current.replace(new RegExp(`${dia}(,?\\s*)?`, "gi"), "").trim().replace(/,\s*$/, "");
+                                } else {
+                                  next = current ? `${current}, ${dia}` : dia;
+                                }
+                                setFormData((prev) => ({ ...prev, horario: next }));
+                              }}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition border ${
+                                isIncluded
+                                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                  : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-blue-400"
+                              }`}
+                            >
+                              {dia}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        name="horario"
+                        placeholder="Ej: Lunes, Martes y Miércoles de 07:00 a 13:00 (Turno Mañana)"
+                        value={formData.horario || ""}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm font-medium"
+                      />
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                        Especifica qué días y en qué horas se llevará a cabo la práctica. Todos los implicados podrán consultarlo en el detalle de la práctica.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1538,6 +1608,20 @@ const AdminPractices = () => {
                     Descripción
                   </strong>
                   <p>{viewingPractice.descripcion}</p>
+                </div>
+              )}
+
+              {viewingPractice.horario && (
+                <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-900/60">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <strong className="text-xs text-blue-800 dark:text-blue-300 uppercase font-black tracking-wide">
+                      Horario Oficial de la Práctica (Días y Horas)
+                    </strong>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 whitespace-pre-line leading-relaxed">
+                    {viewingPractice.horario}
+                  </p>
                 </div>
               )}
 

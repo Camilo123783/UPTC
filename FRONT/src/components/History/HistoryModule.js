@@ -50,6 +50,18 @@ const formatDateReadable = (dateStr) => {
 const HistoryModule = ({ userRole }) => {
   const { isDark } = useTheme();
 
+  if (userRole === "superadmin") {
+    return (
+      <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
+        <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acceso No Autorizado</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+          El rol Superadministrador no tiene acceso al módulo de historial.
+        </p>
+      </div>
+    );
+  }
+
   const [historyList, setHistoryList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -718,6 +730,20 @@ const HistoryModule = ({ userRole }) => {
                   </span>
                 </div>
               </div>
+
+              {selectedPractice.horario && (
+                <div className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${
+                  isDark ? "bg-blue-950/20 border-blue-900/40" : "bg-blue-50/70 border-blue-200/80"
+                }`}>
+                  <strong className="block font-bold text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    Horario de la Práctica (Días y Horas):
+                  </strong>
+                  <p className="text-gray-800 dark:text-zinc-200 font-semibold whitespace-pre-line">
+                    {selectedPractice.horario}
+                  </p>
+                </div>
+              )}
 
               {selectedPractice.descripcion && (
                 <div className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${

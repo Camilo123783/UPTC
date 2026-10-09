@@ -214,6 +214,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
         pr.estado,
         pr.motivo_cancelacion,
         pr.descripcion,
+        pr.horario,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,
@@ -819,6 +820,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       cupos,
       estado,
       descripcion,
+      horario,
       estudiantes,
     } = req.body;
 
@@ -943,7 +945,8 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
         cupos = COALESCE(?, cupos),
         estado = COALESCE(?, estado),
         motivo_cancelacion = ?,
-        descripcion = ?
+        descripcion = ?,
+        horario = ?
       WHERE id = ?
     `, [
       titulo || null,
@@ -960,6 +963,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       finalEstado || null,
       finalMotivo || null,
       descripcion || null,
+      horario !== undefined ? (horario || null) : null,
       id,
     ]);
 
@@ -1022,6 +1026,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       cupos,
       estado,
       descripcion,
+      horario,
       estudiantes,
     } = req.body;
 
@@ -1141,10 +1146,11 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
         cupos,
         estado,
         descripcion,
+        horario,
         creado_por_rol,
         creado_por_cedula,
         creador_nombre
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'docent', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'docent', ?, ?)
     `, [
       titulo.trim(),
       effectiveProgramaId || null,
@@ -1160,6 +1166,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       cupos ? parseInt(cupos, 10) : 10,
       finalEstado,
       descripcion || null,
+      horario || null,
       docentCedula,
       docentName,
     ]);

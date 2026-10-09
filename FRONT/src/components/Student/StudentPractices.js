@@ -50,10 +50,10 @@ const ESTADO_CONFIG = {
     label: "En Curso",
   },
   Planificada: {
-    bg: "bg-amber-100 dark:bg-amber-950/60",
-    text: "text-amber-800 dark:text-amber-300",
-    border: "border-amber-300 dark:border-amber-800",
-    dot: "bg-amber-500",
+    bg: "bg-blue-100 dark:bg-blue-950/60",
+    text: "text-blue-800 dark:text-blue-300",
+    border: "border-blue-300 dark:border-blue-800",
+    dot: "bg-blue-500",
     label: "Planificada",
   },
   Finalizada: {
@@ -791,6 +791,20 @@ const StudentPractices = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Horario de la Práctica Formativa */}
+              {selectedPractice.horario && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    Horario de la Práctica (Días y Horas)
+                  </h4>
+                  <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900/60 text-sm font-semibold text-blue-950 dark:text-blue-100 whitespace-pre-line leading-relaxed flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <div>{selectedPractice.horario}</div>
+                  </div>
+                </div>
+              )}
 
               {/* Sección 5: Descripción u Observaciones Generales */}
               {selectedPractice.descripcion && (

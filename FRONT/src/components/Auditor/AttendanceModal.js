@@ -152,6 +152,16 @@ const AttendanceModal = ({
             </div>
           </div>
 
+          {practice.horario && (
+            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-200/80 dark:border-blue-900/50 flex items-center gap-2 text-xs">
+              <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <div>
+                <span className="font-bold text-blue-800 dark:text-blue-300 block">Horario de la rotación:</span>
+                <span className="text-gray-700 dark:text-zinc-300 font-medium">{practice.horario}</span>
+              </div>
+            </div>
+          )}
+
           {feedbackMsg && (
             <div
               className={`p-3 rounded-2xl text-xs font-semibold flex items-center gap-2 ${

@@ -19,9 +19,12 @@ const { syncAllFinishedAndCancelledPractices, archivePractice } = require("../se
 router.get("/", verifyToken, async (req, res, next) => {
   try {
     const { role, cedula } = req.user;
+    if (role === "superadmin") {
+      return res.status(403).json({ success: false, message: "El rol Superadministrador no tiene acceso al módulo de historial." });
+    }
     let rows = [];
 
-    if (role === "admin" || role === "superadmin") {
+    if (role === "admin") {
       rows = await queryDB(`
         SELECT 
           hp.id,
@@ -35,6 +38,7 @@ router.get("/", verifyToken, async (req, res, next) => {
           hp.estado,
           hp.motivo_cancelacion,
           hp.descripcion,
+          hp.horario,
           hp.programa_id,
           hp.programa_nombre,
           hp.asignatura_id,
@@ -73,6 +77,7 @@ router.get("/", verifyToken, async (req, res, next) => {
           hp.estado,
           hp.motivo_cancelacion,
           hp.descripcion,
+          hp.horario,
           hp.programa_id,
           hp.programa_nombre,
           hp.asignatura_id,
@@ -112,6 +117,7 @@ router.get("/", verifyToken, async (req, res, next) => {
           hp.estado,
           hp.motivo_cancelacion,
           hp.descripcion,
+          hp.horario,
           hp.programa_id,
           hp.programa_nombre,
           hp.asignatura_id,
@@ -339,6 +345,9 @@ const generateHexId = () => {
 router.get("/certificates/list", verifyToken, async (req, res, next) => {
   try {
     const { role, cedula } = req.user;
+    if (role === "superadmin") {
+      return res.status(403).json({ success: false, message: "El rol Superadministrador no tiene acceso al historial de certificados." });
+    }
     const { q, programa, periodo, tipo, status } = req.query;
 
     let sql = "";
@@ -357,7 +366,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
       params = [cedula];
-    } else if (role === "admin" || role === "superadmin") {
+    } else if (role === "admin") {
       // Administrador: Se guardan para siempre con buscador y filtros avanzados
       let whereClauses = ["1=1"];
 

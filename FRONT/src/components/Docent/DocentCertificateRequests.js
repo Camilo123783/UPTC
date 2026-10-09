@@ -163,7 +163,11 @@ const DocentCertificateRequests = () => {
 
       if (resPracs.status === "fulfilled" && resPracs.value.ok) {
         const pData = await resPracs.value.json();
-        setPractices(Array.isArray(pData) ? pData : []);
+        setPractices(
+          (Array.isArray(pData) ? pData : []).filter(
+            (p) => (p.estado || "").toLowerCase() !== "cancelada"
+          )
+        );
       } else {
         setPractices([]);
       }
@@ -233,8 +237,9 @@ const DocentCertificateRequests = () => {
         return false;
       }
 
-      // 2. Omitir rechazadas siempre
+      // 2. Omitir rechazadas o canceladas siempre
       if (r.estado === "Rechazado") return false;
+      if (r.practica_estado && r.practica_estado.toLowerCase() === "cancelada") return false;
 
       // 3. Filtro por estado
       if (statusFilter !== "all" && r.estado !== statusFilter) return false;
@@ -633,7 +638,15 @@ const DocentCertificateRequests = () => {
                     <div>
                       {/* Estado y Periodo */}
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                          (pr.estado || "").toLowerCase() === "activa"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                            : (pr.estado || "").toLowerCase() === "planificada"
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border-blue-300 dark:border-blue-800"
+                            : (pr.estado || "").toLowerCase() === "finalizada"
+                            ? "bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border-purple-300 dark:border-purple-800"
+                            : "bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800"
+                        }`}>
                           #{pr.id} · {pr.estado || "Activa"}
                         </span>
                         <span className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400">

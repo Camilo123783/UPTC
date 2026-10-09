@@ -1051,7 +1051,7 @@ const DashboardLayout = ({
       { name: "Evaluaciones", page: "studentEvaluations" },
       { name: "Certificaciones", page: "studentCertifications" },
       { name: "Comunicación con el Docente", page: "studentDocentCommunication", section: "Comunicación" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial" },
       { name: "Historial de Certificados", page: "certificateHistory" },
     ],
     docent: [
@@ -1064,14 +1064,14 @@ const DashboardLayout = ({
       { name: "Reportes y Constancias", page: "docentReports" },
       { name: "Comunicación con el Auditor", page: "docentCommunication", section: "Comunicación" },
       { name: "Comunicación con el Estudiante", page: "docentStudentCommunication" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial" },
     ],
     auditor: [
       { name: "Dashboard", page: "dashboard" },
       { name: "Cumplimiento de Horas", page: "auditorHoursCompliance", section: "Gestión" },
       { name: "Visualizar Usuarios", page: "auditorUserViewer", section: "Usuarios" },
       { name: "Comunicación con el Docente", page: "auditorCommunication", section: "Comunicación" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial" },
     ],
     admin: [
       { name: "Dashboard", page: "dashboard" },
@@ -1079,7 +1079,7 @@ const DashboardLayout = ({
       { name: "Crear Prácticas", page: "adminPractices" },
       { name: "Diseñar Certificados", page: "adminCertificateDesigner" },
       { name: "Reportes Generales", page: "adminReports" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial" },
       { name: "Historial de Certificados", page: "certificateHistory" },
     ],
     superadmin: [
@@ -1090,8 +1090,6 @@ const DashboardLayout = ({
         section: "Configuración Institucional",
       },
       { name: "Administrar Usuarios", page: "adminUsers", section: "Sistema" },
-      { name: "Historial", page: "history", section: "Historial" },
-      { name: "Historial de Certificados", page: "certificateHistory" },
     ],
   };
 

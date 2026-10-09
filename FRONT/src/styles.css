@@ -409,3 +409,41 @@ select option {
   -webkit-backdrop-filter: blur(16px) !important;
   backdrop-filter: blur(16px) !important;
 }
+
+/* ───────────────────────────────────────────────────────────
+   NOTIFICACIONES SILEO — INTEGRACIÓN MODO OSCURO Y MODO CLARO
+   Ubicación inferior derecha y perfecta adaptación cromática
+   ─────────────────────────────────────────────────────────── */
+[data-sileo-viewport] {
+  z-index: 999999 !important;
+}
+
+/* Modo Oscuro para Sileo */
+.dark [data-sileo-toast] {
+  color: #f4f4f5 !important;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.85)) !important;
+}
+.dark [data-sileo-toast] [data-sileo-pill],
+.dark [data-sileo-toast] [data-sileo-body] {
+  fill: #18181b !important;
+  stroke: #27272a !important;
+  stroke-width: 1px !important;
+}
+.dark [data-sileo-description] {
+  color: #a1a1aa !important;
+}
+
+/* Modo Claro para Sileo */
+:not(.dark) [data-sileo-toast] {
+  color: #18181b !important;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.14)) !important;
+}
+:not(.dark) [data-sileo-toast] [data-sileo-pill],
+:not(.dark) [data-sileo-toast] [data-sileo-body] {
+  fill: #ffffff !important;
+  stroke: #e4e4e7 !important;
+  stroke-width: 1px !important;
+}
+:not(.dark) [data-sileo-description] {
+  color: #52525b !important;
+}

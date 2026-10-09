@@ -513,6 +513,7 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
         pr.cupos,
         pr.estado,
         pr.descripcion,
+        pr.horario,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,

@@ -1548,6 +1548,7 @@ router.get("/practices", async (req, res, next) => {
         pr.estado,
         pr.motivo_cancelacion,
         pr.descripcion,
+        pr.horario,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,
@@ -1702,6 +1703,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       cupos,
       estado,
       descripcion,
+      horario,
       estudiantes,
     } = req.body;
 
@@ -1797,10 +1799,11 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
         cupos,
         estado,
         descripcion,
+        horario,
         creado_por_rol,
         creado_por_cedula,
         creador_nombre
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin', ?, ?)
     `, [
       titulo.trim(),
       programa_id || null,
@@ -1816,6 +1819,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       cupos ? parseInt(cupos, 10) : 10,
       finalEstado,
       descripcion || null,
+      horario || null,
       req.user?.cedula || null,
       req.user?.name || req.user?.nombre ? `${req.user.name || req.user.nombre} (Admin)` : 'Administrador UPTC'
     ]);
@@ -1864,6 +1868,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       cupos,
       estado,
       descripcion,
+      horario,
       estudiantes,
     } = req.body;
 
@@ -1976,7 +1981,8 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
         cupos = COALESCE(?, cupos),
         estado = COALESCE(?, estado),
         motivo_cancelacion = ?,
-        descripcion = ?
+        descripcion = ?,
+        horario = ?
       WHERE id = ?
     `, [
       titulo || null,
@@ -1994,6 +2000,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       finalEstado || null,
       finalMotivo || null,
       descripcion || null,
+      horario !== undefined ? (horario || null) : null,
       id,
     ]);
 

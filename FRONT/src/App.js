@@ -7,7 +7,7 @@ import {
   useLocation,
   Outlet,
 } from "react-router-dom";
-import { ThemeProvider } from "./context/ThemeContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
 
@@ -467,16 +467,20 @@ const App = () => {
           </>
         )}
 
-        {/* ─── Módulo Transversal de Historial ─── */}
-        <Route path="/history" element={<HistoryModule userRole={userRole} />} />
-        <Route path="/admin/history" element={<HistoryModule userRole={userRole} />} />
-        <Route path="/docent/history" element={<HistoryModule userRole={userRole} />} />
-        <Route path="/student/history" element={<HistoryModule userRole={userRole} />} />
+        {/* ─── Módulo Transversal de Historial (No visible para Superadmin) ─── */}
+        {userRole !== "superadmin" && (
+          <>
+            <Route path="/history" element={<HistoryModule userRole={userRole} />} />
+            <Route path="/admin/history" element={<HistoryModule userRole={userRole} />} />
+            <Route path="/docent/history" element={<HistoryModule userRole={userRole} />} />
+            <Route path="/student/history" element={<HistoryModule userRole={userRole} />} />
 
-        {/* ─── Módulo Transversal de Historial de Certificados ─── */}
-        <Route path="/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
-        <Route path="/admin/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
-        <Route path="/student/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
+            {/* ─── Módulo Transversal de Historial de Certificados ─── */}
+            <Route path="/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
+            <Route path="/admin/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
+            <Route path="/student/certificate-history" element={<CertificateHistoryModule userRole={userRole} />} />
+          </>
+        )}
 
         {/* Raíz redirige al dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -494,10 +498,25 @@ const App = () => {
   );
 };
 
+const ThemedToaster = () => {
+  const { isDark } = useTheme();
+  return (
+    <Toaster
+      position="bottom-right"
+      theme={isDark ? "dark" : "light"}
+      options={{
+        fill: isDark ? "#18181b" : "#ffffff",
+        position: "bottom-right",
+        duration: 4000,
+      }}
+    />
+  );
+};
+
 const AppWithTheme = () => (
   <ThemeProvider>
     <App />
-    <Toaster position="top-right" options={{ duration: 4000 }} />
+    <ThemedToaster />
   </ThemeProvider>
 );
 

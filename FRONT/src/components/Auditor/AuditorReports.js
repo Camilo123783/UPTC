@@ -86,10 +86,11 @@ const AuditorReports = () => {
     }));
   };
 
-  // Filtrado de Prácticas y Estudiantes
+  // Filtrado de Prácticas y Estudiantes (excluyendo canceladas)
   const filteredPractices = useMemo(() => {
     return practices
       .filter((pr) => {
+        if ((pr.estado || "").toLowerCase() === "cancelada") return false;
         if (selectedPracticeFilter !== "all" && String(pr.id) !== String(selectedPracticeFilter)) {
           return false;
         }
@@ -384,7 +385,15 @@ const AuditorReports = () => {
                   <div className="p-5 sm:p-6 bg-gray-50/80 dark:bg-zinc-800/60 border-b border-gray-200 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                          (pr.estado || "").toLowerCase() === "activa"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                            : (pr.estado || "").toLowerCase() === "planificada"
+                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
+                            : (pr.estado || "").toLowerCase() === "finalizada"
+                            ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30"
+                            : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                        }`}>
                           {pr.estado || "Activa"}
                         </span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
@@ -414,6 +423,12 @@ const AuditorReports = () => {
                             <span className="text-gray-400">({pr.docente_correo})</span>
                           )}
                         </span>
+                        {pr.horario && (
+                          <span className="flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Horario: {pr.horario}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
 
