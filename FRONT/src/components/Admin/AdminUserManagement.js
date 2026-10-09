@@ -27,6 +27,7 @@ import {
   EditServicioModal,
   DeleteConfirmModal,
   BlockedDeleteModal,
+  UserStatusConfirmModal,
   UserCreationSection,
   DEFAULT_ROLES,
   SUPERADMIN_ROLES,
@@ -659,8 +660,10 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
   };
 
   const [togglingCedula, setTogglingCedula] = useState(null);
+  const [statusConfirmTarget, setStatusConfirmTarget] = useState(null);
 
-  const handleToggleStatusUser = async (targetUser) => {
+  const handleToggleStatusUser = (targetUser) => {
+    if (!targetUser) return;
     const cedula = targetUser?.Cédula || targetUser?.cedula;
     const currentActive =
       targetUser?.Activo !== undefined && targetUser?.Activo !== null
@@ -669,20 +672,28 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
         ? !!targetUser.activo
         : true;
     const newStatus = !currentActive;
-    const actionLabel = newStatus ? "activar" : "desactivar";
 
     const userName =
       `${targetUser?.Nombre || ""} ${targetUser?.Apellidos || ""}`.trim() ||
       `Cédula ${cedula}`;
 
-    const confirmed = window.confirm(
-      `¿Estás seguro de que deseas ${actionLabel} a "${userName}"?${
-        !newStatus
-          ? "\n\nAl desactivarlo, no podrá iniciar sesión en la plataforma aunque ingrese su contraseña correcta."
-          : ""
-      }`
-    );
-    if (!confirmed) return;
+    setStatusConfirmTarget({
+      user: targetUser,
+      cedula,
+      userName,
+      newStatus,
+      role: targetUser?.Rol || targetUser?.rol,
+      email:
+        targetUser?.Correo_Institucional ||
+        targetUser?.correo_institucional ||
+        "",
+    });
+  };
+
+  const handleConfirmToggleStatus = async () => {
+    if (!statusConfirmTarget) return;
+    const { cedula, newStatus, role } = statusConfirmTarget;
+    const actionLabel = newStatus ? "activar" : "desactivar";
 
     setTogglingCedula(cedula);
     try {
@@ -697,7 +708,7 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
           },
           body: JSON.stringify({
             activo: newStatus,
-            rol: targetUser?.Rol || targetUser?.rol,
+            rol: role,
           }),
         }
       );
@@ -721,6 +732,7 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
           })
         );
         notifyDataChanged("users", "status-change", { cedula, activo: newStatus });
+        setStatusConfirmTarget(null);
       } else {
         toast.error(data.message || `Error al ${actionLabel} usuario.`);
       }
@@ -1237,6 +1249,14 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
       <BlockedDeleteModal
         blockedDeleteInfo={blockedDeleteInfo}
         onClose={() => setBlockedDeleteInfo(null)}
+      />
+
+      {/* --- MODAL DE CONFIRMACIÓN DE ACTIVACIÓN / DESACTIVACIÓN --- */}
+      <UserStatusConfirmModal
+        target={statusConfirmTarget}
+        isToggling={!!togglingCedula}
+        onClose={() => setStatusConfirmTarget(null)}
+        onConfirm={handleConfirmToggleStatus}
       />
 
       {/* --- MODAL PARA CARGA MASIVA CSV / EXCEL --- */}

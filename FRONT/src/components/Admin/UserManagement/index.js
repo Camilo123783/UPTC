@@ -13,6 +13,7 @@ export {
   EditServicioModal,
 } from "./CatalogEditModals";
 export { DeleteConfirmModal, BlockedDeleteModal } from "./DeleteConfirmModals";
+export { UserStatusConfirmModal } from "./UserStatusConfirmModal";
 export {
   UserCreationSection,
   DEFAULT_ROLES,
