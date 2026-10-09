@@ -41,7 +41,7 @@ import {
   formatGrade,
 } from "../../utils/certificateGenerator";
 import { generateConstanciaPracticaVigente, generatePdf } from "../../utils/reportGenerator";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import uptcLogo from "../../assets/images/uptc.png";
 import facultySeal from "../../assets/images/logooo.png";
 

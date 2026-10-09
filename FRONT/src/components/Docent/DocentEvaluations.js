@@ -16,7 +16,7 @@ import {
 import { generateCsv, generatePdf } from '../../utils/reportGenerator';
 import { BACKEND_URL } from '../../config/api';
 import { notifyDataChanged, useDataSync } from '../../utils/dataSync';
-import { toast } from 'react-toastify';
+import toast from '../../utils/toast';
 import StudentAvatar from '../Shared/StudentAvatar';
 import StudentFichaModal from '../Shared/StudentFichaModal';
 

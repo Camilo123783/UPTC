@@ -160,7 +160,9 @@ const StudentPractices = () => {
       }
 
       const data = await res.json();
-      setPractices(Array.isArray(data) ? data : []);
+      // Las prácticas canceladas se consultan exclusivamente en el Historial de Prácticas
+      const list = (Array.isArray(data) ? data : []).filter((p) => p.estado !== "Cancelada");
+      setPractices(list);
     } catch (err) {
       console.error("Error al cargar prácticas del estudiante:", err);
       setError(err.message || "Error al conectar con el servidor.");

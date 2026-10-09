@@ -34,7 +34,7 @@ import {
 import StudentAvatar from "../Shared/StudentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
 import { generateCsv } from "../../utils/reportGenerator";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const API_BASE_URL = BACKEND_URL;
 

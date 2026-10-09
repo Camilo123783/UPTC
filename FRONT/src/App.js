@@ -8,8 +8,8 @@ import {
   Outlet,
 } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Toaster } from "sileo";
+import "sileo/styles.css";
 
 import AdminCertificateDesigner from "./components/Admin/AdminCertificateDesigner";
 import AdminInstitutionSettings from "./components/Admin/AdminInstitutionSettings";
@@ -489,19 +489,7 @@ const App = () => {
 const AppWithTheme = () => (
   <ThemeProvider>
     <App />
-    <ToastContainer
-      position="bottom-right"
-      autoClose={3500}
-      hideProgressBar={false}
-      newestOnTop={false}
-      closeOnClick
-      rtl={false}
-      pauseOnFocusLoss
-      draggable
-      pauseOnHover
-      theme="colored"
-      style={{ zIndex: 999999 }}
-    />
+    <Toaster position="top-right" options={{ duration: 4000 }} />
   </ThemeProvider>
 );
 

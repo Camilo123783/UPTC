@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import AdminUserEditModal from "./AdminUserEditModal";
 import AdminCsvImportModal from "./AdminCsvImportModal";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   GraduationCap,
   UserCheck,

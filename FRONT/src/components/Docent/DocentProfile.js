@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
 import { notifyDataChanged } from "../../utils/dataSync";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   User,
   Mail,

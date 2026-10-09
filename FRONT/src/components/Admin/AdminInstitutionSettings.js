@@ -27,7 +27,7 @@ const COLOR_PRESETS = [
       color_secundario_light: "#ffffff",
       color_texto_light: "#1f2937",
       color_primario_dark: "#f59e0b",
-      color_secundario_dark: "#0f172a",
+      color_secundario_dark: "#000000",
       color_texto_dark: "#f8fafc",
     },
     badge: "bg-amber-500",
@@ -220,7 +220,7 @@ const AdminInstitutionSettings = () => {
     color_secundario_light: "#ffffff",
     color_texto_light: "#1f2937",
     color_primario_dark: "#f59e0b",
-    color_secundario_dark: "#0f172a",
+    color_secundario_dark: "#000000",
     color_texto_dark: "#f8fafc",
   });
 

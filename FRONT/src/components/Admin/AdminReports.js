@@ -16,7 +16,7 @@ import {
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
 import { useAuth } from "../../utils/useAuth";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   ClipboardList,
   GraduationCap,

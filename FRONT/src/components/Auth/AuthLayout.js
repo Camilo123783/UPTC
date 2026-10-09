@@ -62,7 +62,7 @@ const AuthLayout = ({ children, title }) => {
       <div
         className={`absolute inset-0 transition-colors duration-500 ${
           isDark
-            ? "bg-gradient-to-br from-black/85 via-zinc-950/80 to-blue-950/85 backdrop-blur-[6px]"
+            ? "bg-gradient-to-br from-black/90 via-zinc-950/85 to-black/90 backdrop-blur-[6px]"
             : "bg-gradient-to-br from-slate-900/60 via-blue-950/50 to-indigo-950/70 backdrop-blur-[4px]"
         }`}
       />
@@ -89,7 +89,7 @@ const AuthLayout = ({ children, title }) => {
         </button>
       </div>
 
-      <div className="relative z-10 w-full max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/60 dark:border-zinc-800/80 text-gray-900 dark:text-white transition-all duration-300">
+      <div className="relative z-10 w-full max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/60 dark:border-zinc-800/80 text-gray-900 dark:text-white transition-all duration-300 mb-8 sm:mb-6">
         {/* Logo Institucional */}
         <div className="flex justify-center mb-4">
           <img
@@ -107,6 +107,13 @@ const AuthLayout = ({ children, title }) => {
           {title}
         </h2>
         {children}
+      </div>
+
+      {/* Footer sutil */}
+      <div className="absolute bottom-3 left-0 right-0 z-20 text-center px-4">
+        <p className="text-[11px] sm:text-xs text-white/60 dark:text-zinc-500 font-medium tracking-wide">
+          © 2026 Sistema de gestion de practicas · Camilo Sáenz R. · Fred Manrique A. · Tunja, Boyacá
+        </p>
       </div>
     </div>
   );

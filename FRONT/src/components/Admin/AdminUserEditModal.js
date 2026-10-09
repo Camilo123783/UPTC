@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import { Edit3, X, RefreshCw, FileText, Key, Eye, EyeOff, Sparkles } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 

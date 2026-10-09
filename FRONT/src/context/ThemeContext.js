@@ -12,7 +12,7 @@ export const applyInstitutionColors = (settings, currentTheme) => {
     ? settings?.color_primario_dark || "#f59e0b"
     : settings?.color_primario_light || "#f59e0b";
   const secondary = isDarkMode
-    ? settings?.color_secundario_dark || "#0f172a"
+    ? (settings?.color_secundario_dark && settings?.color_secundario_dark !== "#0f172a" ? settings.color_secundario_dark : "#000000")
     : settings?.color_secundario_light || "#ffffff";
   const text = isDarkMode
     ? settings?.color_texto_dark || "#f8fafc"

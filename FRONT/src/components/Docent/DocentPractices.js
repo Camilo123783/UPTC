@@ -39,7 +39,7 @@ import {
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import StudentAvatar from "../Shared/StudentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
 
@@ -311,7 +311,8 @@ const DocentPractices = () => {
       }
 
       const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
+      // Las prácticas canceladas se gestionan y consultan exclusivamente en el Historial de Prácticas
+      const list = (Array.isArray(data) ? data : []).filter((p) => p.estado !== "Cancelada");
       setPractices(list);
 
       // Mantener la práctica seleccionada activa o seleccionar la primera por defecto

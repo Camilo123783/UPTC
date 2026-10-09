@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync, notifyDataChanged } from "../../utils/dataSync";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   MessageSquare,
   Send,

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   FileSpreadsheet,
   FileText,

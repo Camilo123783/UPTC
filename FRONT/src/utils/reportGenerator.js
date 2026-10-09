@@ -4,7 +4,7 @@
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { UPTC_LOGO_BASE64, FACULTY_SEAL_BASE64 } from "../assets/images/certificateImagesBase64";
-import { toast } from "react-toastify";
+import toast from "./toast";
 
 /**
  * Función auxiliar para descargar un Blob generado en el navegador.

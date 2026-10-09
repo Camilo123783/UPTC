@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../utils/useAuth";
 import { API_URL } from "../../config/api";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   Key,
   Lock,

@@ -3,7 +3,7 @@
 // ============================================================
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   Building2,
   ClipboardList,
@@ -604,6 +604,9 @@ const AdminPractices = () => {
   // ─── Filtrar Prácticas ───
   const filteredPractices = useMemo(() => {
     return practices.filter((p) => {
+      // Si la práctica ya está cancelada, no se muestra aquí donde salen las demás (se consulta en Historial de Prácticas)
+      if (p.estado === "Cancelada") return false;
+
       // Filtro por Estado
       if (filterEstado !== "Todos" && p.estado !== filterEstado) return false;
       // Filtro por Programa
@@ -699,8 +702,10 @@ const AdminPractices = () => {
             onChange={(e) => setFilterEstado(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
           >
-            <option value="Todos">Todos los Estados ({practices.length})</option>
-            {ESTADOS_PRACTICA.map((est) => (
+            <option value="Todos">
+              Todos los Estados ({practices.filter((p) => p.estado !== "Cancelada").length})
+            </option>
+            {ESTADOS_PRACTICA.filter((est) => est.value !== "Cancelada").map((est) => (
               <option key={est.value} value={est.value}>
                 {est.label}
               </option>

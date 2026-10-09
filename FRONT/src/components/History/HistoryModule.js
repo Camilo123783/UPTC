@@ -2,7 +2,7 @@
 // src/components/History/HistoryModule.js — Módulo de Historial
 // ============================================================
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import {
   Search,
   Calendar,
@@ -222,8 +222,8 @@ const HistoryModule = ({ userRole }) => {
       {/* ── Encabezado Principal ── */}
       <div className={`p-6 sm:p-8 rounded-3xl border shadow-sm transition-all ${
         isDark 
-          ? "bg-slate-900/60 border-slate-800 text-white" 
-          : "bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border-amber-200/60 text-slate-900"
+          ? "bg-zinc-900/80 border-zinc-800 text-white" 
+          : "bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border-amber-200/60 text-zinc-900"
       }`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
@@ -247,25 +247,13 @@ const HistoryModule = ({ userRole }) => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {(userRole === "admin" || userRole === "superadmin") && (
-              <button
-                type="button"
-                onClick={handleSyncHistory}
-                disabled={isSyncing}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20 transition cursor-pointer disabled:opacity-50"
-                title="Sincronizar todas las prácticas archivadas"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
-                <span>{isSyncing ? "Sincronizando..." : "Sincronizar Archivo"}</span>
-              </button>
-            )}
             <button
               type="button"
               onClick={fetchHistory}
               disabled={isLoading}
               className={`p-2.5 rounded-xl border text-sm font-semibold transition cursor-pointer ${
                 isDark
-                  ? "bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200"
+                  ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-200"
                   : "bg-white border-gray-300 hover:bg-gray-100 text-gray-700 shadow-sm"
               }`}
               title="Refrescar lista"
@@ -276,9 +264,9 @@ const HistoryModule = ({ userRole }) => {
         </div>
 
         {/* ── Tarjetas de Métricas Resumen ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-gray-200/60 dark:border-slate-800/80">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-gray-200/60 dark:border-zinc-800/80">
           <div className={`p-4 rounded-2xl border ${
-            isDark ? "bg-slate-800/40 border-slate-800" : "bg-white border-gray-200/70"
+            isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-gray-200/70"
           }`}>
             <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1">
               Total Archivadas
@@ -323,7 +311,7 @@ const HistoryModule = ({ userRole }) => {
 
       {/* ── Barra de Búsqueda y Filtros ── */}
       <div className={`p-4 sm:p-5 rounded-2xl border shadow-sm space-y-4 ${
-        isDark ? "bg-slate-900/50 border-slate-800" : "bg-white border-gray-200/80"
+        isDark ? "bg-zinc-900/70 border-zinc-800" : "bg-white border-gray-200/80"
       }`}>
         <div className="flex flex-col md:flex-row gap-3">
           {/* Input Buscador */}
@@ -336,7 +324,7 @@ const HistoryModule = ({ userRole }) => {
               placeholder="Buscar por título, docente, estudiante, código, materia, institución o motivo..."
               className={`w-full pl-11 pr-10 py-3 rounded-xl border text-sm outline-none transition ${
                 isDark
-                  ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                  ? "bg-zinc-950 border-zinc-800 text-white placeholder-zinc-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                   : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:bg-white"
               }`}
             />
@@ -358,7 +346,7 @@ const HistoryModule = ({ userRole }) => {
               onChange={(e) => setPeriodFilter(e.target.value)}
               className={`w-full py-3 px-3.5 rounded-xl border text-sm outline-none transition font-medium ${
                 isDark
-                  ? "bg-slate-800 border-slate-700 text-white"
+                  ? "bg-zinc-900 border-zinc-800 text-white"
                   : "bg-gray-50 border-gray-300 text-gray-900 focus:bg-white"
               }`}
             >
@@ -373,15 +361,15 @@ const HistoryModule = ({ userRole }) => {
         </div>
 
         {/* Pestañas de Estado */}
-        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
               onClick={() => setStatusFilter("Todos")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 statusFilter === "Todos"
-                  ? "bg-slate-900 text-white dark:bg-amber-500 dark:text-slate-950 shadow-sm"
-                  : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+                  ? "bg-zinc-900 text-white dark:bg-amber-500 dark:text-zinc-950 shadow-sm"
+                  : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
               }`}
             >
               Todas ({historyList.length})
@@ -428,7 +416,7 @@ const HistoryModule = ({ userRole }) => {
         </div>
       ) : filteredList.length === 0 ? (
         <div className={`p-12 sm:p-16 text-center rounded-3xl border ${
-          isDark ? "bg-slate-900/40 border-slate-800 text-gray-400" : "bg-white border-gray-200 text-gray-500"
+          isDark ? "bg-zinc-900/40 border-zinc-800 text-zinc-400" : "bg-white border-gray-200 text-gray-500"
         }`}>
           <FolderArchive className="w-14 h-14 mx-auto text-gray-400/80 mb-3" />
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
@@ -452,8 +440,8 @@ const HistoryModule = ({ userRole }) => {
                 className={`p-5 rounded-3xl border transition-all duration-200 cursor-pointer flex flex-col justify-between group hover:-translate-y-1 shadow-sm hover:shadow-xl ${
                   isDark
                     ? isCancelada
-                      ? "bg-slate-900/70 border-rose-950/70 hover:border-rose-700/80"
-                      : "bg-slate-900/70 border-slate-800 hover:border-amber-500/50"
+                      ? "bg-zinc-950/80 border-rose-950/70 hover:border-rose-700/80"
+                      : "bg-zinc-950/80 border-zinc-800 hover:border-amber-500/50"
                     : isCancelada
                     ? "bg-white border-rose-200/90 hover:border-rose-400"
                     : "bg-white border-gray-200/90 hover:border-amber-400/80"
@@ -472,7 +460,7 @@ const HistoryModule = ({ userRole }) => {
                         {practice.estado}
                       </span>
                       {practice.periodo && (
-                        <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700">
+                        <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700">
                           {practice.periodo}
                         </span>
                       )}
@@ -533,7 +521,7 @@ const HistoryModule = ({ userRole }) => {
                   {/* Vista específica si el usuario es Estudiante */}
                   {userRole === "student" && practice.miDetalle && (
                     <div className={`p-3 rounded-2xl border mb-3 text-xs ${
-                      isDark ? "bg-slate-800/60 border-slate-700" : "bg-gray-50 border-gray-200"
+                      isDark ? "bg-zinc-900/80 border-zinc-800" : "bg-gray-50 border-gray-200"
                     }`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-semibold text-gray-500 dark:text-gray-400">Tu Calificación:</span>
@@ -542,7 +530,7 @@ const HistoryModule = ({ userRole }) => {
                             ? practice.miDetalle.calificacion >= 3.0
                               ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                               : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                            : "bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300"
+                            : "bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300"
                         }`}>
                           {practice.miDetalle.calificacion !== null
                             ? `${Number(practice.miDetalle.calificacion).toFixed(1)} / 5.0`
@@ -560,7 +548,7 @@ const HistoryModule = ({ userRole }) => {
                 </div>
 
                 {/* Footer de la Tarjeta */}
-                <div className="pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <div className="pt-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between text-xs">
                   <span className="font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-blue-500" />
                     {practice.total_estudiantes || 0} estudiantes
@@ -581,12 +569,12 @@ const HistoryModule = ({ userRole }) => {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
           <div
             className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden transition-all ${
-              isDark ? "bg-slate-900 border-slate-700 text-white" : "bg-white border-gray-200 text-slate-900"
+              isDark ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-zinc-900"
             }`}
           >
             {/* Cabecera del Modal */}
             <div className={`p-5 sm:p-6 border-b flex items-start justify-between gap-4 ${
-              isDark ? "border-slate-800 bg-slate-900/90" : "border-gray-200 bg-gray-50/80"
+              isDark ? "border-zinc-800 bg-zinc-950/95" : "border-gray-200 bg-gray-50/80"
             }`}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -614,7 +602,7 @@ const HistoryModule = ({ userRole }) => {
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="p-2 rounded-xl border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="p-2 rounded-xl border text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
                   title="Imprimir Ficha"
                 >
                   <Printer className="w-5 h-5" />
@@ -622,7 +610,7 @@ const HistoryModule = ({ userRole }) => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
                   title="Cerrar"
                 >
                   <X className="w-5 h-5" />
@@ -648,7 +636,7 @@ const HistoryModule = ({ userRole }) => {
               {/* Grid de Metadatos de la Práctica */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                 <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? "bg-slate-800/40 border-slate-800" : "bg-gray-50 border-gray-200/80"
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50 border-gray-200/80"
                 }`}>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">
                     Programa Académico
@@ -659,7 +647,7 @@ const HistoryModule = ({ userRole }) => {
                 </div>
 
                 <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? "bg-slate-800/40 border-slate-800" : "bg-gray-50 border-gray-200/80"
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50 border-gray-200/80"
                 }`}>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">
                     Asignatura
@@ -673,7 +661,7 @@ const HistoryModule = ({ userRole }) => {
                 </div>
 
                 <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? "bg-slate-800/40 border-slate-800" : "bg-gray-50 border-gray-200/80"
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50 border-gray-200/80"
                 }`}>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">
                     Institución Hospitalaria / Sede
@@ -689,7 +677,7 @@ const HistoryModule = ({ userRole }) => {
                 </div>
 
                 <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? "bg-slate-800/40 border-slate-800" : "bg-gray-50 border-gray-200/80"
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50 border-gray-200/80"
                 }`}>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">
                     Docente Tutor Responsable
@@ -703,7 +691,7 @@ const HistoryModule = ({ userRole }) => {
                 </div>
 
                 <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? "bg-slate-800/40 border-slate-800" : "bg-gray-50 border-gray-200/80"
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50 border-gray-200/80"
                 }`}>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">
                     Auditor Asignado
@@ -717,7 +705,7 @@ const HistoryModule = ({ userRole }) => {
                 </div>
 
                 <div className={`p-3.5 rounded-2xl border ${
-                  isDark ? "bg-slate-800/40 border-slate-800" : "bg-gray-50 border-gray-200/80"
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50 border-gray-200/80"
                 }`}>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">
                     Horas y Calendario
@@ -733,7 +721,7 @@ const HistoryModule = ({ userRole }) => {
 
               {selectedPractice.descripcion && (
                 <div className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${
-                  isDark ? "bg-slate-800/30 border-slate-800" : "bg-gray-50 border-gray-200"
+                  isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-gray-50 border-gray-200"
                 }`}>
                   <strong className="block font-bold text-gray-700 dark:text-gray-300 mb-1">
                     Descripción y Objetivos Formativos:
@@ -746,7 +734,7 @@ const HistoryModule = ({ userRole }) => {
 
               {/* ── Sección de Estudiantes Vinculados y Calificaciones ── */}
               <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between border-b pb-3 border-gray-200 dark:border-slate-800">
+                <div className="flex items-center justify-between border-b pb-3 border-gray-200 dark:border-zinc-800">
                   <h3 className="text-lg font-extrabold flex items-center gap-2">
                     <Users className="w-5 h-5 text-amber-500" />
                     <span>Estudiantes Vinculados ({selectedPractice.estudiantes?.length || 0})</span>
@@ -770,7 +758,7 @@ const HistoryModule = ({ userRole }) => {
                         <div
                           key={st.cedula || index}
                           className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                            isDark ? "bg-slate-800/40 border-slate-700/80" : "bg-gray-50/70 border-gray-200"
+                            isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-gray-50/70 border-gray-200"
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
@@ -792,7 +780,7 @@ const HistoryModule = ({ userRole }) => {
                                   ? isPassing
                                     ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
                                     : "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800"
-                                  : "bg-gray-200 text-gray-800 border-gray-300 dark:bg-slate-700 dark:text-slate-300"
+                                  : "bg-gray-200 text-gray-800 border-gray-300 dark:bg-zinc-800 dark:text-zinc-300"
                               }`}>
                                 {hasGrade ? `Nota: ${Number(st.calificacion).toFixed(1)} / 5.0 (${isPassing ? "Aprobado" : "Reprobado"})` : "Sin Calificación"}
                               </span>
@@ -805,7 +793,7 @@ const HistoryModule = ({ userRole }) => {
 
                           {/* Retroalimentación docente si existe */}
                           {st.retroalimentacion && (
-                            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-xs text-gray-700 dark:text-gray-300 mb-3">
+                            <div className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-xs text-gray-700 dark:text-zinc-300 mb-3">
                               <strong className="block text-gray-500 font-semibold mb-0.5">Retroalimentación del Tutor:</strong>
                               <p className="italic">{st.retroalimentacion}</p>
                             </div>
@@ -815,7 +803,7 @@ const HistoryModule = ({ userRole }) => {
                           {st.criterios && typeof st.criterios === "object" && (
                             <div className="mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                               {Object.entries(st.criterios).map(([k, v]) => (
-                                <div key={k} className="p-2 rounded-lg bg-gray-100 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 flex justify-between">
+                                <div key={k} className="p-2 rounded-lg bg-gray-100 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800 flex justify-between">
                                   <span className="capitalize text-gray-500">{k}:</span>
                                   <span className="font-bold">{v}/5</span>
                                 </div>
@@ -824,7 +812,7 @@ const HistoryModule = ({ userRole }) => {
                           )}
 
                           {/* Documentos Vinculados del Estudiante */}
-                          <div className="pt-2 border-t border-gray-200/60 dark:border-slate-800/80">
+                          <div className="pt-2 border-t border-gray-200/60 dark:border-zinc-800/80">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-2 flex items-center gap-1.5">
                               <FileCheck className="w-3.5 h-3.5" />
                               Documentos Vinculados ({st.total_documentos_vinculados || 0} de {st.total_documentos_requeridos || 6})
@@ -836,7 +824,7 @@ const HistoryModule = ({ userRole }) => {
                                   className={`p-2 rounded-xl border flex items-center justify-between text-xs ${
                                     doc.vinculado
                                       ? "bg-emerald-50/60 border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-300"
-                                      : "bg-gray-100/60 border-gray-200 text-gray-400 dark:bg-slate-900/40 dark:border-slate-800"
+                                      : "bg-gray-100/60 border-gray-200 text-gray-400 dark:bg-zinc-900/40 dark:border-zinc-800"
                                   }`}
                                 >
                                   <div className="flex items-center gap-1.5 truncate pr-1">
@@ -870,7 +858,7 @@ const HistoryModule = ({ userRole }) => {
               </div>
 
               {/* Pie de expediente con fecha de archivo */}
-              <div className="pt-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between text-xs text-gray-400">
+              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between text-xs text-gray-400">
                 <span>Expediente sellado oficialmente en el sistema UPTC.</span>
                 <span>Archivado el: {formatDateReadable(selectedPractice.fecha_archivo)}</span>
               </div>

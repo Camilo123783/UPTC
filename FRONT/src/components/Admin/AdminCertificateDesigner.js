@@ -26,7 +26,7 @@ import {
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
 import { useAuth } from "../../utils/useAuth";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import uptcLogo from "../../assets/images/uptc.png";
 import facultyLogo from "../../assets/images/logooo.png";
 

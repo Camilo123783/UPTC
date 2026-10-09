@@ -37,7 +37,7 @@ import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
 import { useDataSync, notifyDataChanged } from "../../utils/dataSync";
 import { generateProfessionalCertificate } from "../../utils/certificateGenerator";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const API_BASE_URL = BACKEND_URL;
 

@@ -1004,6 +1004,27 @@ const DashboardLayout = ({
         />
       </svg>
     ),
+    "Historial de Prácticas": (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="w-5 h-5"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 12a9 9 0 0 1 15-6.7L21 8m0-5v5h-5"
+        />
+      </svg>
+    ),
   };
 
   const navItems = {
@@ -1014,7 +1035,7 @@ const DashboardLayout = ({
       { name: "Evaluaciones", page: "studentEvaluations" },
       { name: "Certificaciones", page: "studentCertifications" },
       { name: "Comunicación con el Docente", page: "studentDocentCommunication", section: "Comunicación" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial de Prácticas" },
     ],
     docent: [
       { name: "Dashboard", page: "dashboard" },
@@ -1026,14 +1047,14 @@ const DashboardLayout = ({
       { name: "Reportes y Constancias", page: "docentReports" },
       { name: "Comunicación con el Auditor", page: "docentCommunication", section: "Comunicación" },
       { name: "Comunicación con el Estudiante", page: "docentStudentCommunication" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial de Prácticas" },
     ],
     auditor: [
       { name: "Dashboard", page: "dashboard" },
       { name: "Cumplimiento de Horas", page: "auditorHoursCompliance", section: "Gestión" },
       { name: "Visualizar Usuarios", page: "auditorUserViewer", section: "Usuarios" },
       { name: "Comunicación con el Docente", page: "auditorCommunication", section: "Comunicación" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial de Prácticas" },
     ],
     admin: [
       { name: "Dashboard", page: "dashboard" },
@@ -1041,7 +1062,7 @@ const DashboardLayout = ({
       { name: "Crear Prácticas", page: "adminPractices" },
       { name: "Diseñar Certificados", page: "adminCertificateDesigner" },
       { name: "Reportes Generales", page: "adminReports" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial de Prácticas" },
     ],
     superadmin: [
       { name: "Dashboard", page: "dashboard" },
@@ -1051,7 +1072,7 @@ const DashboardLayout = ({
         section: "Configuración Institucional",
       },
       { name: "Administrar Usuarios", page: "adminUsers", section: "Sistema" },
-      { name: "Historial", page: "history", section: "Historial" },
+      { name: "Historial de Prácticas", page: "history", section: "Historial de Prácticas" },
     ],
   };
 
@@ -1388,7 +1409,7 @@ const DashboardLayout = ({
         <aside
           style={{
             backgroundColor: isDark
-              ? (institutionInfo.color_secundario_dark || "#0f172a")
+              ? (institutionInfo.color_secundario_dark && institutionInfo.color_secundario_dark !== "#0f172a" ? institutionInfo.color_secundario_dark : "#000000")
               : (institutionInfo.color_primario_light || "#fbbf24"),
             color: isDark
               ? (institutionInfo.color_texto_dark || "#ffffff")
@@ -1400,14 +1421,14 @@ const DashboardLayout = ({
             ${isCollapsed ? "md:w-20 md:p-3" : "md:w-64 md:p-5"}
             ${
               isDark
-                ? "border-r border-slate-800"
+                ? "border-r border-zinc-800"
                 : "border-r border-amber-500/40"
             }`}
         >
           {/* Cabecera del Sidebar */}
           <div
             className={`flex items-center pb-3 mb-3 transition-all ${
-              isDark ? "border-b border-slate-800" : "border-b border-amber-500/50"
+              isDark ? "border-b border-zinc-800" : "border-b border-amber-500/50"
             } ${isCollapsed ? "justify-center" : "justify-between px-1"}`}
           >
             {/* Header y botón cerrar para móvil */}
@@ -1656,11 +1677,18 @@ const DashboardLayout = ({
 
         {/* Área de Contenido Principal (Única que hace Scroll) */}
         <main
-          className={`flex-1 min-w-0 h-full p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto transition-colors duration-200 ${
-            isDark ? "bg-[#09090b] text-gray-100" : "bg-white text-gray-900"
+          className={`flex-1 min-w-0 h-full p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto transition-colors duration-200 flex flex-col justify-between ${
+            isDark ? "bg-black text-gray-100" : "bg-white text-gray-900"
           }`}
         >
-          {children}
+          <div className="flex-1 w-full">
+            {children}
+          </div>
+          <footer className="w-full text-center py-4 mt-8 border-t border-gray-100 dark:border-zinc-900/80">
+            <p className="text-[11px] sm:text-xs text-gray-400 dark:text-zinc-600 font-medium tracking-wide select-none">
+              © 2026 Sistema de gestion de practicas · Camilo Sáenz R. · Fred Manrique A. · Tunja, Boyacá
+            </p>
+          </footer>
         </main>
       </div>
     </div>

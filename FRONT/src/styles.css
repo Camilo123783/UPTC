@@ -20,26 +20,36 @@ body, aside, header, main, div, table, tr, th, td, input, select, textarea {
   color-scheme: dark;
 }
 
-.dark body {
-  background-color: #09090b;
+.dark,
+.dark body,
+body.dark {
+  background-color: #000000 !important;
   color: #f4f4f5;
 }
 
-/* Tarjetas, paneles y contenedores */
+.dark main {
+  background-color: #000000 !important;
+}
+
+.dark aside {
+  background-color: #000000 !important;
+}
+
+/* Tarjetas, paneles y contenedores en negro/grafito neutro */
 .dark .bg-white {
-  background-color: #18181b !important;
+  background-color: #0d0d11 !important;
 }
 
 .dark .bg-gray-50 {
-  background-color: #101014 !important;
+  background-color: #050507 !important;
 }
 
 .dark .bg-gray-100 {
-  background-color: #27272a !important;
+  background-color: #18181c !important;
 }
 
 .dark .bg-gray-200 {
-  background-color: #3f3f46 !important;
+  background-color: #27272a !important;
 }
 
 /* Tipografía en modo oscuro */

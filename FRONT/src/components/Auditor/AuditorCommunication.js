@@ -4,7 +4,7 @@
 // de cada práctica clínica, enviar observaciones y avisos sobre estudiantes.
 // ============================================================
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync, notifyDataChanged } from "../../utils/dataSync";
 import {
