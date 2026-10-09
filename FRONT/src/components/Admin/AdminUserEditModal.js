@@ -12,7 +12,14 @@ const AdminUserEditModal = ({
   instituciones = [],
   onClose,
   onSave,
+  userRole: propUserRole,
 }) => {
+  const currentRole =
+    propUserRole ||
+    localStorage.getItem("userRole") ||
+    sessionStorage.getItem("userRole") ||
+    "";
+
   const [formData, setFormData] = useState({
     cedula: user?.Cédula || user?.cedula || "",
     nombre: user?.Nombre || user?.nombre || "",
@@ -20,6 +27,12 @@ const AdminUserEditModal = ({
     correo_institucional:
       user?.Correo_Institucional || user?.correo_institucional || "",
     rol: (user?.Rol || user?.rol || "").toLowerCase(),
+    activo:
+      user?.Activo !== undefined && user?.Activo !== null
+        ? Number(user.Activo) === 1
+        : user?.activo !== undefined
+        ? !!user.activo
+        : true,
     programa_id: user?.programa_id != null ? String(user.programa_id) : "",
     institucion_id: user?.institucion_id != null ? String(user.institucion_id) : "",
     biografia: user?.biografia || "",
@@ -65,6 +78,10 @@ const AdminUserEditModal = ({
               apellidos: data.user.apellidos || prev.apellidos,
               correo_institucional:
                 data.user.correo_institucional || prev.correo_institucional,
+              activo:
+                data.user.activo !== undefined && data.user.activo !== null
+                  ? Number(data.user.activo) === 1
+                  : prev.activo,
               programa_id:
                 data.user.programa_id != null
                   ? String(data.user.programa_id)
@@ -279,6 +296,57 @@ const AdminUserEditModal = ({
                     onChange={handleChange}
                     className={inputClass}
                   />
+                </div>
+              </div>
+
+              {/* --- CONTROL DE ESTADO (ACTIVO / DESACTIVADO) --- */}
+              <div className="mt-4 p-4 rounded-xl border border-gray-200 dark:border-zinc-700/80 bg-gray-50/70 dark:bg-zinc-800/50">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-200">
+                      Estado de la Cuenta
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
+                      {formData.rol === "superadmin"
+                        ? "El superadministrador siempre permanece activo en la plataforma."
+                        : (formData.rol === "admin" || formData.rol === "administrador") && currentRole !== "superadmin"
+                        ? "Solo un superadministrador puede activar o desactivar cuentas de administradores."
+                        : "Si el usuario está desactivado, el sistema impedirá su ingreso mostrando el correo del administrador."}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    {formData.rol === "superadmin" ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        Siempre activo
+                      </span>
+                    ) : (formData.rol === "admin" || formData.rol === "administrador") && currentRole !== "superadmin" ? (
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-2xs ${
+                          formData.activo
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                            : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${formData.activo ? "bg-emerald-500" : "bg-rose-500"}`} />
+                        {formData.activo ? "Activo" : "Desactivado"}
+                      </span>
+                    ) : (
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!formData.activo}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, activo: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-emerald-600"></div>
+                        <span className="ml-2.5 text-xs font-bold text-gray-800 dark:text-zinc-200">
+                          {formData.activo ? "Activo" : "Desactivado"}
+                        </span>
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

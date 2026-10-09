@@ -60,14 +60,21 @@ window.fetch = async (input, init = {}) => {
     !url.includes("/api/auth/reset-password")
   ) {
     console.warn(`[Auth] Error 401 en ruta protegida: ${url}`);
-    const hadToken = localStorage.getItem("authToken");
+    const hadToken = localStorage.getItem("authToken") || localStorage.getItem("token");
     if (hadToken) {
       console.warn("[Auth] Token expirado o revocado. Limpiando credenciales y retornando al login.");
       localStorage.removeItem("authToken");
+      localStorage.removeItem("token");
       localStorage.removeItem("userRole");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("lastActivityTimestamp");
+      localStorage.removeItem("currentPage");
       sessionStorage.removeItem("userRole");
       sessionStorage.removeItem("userData");
-      window.location.reload();
+      sessionStorage.removeItem("authToken");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("currentPage");
+      window.location.href = "/login";
     }
   }
 

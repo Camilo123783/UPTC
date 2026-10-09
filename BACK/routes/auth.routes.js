@@ -117,6 +117,20 @@ async function authenticateUser(tableName, cedula, password, roleName) {
 
   if (!isMatch) return null;
 
+  // El superadministrador siempre estará activo. A los demás roles se les valida el campo activo.
+  if (roleName !== "superadmin") {
+    const isUserActive =
+      user.activo === undefined || user.activo === null || Number(user.activo) === 1;
+    if (!isUserActive) {
+      return {
+        isDeactivated: true,
+        role: roleName,
+        cedula: user.cedula,
+        nombre: user.nombre,
+      };
+    }
+  }
+
   // Nunca devolver el hash de la contraseña
   delete user.password;
   return { ...user, role: roleName };
@@ -145,14 +159,33 @@ router.post("/login", async (req, res, next) => {
 
     // Buscar en todas las tablas de roles
     let authenticatedUser = null;
+    let deactivatedUser = null;
+
     for (const roleMap of ROLE_TABLES_MAP) {
-      authenticatedUser = await authenticateUser(
+      const authResult = await authenticateUser(
         roleMap.tableName,
         cedula,
         password,
         roleMap.roleName
       );
-      if (authenticatedUser) break;
+      if (authResult) {
+        if (authResult.isDeactivated) {
+          deactivatedUser = authResult;
+          break;
+        } else {
+          authenticatedUser = authResult;
+          break;
+        }
+      }
+    }
+
+    if (deactivatedUser) {
+      return res.status(403).json({
+        success: false,
+        isDeactivated: true,
+        message:
+          'Usuario desactivado, por favor comunicarse con el administrador al correo "enfermeriauptc2026@gmail.com"',
+      });
     }
 
     if (!authenticatedUser) {
@@ -322,6 +355,19 @@ router.post("/auth/forgot-password", async (req, res, next) => {
         success: false,
         message: "El correo o la cédula ingresada no pertenece a ningún usuario registrado.",
       });
+    }
+
+    if (foundRole !== "Super Administrador") {
+      const isUserActive =
+        foundUser.activo === undefined || foundUser.activo === null || Number(foundUser.activo) === 1;
+      if (!isUserActive) {
+        return res.status(403).json({
+          success: false,
+          isDeactivated: true,
+          message:
+            'Usuario desactivado, por favor comunicarse con el administrador al correo "enfermeriauptc2026@gmail.com"',
+        });
+      }
     }
 
     // Determinar a qué dirección válida de correo enviar la clave

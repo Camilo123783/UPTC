@@ -106,7 +106,8 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
     setCedula(numericValue);
   };
 
-  const [isWakingUp, setIsWakingUp] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState("Descargando datos...");
 
   // --- FUNCIÓN PRINCIPAL DE LOGIN ---
   const handleLogin = async (e) => {
@@ -119,9 +120,28 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
     }
 
     setLoading(true);
-    const wakeupTimer = setTimeout(() => {
-      setIsWakingUp(true);
-    }, 3500);
+    setProgress(15);
+    setProgressText("Conectando y descargando datos...");
+
+    // Simulación acelerada y progresiva de descarga de datos percibida
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev < 35) {
+          setProgressText("Descargando datos del sistema...");
+          return prev + 12;
+        } else if (prev < 65) {
+          setProgressText("Descargando información institucional...");
+          return prev + 8;
+        } else if (prev < 88) {
+          setProgressText("Sincronizando perfiles y permisos...");
+          return prev + 5;
+        } else if (prev < 96) {
+          setProgressText("Finalizando descarga de datos...");
+          return prev + 2;
+        }
+        return prev;
+      });
+    }, 280);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/login`, {
@@ -133,40 +153,60 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
       const data = await response.json();
 
       if (response.ok && data.user && data.role) {
+        clearInterval(progressInterval);
+        setProgress(100);
+        setProgressText("¡Datos descargados con éxito! Ingresando...");
+
         const userData = data.user;
         const userRole = data.role;
 
         // Comprobar si hay un progreso guardado para restaurar la vista previa a la inactividad
-        const progress = getSavedProgress();
+        const savedProg = getSavedProgress();
         let targetPage = "dashboard";
 
-        if (progress && progress.isValid) {
-          targetPage = progress.currentPage || "dashboard";
+        if (savedProg && savedProg.isValid) {
+          targetPage = savedProg.currentPage || "dashboard";
         }
 
-        // Guardar sesión activa persistente
-        saveActiveSession(userRole, targetPage, userData, data.token);
-        clearSavedProgress();
+        // Breve pausa para que el usuario aprecie el 100% completado
+        setTimeout(() => {
+          // Guardar sesión activa persistente
+          saveActiveSession(userRole, targetPage, userData, data.token);
+          clearSavedProgress();
 
-        // Llamamos al callback para redirigir
-        onLoginSuccess(userRole, targetPage, userData, data.token);
+          // Llamamos al callback para redirigir
+          onLoginSuccess(userRole, targetPage, userData, data.token);
+        }, 320);
+      } else if (response.status === 403 || data.isDeactivated) {
+        clearInterval(progressInterval);
+        setLoading(false);
+        setProgress(0);
+        setError(
+          data.message ||
+            'Usuario desactivado, por favor comunicarse con el administrador al correo "enfermeriauptc2026@gmail.com"'
+        );
       } else if (response.status === 401 || response.status === 400) {
+        clearInterval(progressInterval);
+        setLoading(false);
+        setProgress(0);
         setError(
           data.message ||
             "Credenciales incorrectas. Verifica tu cédula y contraseña."
         );
       } else {
+        clearInterval(progressInterval);
+        setLoading(false);
+        setProgress(0);
         setError("Error en el servidor. Inténtalo más tarde.");
       }
     } catch (err) {
+      clearInterval(progressInterval);
+      setLoading(false);
+      setProgress(0);
       console.error("Error durante el login:", err);
       setError(
         "No se pudo conectar con el servidor. Asegúrate de que esté activo."
       );
-    } finally {
-      clearTimeout(wakeupTimer);
-      setIsWakingUp(false);
-      setLoading(false);
     }
   };
 
@@ -300,9 +340,23 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
 
           {/* Mensaje de Error */}
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-rose-950/50 border border-red-200 dark:border-rose-900/60 rounded-xl text-red-600 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-              <span>{error}</span>
+            <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-start gap-2.5 text-left leading-relaxed shadow-sm">
+              <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                {error.includes("enfermeriauptc2026@gmail.com") ? (
+                  <span>
+                    Usuario desactivado, por favor comunicarse con el administrador al correo{" "}
+                    <a
+                      href="mailto:enfermeriauptc2026@gmail.com"
+                      className="underline font-bold text-rose-800 dark:text-rose-200 hover:text-rose-950 dark:hover:text-white"
+                    >
+                      enfermeriauptc2026@gmail.com
+                    </a>
+                  </span>
+                ) : (
+                  <span>{error}</span>
+                )}
+              </div>
             </div>
           )}
 
@@ -318,16 +372,40 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
             }}
             className={`w-full py-3.5 px-4 font-bold rounded-xl shadow-lg transition transform active:scale-[0.98] ${
               loading
-                ? "opacity-50 cursor-not-allowed"
+                ? "opacity-60 cursor-not-allowed"
                 : "hover:opacity-90 hover:shadow-xl cursor-pointer"
             }`}
           >
-            {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+            {loading ? "Descargando datos..." : "Iniciar Sesión"}
           </button>
 
-          {isWakingUp && (
-            <div className="mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold animate-pulse flex items-center justify-center gap-2">
-              <span>El servidor en la nube se está reactivando... por favor espera un momento.</span>
+          {/* Barra de progreso de descarga de datos */}
+          {loading && (
+            <div className="mt-3.5 p-3.5 rounded-2xl bg-blue-50/90 dark:bg-zinc-800/90 border border-blue-200 dark:border-zinc-700 shadow-sm text-left transition-all">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                  </span>
+                  <span className="text-xs font-bold text-blue-900 dark:text-blue-200 truncate">
+                    {progressText}
+                  </span>
+                </div>
+                <span className="font-mono text-xs font-black text-blue-800 dark:text-blue-300 shrink-0">
+                  {Math.min(100, Math.round(progress))}%
+                </span>
+              </div>
+              <div className="w-full bg-blue-100 dark:bg-zinc-700 h-2.5 rounded-full overflow-hidden p-0.5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 transition-all duration-300 ease-out relative overflow-hidden"
+                  style={{
+                    width: `${Math.min(100, Math.max(8, progress))}%`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-white/25 animate-pulse" />
+                </div>
+              </div>
             </div>
           )}
         </form>

@@ -144,4 +144,12 @@ app.listen(PORT, () => {
   console.log(`⚙️   Entorno: ${process.env.NODE_ENV || "development"}`);
   console.log(`🌐  CORS permitido para: ${process.env.FRONTEND_URL}`);
   console.log("=".repeat(55));
+
+  // Asegurar migración de campo 'activo' en tablas de usuarios
+  try {
+    const { runMigration } = require("./migrations/migrate_v5_user_active_status");
+    runMigration().catch((e) => console.warn("Aviso en migración v5:", e.message));
+  } catch (err) {
+    console.warn("Aviso al invocar migración v5:", err.message);
+  }
 });

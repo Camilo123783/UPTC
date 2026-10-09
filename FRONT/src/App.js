@@ -51,6 +51,7 @@ import {
   performFullLogout,
   saveInactivityProgress,
   clearActiveSession,
+  isSessionExpired,
 } from "./utils/sessionManager";
 
 // Mapa bidireccional entre identificadores de página y rutas URL del navegador
@@ -224,10 +225,28 @@ const App = () => {
   }, [userRole, location.pathname]);
 
   // 2. Control de inactividad (5 minutos sin interacción -> Cierre automático)
+  // Robusto ante suspensión de pantalla móvil, bloqueo de terminal, pestañas en segundo plano y multiventana.
   useEffect(() => {
     if (!userRole) return;
 
+    const checkAndHandleSessionExpiration = () => {
+      const session = loadActiveSession();
+      if (session && session.expiredDueToInactivity) {
+        saveInactivityProgress(userRole, location.pathname);
+        clearActiveSession();
+        setUserRole(null);
+        navigate("/login", { replace: true });
+        return true;
+      }
+      return false;
+    };
+
     const handleUserActivity = () => {
+      // Si la sesión ya superó los 5 minutos, cerrar de inmediato antes de que el toque resetee el timestamp
+      if (isSessionExpired()) {
+        checkAndHandleSessionExpiration();
+        return;
+      }
       touchLastActivity();
     };
 
@@ -237,6 +256,7 @@ const App = () => {
       "keydown",
       "scroll",
       "touchstart",
+      "pointerdown",
       "click",
     ];
 
@@ -244,20 +264,42 @@ const App = () => {
       window.addEventListener(event, handleUserActivity, { passive: true })
     );
 
-    const timerInterval = setInterval(() => {
-      const session = loadActiveSession();
-      if (session && session.expiredDueToInactivity) {
-        saveInactivityProgress(userRole, location.pathname);
-        clearActiveSession();
-        setUserRole(null);
-        navigate("/login", { replace: true });
+    // Revisar inmediatamente al volver a la pestaña, desbloquear teléfono o reactivar pantalla
+    const handleDeviceWakeOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        checkAndHandleSessionExpiration();
       }
-    }, 5000);
+    };
+
+    document.addEventListener("visibilitychange", handleDeviceWakeOrFocus);
+    window.addEventListener("focus", handleDeviceWakeOrFocus);
+    window.addEventListener("pageshow", handleDeviceWakeOrFocus);
+
+    // Sincronización inmediata entre múltiples pestañas
+    const handleStorageSync = (e) => {
+      if (
+        e.key === "authToken" ||
+        e.key === "userRole" ||
+        e.key === "lastActivityTimestamp"
+      ) {
+        checkAndHandleSessionExpiration();
+      }
+    };
+    window.addEventListener("storage", handleStorageSync);
+
+    // Verificación cíclica regular
+    const timerInterval = setInterval(() => {
+      checkAndHandleSessionExpiration();
+    }, 3000);
 
     return () => {
       activityEvents.forEach((event) =>
         window.removeEventListener(event, handleUserActivity)
       );
+      document.removeEventListener("visibilitychange", handleDeviceWakeOrFocus);
+      window.removeEventListener("focus", handleDeviceWakeOrFocus);
+      window.removeEventListener("pageshow", handleDeviceWakeOrFocus);
+      window.removeEventListener("storage", handleStorageSync);
       clearInterval(timerInterval);
     };
   }, [userRole, location.pathname, navigate]);

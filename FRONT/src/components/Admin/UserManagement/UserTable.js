@@ -41,18 +41,22 @@ const RoleSection = ({
   hasCodeCol = false,
   hasStudentDataCol = false,
   showProgramFilter = false,
-  extraColHeader = "Carrera / Programa",
+  extraColHeader,
   renderExtraCol,
   sortFields = [],
   initialSortKey = "Nombre",
   handleEditUser,
   requestDeleteUser,
+  handleToggleStatusUser,
+  togglingCedula,
+  currentUserRole,
   getProgramaName,
   getInstitucionName,
   ITEMS_PER_PAGE = 10,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProg, setSelectedProg] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [sortConfig, setSortConfig] = useState({
     key: initialSortKey,
     direction: "ascending",
@@ -69,6 +73,18 @@ const RoleSection = ({
         } else if (String(u.programa_id) !== String(selectedProg)) {
           return false;
         }
+      }
+
+      // Filtro de estado activo/desactivado
+      if (selectedStatus !== "all") {
+        const isAct =
+          u.Activo !== undefined && u.Activo !== null
+            ? Number(u.Activo) === 1
+            : u.activo !== undefined
+            ? !!u.activo
+            : true;
+        if (selectedStatus === "active" && !isAct) return false;
+        if (selectedStatus === "inactive" && isAct) return false;
       }
 
       if (!searchTerm.trim()) return true;
@@ -93,7 +109,7 @@ const RoleSection = ({
         inst.includes(term)
       );
     });
-  }, [users, searchTerm, selectedProg, showProgramFilter, getProgramaName, getInstitucionName]);
+  }, [users, searchTerm, selectedProg, selectedStatus, showProgramFilter, getProgramaName, getInstitucionName]);
 
   // Ordenamiento
   const sorted = useMemo(() => {
@@ -113,6 +129,21 @@ const RoleSection = ({
       } else if (sortConfig.key === "Tiene_Datos_Adicionales") {
         aVal = a.Tiene_Datos_Adicionales ? 1 : 0;
         bVal = b.Tiene_Datos_Adicionales ? 1 : 0;
+      } else if (sortConfig.key === "Activo") {
+        const aAct =
+          a.Activo !== undefined && a.Activo !== null
+            ? Number(a.Activo)
+            : a.activo !== undefined
+            ? (a.activo ? 1 : 0)
+            : 1;
+        const bAct =
+          b.Activo !== undefined && b.Activo !== null
+            ? Number(b.Activo)
+            : b.activo !== undefined
+            ? (b.activo ? 1 : 0)
+            : 1;
+        aVal = aAct;
+        bVal = bAct;
       }
 
       const aStr = String(aVal).trim();
@@ -176,8 +207,8 @@ const RoleSection = ({
         </div>
       ) : (
         <>
-          {/* Barra de búsqueda y filtro */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          {/* Barra de búsqueda y filtros */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
             <div className={showProgramFilter ? "md:col-span-2" : "md:col-span-3"}>
               <TableSearchBar
                 value={searchTerm}
@@ -198,7 +229,7 @@ const RoleSection = ({
                     setSelectedProg(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full py-2.5 px-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-sm cursor-pointer"
+                  className="w-full py-2.5 px-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-xs cursor-pointer"
                 >
                   <option value="all" className="bg-white dark:bg-zinc-900">
                     Todos los Programas
@@ -214,6 +245,26 @@ const RoleSection = ({
                 </select>
               </div>
             )}
+            <div>
+              <select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full py-2.5 px-3 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-xs cursor-pointer"
+              >
+                <option value="all" className="bg-white dark:bg-zinc-900">
+                  Todos los Estados
+                </option>
+                <option value="active" className="bg-white dark:bg-zinc-900">
+                  Solo Activos
+                </option>
+                <option value="inactive" className="bg-white dark:bg-zinc-900">
+                  Solo Desactivados
+                </option>
+              </select>
+            </div>
           </div>
 
           {users.length > 0 && sorted.length === 0 && (
@@ -255,84 +306,160 @@ const RoleSection = ({
                         </th>
                       )}
                       <th className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
-                    {paginated.map((user, idx) => (
-                      <tr
-                        key={`${user.Rol}-${user.Cédula || ""}-${user.id_user_table || idx}`}
-                        className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors"
-                      >
-                        <td className="px-3 py-3 whitespace-nowrap text-xs font-mono font-bold text-gray-800 dark:text-zinc-300 text-center">
-                          {user.Cédula || "N/A"}
-                        </td>
-                        {hasCodeCol && (
-                          <td className="px-3 py-3 whitespace-nowrap text-xs text-center font-mono">
-                            {user.Codigo ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                {user.Codigo}
+                    {paginated.map((user, idx) => {
+                      const isUserActive =
+                        user.Activo !== undefined && user.Activo !== null
+                          ? Number(user.Activo) === 1
+                          : user.activo !== undefined
+                          ? !!user.activo
+                          : true;
+
+                      const targetRole = String(user.Rol || "").toLowerCase().trim();
+                      const canToggle =
+                        targetRole === "superadmin"
+                          ? false
+                          : targetRole === "admin" || targetRole === "administrador"
+                          ? currentUserRole === "superadmin"
+                          : currentUserRole === "admin" || currentUserRole === "superadmin";
+
+                      return (
+                        <tr
+                          key={`${user.Rol}-${user.Cédula || ""}-${user.id_user_table || idx}`}
+                          className={`hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors ${
+                            !isUserActive ? "bg-rose-50/30 dark:bg-rose-950/10" : ""
+                          }`}
+                        >
+                          <td className="px-3 py-3 whitespace-nowrap text-xs font-mono font-bold text-gray-800 dark:text-zinc-300 text-center">
+                            {user.Cédula || "N/A"}
+                          </td>
+                          {hasCodeCol && (
+                            <td className="px-3 py-3 whitespace-nowrap text-xs text-center font-mono">
+                              {user.Codigo ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                  {user.Codigo}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 dark:text-zinc-500 italic text-xs">Sin código</span>
+                              )}
+                            </td>
+                          )}
+                          <td className="px-3 py-3 text-xs sm:text-sm text-gray-900 dark:text-white font-medium text-left max-w-[210px] leading-snug">
+                            {`${user.Nombre || ""} ${user.Apellidos || ""}`.trim() || "N/A"}
+                          </td>
+                          <td
+                            className="px-3 py-3 text-xs text-gray-600 dark:text-zinc-400 font-mono text-left max-w-[200px] truncate"
+                            title={user.Correo_Institucional}
+                          >
+                            {user.Correo_Institucional || "N/A"}
+                          </td>
+                          <td className="px-3 py-3 text-xs text-center max-w-[210px]">
+                            {renderExtraCol ? renderExtraCol(user) : (user.Carrera || "N/A")}
+                          </td>
+                          {hasStudentDataCol && (
+                            <td className="px-3 py-3 whitespace-nowrap text-xs text-center">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-full border ${
+                                  user.Tiene_Datos_Adicionales
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                    : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                                }`}
+                              >
+                                <span>
+                                  {user.Tiene_Datos_Adicionales ? (
+                                    <Check className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <X className="w-3.5 h-3.5" />
+                                  )}
+                                </span>
+                                <span>{user.Tiene_Datos_Adicionales ? "Registrados" : "Incompletos"}</span>
                               </span>
+                            </td>
+                          )}
+
+                          {/* Columna Estado */}
+                          <td className="px-3 py-3 whitespace-nowrap text-xs text-center">
+                            {user.Rol === "superadmin" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Siempre activo</span>
+                              </span>
+                            ) : canToggle ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStatusUser && handleToggleStatusUser(user)}
+                                disabled={togglingCedula === user.Cédula}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border shadow-2xs cursor-pointer ${
+                                  isUserActive
+                                    ? "bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                    : "bg-rose-50 text-rose-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                                } ${togglingCedula === user.Cédula ? "opacity-50 cursor-wait" : ""}`}
+                                title={
+                                  isUserActive
+                                    ? "Usuario activo. Clic para desactivar acceso."
+                                    : "Usuario desactivado. Clic para reactivar acceso."
+                                }
+                              >
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    isUserActive ? "bg-emerald-500" : "bg-rose-500"
+                                  }`}
+                                />
+                                <span>{isUserActive ? "Activo" : "Desactivado"}</span>
+                              </button>
                             ) : (
-                              <span className="text-gray-400 dark:text-zinc-500 italic text-xs">Sin código</span>
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border shadow-2xs ${
+                                  isUserActive
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                    : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                                }`}
+                                title={
+                                  user.Rol === "admin" || user.Rol === "administrador"
+                                    ? "Solo el superadministrador puede activar o desactivar administradores."
+                                    : ""
+                                }
+                              >
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    isUserActive ? "bg-emerald-500" : "bg-rose-500"
+                                  }`}
+                                />
+                                <span>{isUserActive ? "Activo" : "Desactivado"}</span>
+                              </span>
                             )}
                           </td>
-                        )}
-                        <td className="px-3 py-3 text-xs sm:text-sm text-gray-900 dark:text-white font-medium text-left max-w-[210px] leading-snug">
-                          {`${user.Nombre || ""} ${user.Apellidos || ""}`.trim() || "N/A"}
-                        </td>
-                        <td
-                          className="px-3 py-3 text-xs text-gray-600 dark:text-zinc-400 font-mono text-left max-w-[200px] truncate"
-                          title={user.Correo_Institucional}
-                        >
-                          {user.Correo_Institucional || "N/A"}
-                        </td>
-                        <td className="px-3 py-3 text-xs text-center max-w-[210px]">
-                          {renderExtraCol ? renderExtraCol(user) : (user.Carrera || "N/A")}
-                        </td>
-                        {hasStudentDataCol && (
+
                           <td className="px-3 py-3 whitespace-nowrap text-xs text-center">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-full border ${
-                                user.Tiene_Datos_Adicionales
-                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                                  : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
-                              }`}
-                            >
-                              <span>
-                                {user.Tiene_Datos_Adicionales ? (
-                                  <Check className="w-3.5 h-3.5" />
-                                ) : (
-                                  <X className="w-3.5 h-3.5" />
-                                )}
-                              </span>
-                              <span>{user.Tiene_Datos_Adicionales ? "Registrados" : "Incompletos"}</span>
-                            </span>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleEditUser(user)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
+                                title="Editar usuario"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" /> Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => requestDeleteUser(user)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                                title="Eliminar usuario"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                              </button>
+                            </div>
                           </td>
-                        )}
-                        <td className="px-3 py-3 whitespace-nowrap text-xs text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleEditUser(user)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900 border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
-                              title="Editar usuario"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" /> Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => requestDeleteUser(user)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
-                              title="Eliminar usuario"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -383,6 +510,8 @@ export const UserTable = ({
   instituciones = [],
   handleEditUser,
   requestDeleteUser,
+  handleToggleStatusUser,
+  togglingCedula,
   getProgramaName,
   getInstitucionName,
   getRoleInfo,
@@ -518,6 +647,9 @@ export const UserTable = ({
                   Dependencia
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">
+                  Estado
+                </th>
+                <th className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
@@ -525,10 +657,18 @@ export const UserTable = ({
             <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
               {paginatedSa.map((user, idx) => {
                 const roleInfo = getRoleInfo(user.Rol);
+                const isUserActive =
+                  user.Activo !== undefined && user.Activo !== null
+                    ? Number(user.Activo) === 1
+                    : user.activo !== undefined
+                    ? !!user.activo
+                    : true;
                 return (
                   <tr
                     key={`sa-${user.Cédula || idx}`}
-                    className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors"
+                    className={`hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors ${
+                      !isUserActive ? "bg-rose-50/30 dark:bg-rose-950/10" : ""
+                    }`}
                   >
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       <span
@@ -558,6 +698,38 @@ export const UserTable = ({
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                           <Landmark className="w-3.5 h-3.5" /> Administración UPTC
                         </span>
+                      )}
+                    </td>
+                    {/* Columna Estado */}
+                    <td className="px-3 py-3 whitespace-nowrap text-xs text-center">
+                      {user.Rol === "superadmin" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Siempre activo</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatusUser && handleToggleStatusUser(user)}
+                          disabled={togglingCedula === user.Cédula}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border shadow-2xs cursor-pointer ${
+                            isUserActive
+                              ? "bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                              : "bg-rose-50 text-rose-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                          } ${togglingCedula === user.Cédula ? "opacity-50 cursor-wait" : ""}`}
+                          title={
+                            isUserActive
+                              ? "Administrador activo. Clic para desactivar acceso."
+                              : "Administrador desactivado. Clic para reactivar acceso."
+                          }
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isUserActive ? "bg-emerald-500" : "bg-rose-500"
+                            }`}
+                          />
+                          <span>{isUserActive ? "Activo" : "Desactivado"}</span>
+                        </button>
                       )}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-xs text-center">
@@ -676,10 +848,14 @@ export const UserTable = ({
           { key: "Correo_Institucional", label: "Email" },
           { key: "Carrera", label: "Carrera" },
           { key: "Tiene_Datos_Adicionales", label: "Datos Estudiante" },
+          { key: "Activo", label: "Estado" },
         ]}
         initialSortKey="Nombre"
         handleEditUser={handleEditUser}
         requestDeleteUser={requestDeleteUser}
+        handleToggleStatusUser={handleToggleStatusUser}
+        togglingCedula={togglingCedula}
+        currentUserRole={userRole}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />
@@ -715,10 +891,14 @@ export const UserTable = ({
           { key: "Nombre", label: "Nombre" },
           { key: "Correo_Institucional", label: "Email" },
           { key: "Carrera", label: "Programa" },
+          { key: "Activo", label: "Estado" },
         ]}
         initialSortKey="Nombre"
         handleEditUser={handleEditUser}
         requestDeleteUser={requestDeleteUser}
+        handleToggleStatusUser={handleToggleStatusUser}
+        togglingCedula={togglingCedula}
+        currentUserRole={userRole}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />
@@ -753,10 +933,14 @@ export const UserTable = ({
           { key: "Nombre", label: "Nombre" },
           { key: "Correo_Institucional", label: "Email" },
           { key: "Institucion", label: "Institución" },
+          { key: "Activo", label: "Estado" },
         ]}
         initialSortKey="Nombre"
         handleEditUser={handleEditUser}
         requestDeleteUser={requestDeleteUser}
+        handleToggleStatusUser={handleToggleStatusUser}
+        togglingCedula={togglingCedula}
+        currentUserRole={userRole}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />
@@ -783,10 +967,14 @@ export const UserTable = ({
           { key: "Cédula", label: "Cédula" },
           { key: "Nombre", label: "Nombre" },
           { key: "Correo_Institucional", label: "Email" },
+          { key: "Activo", label: "Estado" },
         ]}
         initialSortKey="Nombre"
         handleEditUser={handleEditUser}
         requestDeleteUser={requestDeleteUser}
+        handleToggleStatusUser={handleToggleStatusUser}
+        togglingCedula={togglingCedula}
+        currentUserRole={userRole}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />

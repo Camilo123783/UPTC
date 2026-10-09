@@ -44,14 +44,68 @@ export const saveActiveSession = (userRole, currentPage, userData, token) => {
 let lastTouchTime = 0;
 
 /**
+ * Comprueba si la sesión ha expirado por inactividad (>5 min) o por token inválido/expirado.
+ */
+export const isSessionExpired = () => {
+  const userRole = localStorage.getItem(KEYS.USER_ROLE) || sessionStorage.getItem(KEYS.USER_ROLE);
+  const token = localStorage.getItem(KEYS.AUTH_TOKEN) || localStorage.getItem("token");
+
+  if (!userRole || !token) return true;
+
+  // 1. Verificar tiempo de inactividad
+  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
+  const now = Date.now();
+  if (lastActivityStr) {
+    const lastActivity = parseInt(lastActivityStr, 10);
+    if (!isNaN(lastActivity) && (now - lastActivity) > INACTIVITY_TIMEOUT_MS) {
+      return true;
+    }
+  }
+
+  // 2. Verificar expiración del token JWT
+  try {
+    const base64Url = token.split(".")[1];
+    if (base64Url) {
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      const decoded = JSON.parse(jsonPayload);
+      if (decoded && decoded.exp && decoded.exp * 1000 < now) {
+        return true;
+      }
+    }
+  } catch (e) {
+    // Si falla la decodificación, no forzamos expiración solo por eso
+  }
+
+  return false;
+};
+
+/**
  * Actualiza la marca de tiempo de última interacción (con throttling de 1 segundo).
+ * Si la sesión ya superó el tiempo límite de inactividad, NO actualiza la marca
+ * para evitar que un toque de pantalla al desbloquear reactive erróneamente la sesión.
  */
 export const touchLastActivity = () => {
   const now = Date.now();
+  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
+
+  if (lastActivityStr) {
+    const lastActivity = parseInt(lastActivityStr, 10);
+    if (!isNaN(lastActivity) && (now - lastActivity) > INACTIVITY_TIMEOUT_MS) {
+      return false; // Ya está expirado
+    }
+  }
+
   if (now - lastTouchTime > 1000) {
     lastTouchTime = now;
     localStorage.setItem(KEYS.LAST_ACTIVITY, String(now));
   }
+  return true;
 };
 
 /**
@@ -61,7 +115,7 @@ export const loadActiveSession = () => {
   const userRole = localStorage.getItem(KEYS.USER_ROLE) || sessionStorage.getItem(KEYS.USER_ROLE);
   const currentPage = localStorage.getItem(KEYS.CURRENT_PAGE);
   const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
-  const token = localStorage.getItem(KEYS.AUTH_TOKEN);
+  const token = localStorage.getItem(KEYS.AUTH_TOKEN) || localStorage.getItem("token");
 
   if (!userRole || !token) {
     if (userRole && !token) {
@@ -80,6 +134,26 @@ export const loadActiveSession = () => {
     clearActiveSession();
     return { expiredDueToInactivity: true };
   }
+
+  // Verificar si el token JWT expiró
+  try {
+    const base64Url = token.split(".")[1];
+    if (base64Url) {
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      const decoded = JSON.parse(jsonPayload);
+      if (decoded && decoded.exp && decoded.exp * 1000 < now) {
+        saveInactivityProgress(userRole, currentPage);
+        clearActiveSession();
+        return { expiredDueToInactivity: true, expiredDueToToken: true };
+      }
+    }
+  } catch (e) {}
 
   return {
     userRole,
@@ -148,7 +222,7 @@ export const clearSavedProgress = () => {
 };
 
 /**
- * Borra la sesión activa.
+ * Borra la sesión activa completamente en localStorage y sessionStorage.
  */
 export const clearActiveSession = () => {
   localStorage.removeItem(KEYS.USER_ROLE);
@@ -156,10 +230,12 @@ export const clearActiveSession = () => {
   localStorage.removeItem(KEYS.AUTH_TOKEN);
   localStorage.removeItem("token");
   localStorage.removeItem(KEYS.LAST_ACTIVITY);
+  localStorage.removeItem(KEYS.USER_DATA);
   sessionStorage.removeItem(KEYS.USER_ROLE);
   sessionStorage.removeItem(KEYS.USER_DATA);
   sessionStorage.removeItem(KEYS.AUTH_TOKEN);
   sessionStorage.removeItem("token");
+  sessionStorage.removeItem(KEYS.CURRENT_PAGE);
 };
 
 /**

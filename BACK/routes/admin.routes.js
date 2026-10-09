@@ -186,7 +186,12 @@ router.get("/users", async (req, res, next) => {
         dataCheckSelect = `(EXISTS(SELECT 1 FROM ${roleMap.dataTable} WHERE ${roleMap.dataCedulaCol} = ${T1}.cedula)) AS Tiene_Datos_Adicionales`;
       }
 
-      return `(SELECT '${roleMap.roleName}' AS Rol, ${T1}.cedula AS Cédula, ${codigoCol} AS Codigo, ${nameCol} AS Nombre, ${apellidoCol} AS Apellidos, ${emailCol} AS Correo_Institucional, ${dataCheckSelect}, ${roleMap.progCol} AS programa_id, ${roleMap.instCol} AS institucion_id, ${roleMap.carreraExpr} AS Carrera, ${T1}.id AS id_user_table FROM ${roleMap.tableName} AS ${T1})`;
+      const activoSelect =
+        roleMap.roleName === "superadmin"
+          ? "1 AS Activo"
+          : `COALESCE(${T1}.activo, 1) AS Activo`;
+
+      return `(SELECT '${roleMap.roleName}' AS Rol, ${T1}.cedula AS Cédula, ${codigoCol} AS Codigo, ${nameCol} AS Nombre, ${apellidoCol} AS Apellidos, ${emailCol} AS Correo_Institucional, ${dataCheckSelect}, ${roleMap.progCol} AS programa_id, ${roleMap.instCol} AS institucion_id, ${roleMap.carreraExpr} AS Carrera, ${T1}.id AS id_user_table, ${activoSelect} FROM ${roleMap.tableName} AS ${T1})`;
     }).join(" UNION ALL ");
 
     const rows = await queryDB(
@@ -1089,7 +1094,7 @@ router.get("/users/:cedula", async (req, res, next) => {
     // 1. Estudiante
     if (table === "estudiante") {
       const est = await queryDB(
-        `SELECT e.cedula, e.codigo, e.nombre, e.apellidos, e.correo_institucional, e.programa_id,
+        `SELECT e.cedula, e.codigo, e.nombre, e.apellidos, e.correo_institucional, e.programa_id, COALESCE(e.activo, 1) AS activo,
                 de.biografia, de.direccion, de.telefono, de.correo_personal, de.nombre_familiar, de.telefono_familiar
          FROM estudiante e
          LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante
@@ -1102,7 +1107,7 @@ router.get("/users/:cedula", async (req, res, next) => {
     // 2. Docente
     if (table === "docente") {
       const doc = await queryDB(
-        `SELECT cedula, nombre, apellidos, correo_institucional, programa_id FROM docente WHERE id = ?`,
+        `SELECT cedula, nombre, apellidos, correo_institucional, programa_id, COALESCE(activo, 1) AS activo FROM docente WHERE id = ?`,
         [id]
       );
       return res.status(200).json({ success: true, role: "docente", user: { ...doc[0], Rol: "docent" } });
@@ -1111,7 +1116,7 @@ router.get("/users/:cedula", async (req, res, next) => {
     // 3. Auditor
     if (table === "auditor") {
       const aud = await queryDB(
-        `SELECT cedula, nombre, apellidos, correo_institucional, institucion_id FROM auditor WHERE id = ?`,
+        `SELECT cedula, nombre, apellidos, correo_institucional, institucion_id, COALESCE(activo, 1) AS activo FROM auditor WHERE id = ?`,
         [id]
       );
       return res.status(200).json({ success: true, role: "auditor", user: { ...aud[0], Rol: "auditor" } });
@@ -1120,7 +1125,7 @@ router.get("/users/:cedula", async (req, res, next) => {
     // 4. Administrador
     if (table === "administrador") {
       const adm = await queryDB(
-        `SELECT cedula, nombre, apellidos, correo_institucional FROM administrador WHERE id = ?`,
+        `SELECT cedula, nombre, apellidos, correo_institucional, COALESCE(activo, 1) AS activo FROM administrador WHERE id = ?`,
         [id]
       );
       return res.status(200).json({ success: true, role: "admin", user: { ...adm[0], Rol: "admin" } });
@@ -1128,10 +1133,76 @@ router.get("/users/:cedula", async (req, res, next) => {
 
     // 5. Superadmin
     const sa = await queryDB(
-      `SELECT cedula, nombre, apellidos, correo_institucional FROM superadmin WHERE id = ?`,
+      `SELECT cedula, nombre, apellidos, correo_institucional, 1 AS activo FROM superadmin WHERE id = ?`,
       [id]
     );
-    return res.status(200).json({ success: true, role: "superadmin", user: { ...sa[0], Rol: "superadmin" } });
+    return res.status(200).json({ success: true, role: "superadmin", user: { ...sa[0], Rol: "superadmin", activo: 1 } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// PATCH /api/admin/users/:cedula/status — Activar o desactivar usuario
+// ──────────────────────────────────────────────
+router.patch("/users/:cedula/status", async (req, res, next) => {
+  try {
+    const { cedula } = req.params;
+    const { activo, rol } = req.body;
+
+    if (activo === undefined || activo === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Debe especificar el nuevo estado 'activo' (booleano o 0/1).",
+      });
+    }
+
+    const target = await findUserTable(cedula, rol);
+    if (!target) {
+      return res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado.",
+      });
+    }
+
+    // 1. El superadministrador NUNCA puede ser desactivado
+    if (target.table === "superadmin") {
+      return res.status(403).json({
+        success: false,
+        message: "El superadministrador siempre debe permanecer activo y no se puede desactivar.",
+      });
+    }
+
+    // 2. Solo el superadministrador puede activar/desactivar administradores
+    if (target.table === "administrador") {
+      if (req.user?.role !== "superadmin") {
+        return res.status(403).json({
+          success: false,
+          message: "Solo el superadministrador tiene permisos para activar o desactivar administradores.",
+        });
+      }
+    }
+
+    // 3. Los administradores pueden activar y desactivar auditores, docentes, estudiantes
+    const newStatus =
+      activo === true || activo === 1 || activo === "1" || activo === "true" ? 1 : 0;
+
+    await queryDB(`UPDATE ${target.table} SET activo = ? WHERE id = ?`, [
+      newStatus,
+      target.id,
+    ]);
+
+    console.log(
+      `✅ Estado de usuario ${cedula} (${target.table}) cambiado a ${
+        newStatus === 1 ? "ACTIVO" : "DESACTIVADO"
+      } por ${req.user?.role}`
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Usuario ${newStatus === 1 ? "activado" : "desactivado"} exitosamente.`,
+      activo: newStatus,
+    });
   } catch (err) {
     next(err);
   }
@@ -1156,6 +1227,7 @@ router.put("/users/:cedula", async (req, res, next) => {
       correo_personal,
       nombre_familiar,
       telefono_familiar,
+      activo,
     } = req.body;
 
     if (codigo && !/^\d+$/.test(String(codigo).trim())) {
@@ -1170,10 +1242,19 @@ router.put("/users/:cedula", async (req, res, next) => {
     // Actualizar estudiante
     if (target.table === "estudiante") {
       const targetCedula = target.cedula;
-      await queryDB(
-        `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = ? WHERE cedula = ?`,
-        [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, programa_id || null, targetCedula]
-      );
+      const statusParam = activo !== undefined ? (activo ? 1 : 0) : null;
+      if (statusParam !== null) {
+        await queryDB(
+          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = ?, activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, programa_id || null, statusParam, targetCedula]
+        );
+      } else {
+        await queryDB(
+          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = ? WHERE cedula = ?`,
+          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, programa_id || null, targetCedula]
+        );
+      }
+
       // Actualizar o insertar en datos_estudiante (sin columna codigo)
       await queryDB(
         `INSERT INTO datos_estudiante (cedula_estudiante, biografia, direccion, telefono, correo_personal, nombre_familiar, telefono_familiar)
@@ -1195,10 +1276,18 @@ router.put("/users/:cedula", async (req, res, next) => {
     // Actualizar docente
     if (target.table === "docente") {
       const targetCedula = target.cedula;
-      await queryDB(
-        `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = ? WHERE cedula = ?`,
-        [nombre, apellidos, correo_institucional || null, programa_id || null, targetCedula]
-      );
+      const statusParam = activo !== undefined ? (activo ? 1 : 0) : null;
+      if (statusParam !== null) {
+        await queryDB(
+          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = ?, activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, programa_id || null, statusParam, targetCedula]
+        );
+      } else {
+        await queryDB(
+          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, programa_id || null, targetCedula]
+        );
+      }
       console.log(`✅ Docente ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1206,10 +1295,18 @@ router.put("/users/:cedula", async (req, res, next) => {
     // Actualizar auditor
     if (target.table === "auditor") {
       const targetCedula = target.cedula;
-      await queryDB(
-        `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = ? WHERE cedula = ?`,
-        [nombre, apellidos, correo_institucional || null, institucion_id || null, targetCedula]
-      );
+      const statusParam = activo !== undefined ? (activo ? 1 : 0) : null;
+      if (statusParam !== null) {
+        await queryDB(
+          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = ?, activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, institucion_id || null, statusParam, targetCedula]
+        );
+      } else {
+        await queryDB(
+          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, institucion_id || null, targetCedula]
+        );
+      }
       console.log(`✅ Auditor ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1217,10 +1314,19 @@ router.put("/users/:cedula", async (req, res, next) => {
     // Actualizar administrador
     if (target.table === "administrador") {
       const targetCedula = target.cedula;
-      await queryDB(
-        `UPDATE administrador SET nombre = ?, apellidos = ?, correo_institucional = ? WHERE cedula = ?`,
-        [nombre, apellidos, correo_institucional || null, targetCedula]
-      );
+      // Solo superadmin puede modificar activo de administrador
+      if (activo !== undefined && req.user?.role === "superadmin") {
+        const statusParam = activo ? 1 : 0;
+        await queryDB(
+          `UPDATE administrador SET nombre = ?, apellidos = ?, correo_institucional = ?, activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, statusParam, targetCedula]
+        );
+      } else {
+        await queryDB(
+          `UPDATE administrador SET nombre = ?, apellidos = ?, correo_institucional = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, targetCedula]
+        );
+      }
       console.log(`✅ Administrador ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }

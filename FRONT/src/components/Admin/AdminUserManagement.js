@@ -658,6 +658,80 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
     }
   };
 
+  const [togglingCedula, setTogglingCedula] = useState(null);
+
+  const handleToggleStatusUser = async (targetUser) => {
+    const cedula = targetUser?.Cédula || targetUser?.cedula;
+    const currentActive =
+      targetUser?.Activo !== undefined && targetUser?.Activo !== null
+        ? Number(targetUser.Activo) === 1
+        : targetUser?.activo !== undefined
+        ? !!targetUser.activo
+        : true;
+    const newStatus = !currentActive;
+    const actionLabel = newStatus ? "activar" : "desactivar";
+
+    const userName =
+      `${targetUser?.Nombre || ""} ${targetUser?.Apellidos || ""}`.trim() ||
+      `Cédula ${cedula}`;
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de que deseas ${actionLabel} a "${userName}"?${
+        !newStatus
+          ? "\n\nAl desactivarlo, no podrá iniciar sesión en la plataforma aunque ingrese su contraseña correcta."
+          : ""
+      }`
+    );
+    if (!confirmed) return;
+
+    setTogglingCedula(cedula);
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/users/${encodeURIComponent(cedula)}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            activo: newStatus,
+            rol: targetUser?.Rol || targetUser?.rol,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(
+          data.message ||
+            `Usuario ${newStatus ? "activado" : "desactivado"} exitosamente.`
+        );
+        setUsers((prev) =>
+          prev.map((u) => {
+            if (String(u.Cédula || u.cedula) === String(cedula)) {
+              return {
+                ...u,
+                Activo: newStatus ? 1 : 0,
+                activo: newStatus ? 1 : 0,
+              };
+            }
+            return u;
+          })
+        );
+        notifyDataChanged("users", "status-change", { cedula, activo: newStatus });
+      } else {
+        toast.error(data.message || `Error al ${actionLabel} usuario.`);
+      }
+    } catch (err) {
+      console.error("Error al actualizar estado del usuario:", err);
+      toast.error("Error al conectar con el servidor para actualizar el estado.");
+    } finally {
+      setTogglingCedula(null);
+    }
+  };
+
   const handleSaveEditedPrograma = async (p) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/programas/${p.id}`, {
@@ -1028,6 +1102,8 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
         handleSort={handleSort}
         handleEditUser={setSelectedUser}
         requestDeleteUser={requestDeleteUser}
+        handleToggleStatusUser={handleToggleStatusUser}
+        togglingCedula={togglingCedula}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
         getRoleInfo={getRoleInfo}
@@ -1118,6 +1194,7 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
           user={selectedUser}
           programas={programas}
           instituciones={instituciones}
+          userRole={userRole}
           onClose={() => setSelectedUser(null)}
           onSave={handleSaveEditedUser}
         />
