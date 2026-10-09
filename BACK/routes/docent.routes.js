@@ -7,6 +7,7 @@ const express = require("express");
 const router = express.Router();
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const { archivePractice } = require("../services/history.service");
 
 // Todas las rutas de docente requieren autenticación con token JWT y rol 'docent', 'admin' o 'superadmin'
 router.use(verifyToken);
@@ -154,14 +155,32 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
     const todayStr = getColombiaToday();
 
     // 1. Si llegó o pasó la fecha final -> 'Finalizada'
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Finalizada' 
+    const newlyFinished = await queryDB(`
+      SELECT id FROM practica 
       WHERE estado != 'Cancelada' 
         AND estado != 'Finalizada' 
         AND fecha_fin IS NOT NULL 
         AND ? >= fecha_fin
     `, [todayStr]);
+
+    if (newlyFinished.length > 0) {
+      await queryDB(`
+        UPDATE practica 
+        SET estado = 'Finalizada' 
+        WHERE estado != 'Cancelada' 
+          AND estado != 'Finalizada' 
+          AND fecha_fin IS NOT NULL 
+          AND ? >= fecha_fin
+      `, [todayStr]);
+
+      for (const nf of newlyFinished) {
+        try {
+          await archivePractice(nf.id);
+        } catch (e) {
+          console.error(`Error archivando práctica #${nf.id}:`, e.message);
+        }
+      }
+    }
 
     // 2. Si llegó la fecha de inicio y no ha terminado -> 'Activa'
     await queryDB(`
@@ -193,6 +212,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
         pr.horas_totales,
         pr.cupos,
         pr.estado,
+        pr.motivo_cancelacion,
         pr.descripcion,
         pr.created_at,
         pr.programa_id,
@@ -390,13 +410,29 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
     });
 
     // 4. Consolidar la respuesta
-    const result = practices.map((pr) => ({
-      ...pr,
-      estudiantes: studentsMap[pr.id] || [],
-      total_estudiantes: (studentsMap[pr.id] || []).length,
-      observaciones: observationsMap[pr.id] || [],
-      total_observaciones: (observationsMap[pr.id] || []).length,
-    }));
+    const result = practices.map((pr) => {
+      const fFin = pr.fecha_fin ? String(pr.fecha_fin).substring(0, 10) : null;
+      let diasRestantes = null;
+      let alertaCierre = false;
+
+      if (fFin && (pr.estado === "Activa" || pr.estado === "En Curso")) {
+        const diffTime = new Date(fFin + "T23:59:59-05:00") - new Date(todayStr + "T00:00:00-05:00");
+        diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diasRestantes >= 0 && diasRestantes <= 7) {
+          alertaCierre = true;
+        }
+      }
+
+      return {
+        ...pr,
+        dias_restantes: diasRestantes,
+        alerta_cierre: alertaCierre,
+        estudiantes: studentsMap[pr.id] || [],
+        total_estudiantes: (studentsMap[pr.id] || []).length,
+        observaciones: observationsMap[pr.id] || [],
+        total_observaciones: (observationsMap[pr.id] || []).length,
+      };
+    });
 
     console.log(`✅ Prácticas consultadas para docente ${docentId}: ${result.length} encontrada(s).`);
     res.status(200).json(result);
@@ -788,9 +824,17 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
 
     const docentCedula = req.body.docente_cedula || req.user?.cedula;
 
-    const existing = await queryDB(`SELECT id, docente_cedula, programa_id FROM practica WHERE id = ?`, [id]);
+    const existing = await queryDB(`SELECT id, estado, docente_cedula, programa_id FROM practica WHERE id = ?`, [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: "Práctica formativa no encontrada." });
+    }
+
+    // Una práctica ya finalizada o cancelada no puede ser modificada
+    if (existing[0].estado === "Finalizada" || existing[0].estado === "Cancelada") {
+      return res.status(400).json({
+        success: false,
+        message: "Esta práctica ya se encuentra finalizada o cancelada y no admite modificaciones. Toda su información ha sido archivada de forma inmutable en el Historial.",
+      });
     }
 
     // Obtener información académica del docente
@@ -864,7 +908,17 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
     const fIni = fecha_inicio ? (typeof fecha_inicio === "string" ? fecha_inicio.substring(0, 10) : "") : "";
 
     let finalEstado = estado;
-    if (finalEstado !== "Cancelada") {
+    let finalMotivo = req.body.motivo_cancelacion || null;
+
+    if (finalEstado === "Cancelada") {
+      if (!finalMotivo || !finalMotivo.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Es obligatorio argumentar y especificar el motivo por el cual se cancela la práctica formativa.",
+        });
+      }
+      finalMotivo = finalMotivo.trim();
+    } else {
       if (fFin && todayStr >= fFin) {
         finalEstado = "Finalizada";
       } else if (fIni && todayStr < fIni) {
@@ -888,6 +942,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
         horas_totales = COALESCE(?, horas_totales),
         cupos = COALESCE(?, cupos),
         estado = COALESCE(?, estado),
+        motivo_cancelacion = ?,
         descripcion = ?
       WHERE id = ?
     `, [
@@ -903,6 +958,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       horas_totales ? parseInt(horas_totales, 10) : null,
       cupos ? parseInt(cupos, 10) : null,
       finalEstado || null,
+      finalMotivo || null,
       descripcion || null,
       id,
     ]);
@@ -928,6 +984,15 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
         }
       } else {
         await queryDB(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
+      }
+    }
+
+    // Si la práctica quedó Finalizada o Cancelada, archivar inmediatamente en el Historial
+    if (finalEstado === "Finalizada" || finalEstado === "Cancelada") {
+      try {
+        await archivePractice(id, finalMotivo);
+      } catch (archErr) {
+        console.error(`Error archivando práctica #${id} tras actualización docente:`, archErr.message);
       }
     }
 
@@ -1297,6 +1362,14 @@ router.put("/practices/:practiceId/students/:cedula/hours", async (req, res, nex
     const { practiceId, cedula } = req.params;
     const { horas_cumplidas, horas_asignadas } = req.body;
 
+    const prCheck = await queryDB("SELECT estado FROM practica WHERE id = ? LIMIT 1", [practiceId]);
+    if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
+      return res.status(400).json({
+        success: false,
+        message: "No se pueden modificar horas en una práctica finalizada o cancelada. El historial está congelado.",
+      });
+    }
+
     const updates = [];
     const params = [];
 
@@ -1346,6 +1419,14 @@ router.post("/practices/:practiceId/students/:cedula/add-hours", async (req, res
     const { practiceId, cedula } = req.params;
     const { deltaHours } = req.body;
 
+    const prCheck = await queryDB("SELECT estado FROM practica WHERE id = ? LIMIT 1", [practiceId]);
+    if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
+      return res.status(400).json({
+        success: false,
+        message: "No se pueden modificar horas en una práctica finalizada o cancelada. El historial está congelado.",
+      });
+    }
+
     const added = parseInt(deltaHours, 10);
     if (isNaN(added) || added === 0) {
       return res.status(400).json({ success: false, message: "Valor de horas a añadir inválido." });
@@ -1392,6 +1473,14 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "Se requiere ID de la práctica y cédula del estudiante.",
+      });
+    }
+
+    const prCheck = await queryDB("SELECT estado FROM practica WHERE id = ? LIMIT 1", [practica_id]);
+    if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
+      return res.status(400).json({
+        success: false,
+        message: "No se pueden modificar calificaciones en una práctica finalizada o cancelada. El historial está congelado.",
       });
     }
 
@@ -1477,7 +1566,7 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
 
     // 1. Prácticas a cargo
     const practicesRows = await queryDB(`
-      SELECT id, titulo, estado
+      SELECT id, titulo, estado, fecha_fin
       FROM practica
       WHERE docente_cedula = ? OR creado_por_cedula = ?
     `, [docentId, docentId]);
@@ -1486,10 +1575,35 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
     const activePractices = practicesRows.filter((p) => p.estado === "Activa" || p.estado === "En Curso").length;
     const practiceIds = practicesRows.map((p) => p.id);
 
+    // Detección de prácticas que finalizan en 7 días o menos
+    const todayStr = getColombiaToday();
+    const closingSoon = [];
+    practicesRows.forEach((p) => {
+      if ((p.estado === "Activa" || p.estado === "En Curso") && p.fecha_fin) {
+        const fFin = String(p.fecha_fin).substring(0, 10);
+        const diffTime = new Date(fFin + "T23:59:59-05:00") - new Date(todayStr + "T00:00:00-05:00");
+        const dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (dias >= 0 && dias <= 7) {
+          closingSoon.push({
+            id: p.id,
+            titulo: p.titulo,
+            dias_restantes: dias,
+            fecha_fin: fFin,
+          });
+        }
+      }
+    });
+
     let totalStudents = 0;
     let pendingEvaluations = 0;
     let completedEvaluations = 0;
     let tasks = [];
+
+    // Alertas prioritarias de prácticas por finalizar (7 días)
+    closingSoon.forEach((cs) => {
+      const diasTxt = cs.dias_restantes === 0 ? "finaliza hoy" : cs.dias_restantes === 1 ? "finaliza mañana" : `finaliza en ${cs.dias_restantes} días`;
+      tasks.push(`⏰ Cierre Próximo: "${cs.titulo}" (${diasTxt}). Registra notas y horas antes del cierre definitivo.`);
+    });
 
     if (practiceIds.length > 0) {
       const ph = practiceIds.map(() => "?").join(",");
@@ -1516,7 +1630,7 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
           completedEvaluations++;
         } else {
           pendingEvaluations++;
-          if (tasks.length < 5) {
+          if (tasks.length < 6) {
             tasks.push(`Evaluar a ${r.estudiante_nombre?.trim() || "Estudiante"} en "${r.practica_titulo}".`);
           }
         }
@@ -1565,6 +1679,8 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
       pendingEvaluations,
       completedEvaluations,
       pendingCertificates,
+      endingSoonCount: closingSoon.length,
+      closingSoonPractices: closingSoon,
       tasks,
     });
   } catch (err) {

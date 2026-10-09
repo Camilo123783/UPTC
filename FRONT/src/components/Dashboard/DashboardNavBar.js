@@ -983,6 +983,27 @@ const DashboardLayout = ({
         />
       </svg>
     ),
+    "Historial": (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="w-5 h-5"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 12a9 9 0 0 1 15-6.7L21 8m0-5v5h-5"
+        />
+      </svg>
+    ),
   };
 
   const navItems = {
@@ -993,6 +1014,7 @@ const DashboardLayout = ({
       { name: "Evaluaciones", page: "studentEvaluations" },
       { name: "Certificaciones", page: "studentCertifications" },
       { name: "Comunicación con el Docente", page: "studentDocentCommunication", section: "Comunicación" },
+      { name: "Historial", page: "history", section: "Historial" },
     ],
     docent: [
       { name: "Dashboard", page: "dashboard" },
@@ -1004,12 +1026,14 @@ const DashboardLayout = ({
       { name: "Reportes y Constancias", page: "docentReports" },
       { name: "Comunicación con el Auditor", page: "docentCommunication", section: "Comunicación" },
       { name: "Comunicación con el Estudiante", page: "docentStudentCommunication" },
+      { name: "Historial", page: "history", section: "Historial" },
     ],
     auditor: [
       { name: "Dashboard", page: "dashboard" },
       { name: "Cumplimiento de Horas", page: "auditorHoursCompliance", section: "Gestión" },
       { name: "Visualizar Usuarios", page: "auditorUserViewer", section: "Usuarios" },
       { name: "Comunicación con el Docente", page: "auditorCommunication", section: "Comunicación" },
+      { name: "Historial", page: "history", section: "Historial" },
     ],
     admin: [
       { name: "Dashboard", page: "dashboard" },
@@ -1017,6 +1041,7 @@ const DashboardLayout = ({
       { name: "Crear Prácticas", page: "adminPractices" },
       { name: "Diseñar Certificados", page: "adminCertificateDesigner" },
       { name: "Reportes Generales", page: "adminReports" },
+      { name: "Historial", page: "history", section: "Historial" },
     ],
     superadmin: [
       { name: "Dashboard", page: "dashboard" },
@@ -1026,6 +1051,7 @@ const DashboardLayout = ({
         section: "Configuración Institucional",
       },
       { name: "Administrar Usuarios", page: "adminUsers", section: "Sistema" },
+      { name: "Historial", page: "history", section: "Historial" },
     ],
   };
 

@@ -11,6 +11,7 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const { archivePractice } = require("../services/history.service");
 
 // ── Configuración de almacenamiento Multer para logos y fondos ──
 const uploadDir = path.join(__dirname, "../uploads");
@@ -1489,14 +1490,32 @@ router.get("/practices", async (req, res, next) => {
     const todayStr = getColombiaToday();
 
     // 1. Si llegó o pasó la fecha final -> 'Finalizada'
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Finalizada' 
+    const newlyFinished = await queryDB(`
+      SELECT id FROM practica 
       WHERE estado != 'Cancelada' 
         AND estado != 'Finalizada' 
         AND fecha_fin IS NOT NULL 
         AND ? >= fecha_fin
     `, [todayStr]);
+
+    if (newlyFinished.length > 0) {
+      await queryDB(`
+        UPDATE practica 
+        SET estado = 'Finalizada' 
+        WHERE estado != 'Cancelada' 
+          AND estado != 'Finalizada' 
+          AND fecha_fin IS NOT NULL 
+          AND ? >= fecha_fin
+      `, [todayStr]);
+
+      for (const nf of newlyFinished) {
+        try {
+          await archivePractice(nf.id);
+        } catch (e) {
+          console.error(`Error archivando práctica #${nf.id}:`, e.message);
+        }
+      }
+    }
 
     // 2. Si llegó la fecha de inicio y no ha terminado -> 'Activa'
     await queryDB(`
@@ -1527,6 +1546,7 @@ router.get("/practices", async (req, res, next) => {
         pr.horas_totales,
         pr.cupos,
         pr.estado,
+        pr.motivo_cancelacion,
         pr.descripcion,
         pr.created_at,
         pr.programa_id,
@@ -1847,9 +1867,17 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       estudiantes,
     } = req.body;
 
-    const existing = await queryDB(`SELECT id, programa_id FROM practica WHERE id = ?`, [id]);
+    const existing = await queryDB(`SELECT id, estado, programa_id FROM practica WHERE id = ?`, [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: "Práctica no encontrada." });
+    }
+
+    // Una práctica ya finalizada o cancelada es inmutable
+    if (existing[0].estado === "Finalizada" || existing[0].estado === "Cancelada") {
+      return res.status(400).json({
+        success: false,
+        message: "Esta práctica ya se encuentra finalizada o cancelada y no admite modificaciones. Toda su información ha sido preservada de forma inmutable en el Historial.",
+      });
     }
 
     const effectiveProgramaId = programa_id || existing[0].programa_id;
@@ -1912,7 +1940,17 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
     const fIni = fecha_inicio ? (typeof fecha_inicio === "string" ? fecha_inicio.substring(0, 10) : "") : "";
 
     let finalEstado = estado || 'Planificada';
-    if (finalEstado !== "Cancelada") {
+    let finalMotivo = req.body.motivo_cancelacion || null;
+
+    if (finalEstado === "Cancelada") {
+      if (!finalMotivo || !finalMotivo.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Es obligatorio argumentar y especificar el motivo por el cual se cancela la práctica formativa.",
+        });
+      }
+      finalMotivo = finalMotivo.trim();
+    } else {
       if (fFin && todayStr >= fFin) {
         finalEstado = "Finalizada";
       } else if (fIni && todayStr < fIni) {
@@ -1937,6 +1975,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
         horas_totales = COALESCE(?, horas_totales),
         cupos = COALESCE(?, cupos),
         estado = COALESCE(?, estado),
+        motivo_cancelacion = ?,
         descripcion = ?
       WHERE id = ?
     `, [
@@ -1953,6 +1992,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       horas_totales ? parseInt(horas_totales, 10) : null,
       cupos ? parseInt(cupos, 10) : null,
       finalEstado || null,
+      finalMotivo || null,
       descripcion || null,
       id,
     ]);
@@ -1970,7 +2010,16 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       }
     }
 
-    console.log(`✅ Práctica #${id} actualizada.`);
+    // Si la práctica quedó Finalizada o Cancelada, archivar inmediatamente en el Historial
+    if (finalEstado === "Finalizada" || finalEstado === "Cancelada") {
+      try {
+        await archivePractice(id, finalMotivo);
+      } catch (archErr) {
+        console.error(`Error archivando práctica #${id} tras actualización:`, archErr.message);
+      }
+    }
+
+    console.log(`✅ Práctica #${id} actualizada (Estado: ${finalEstado}).`);
     res.status(200).json({ success: true, message: "Práctica actualizada con éxito." });
   } catch (err) {
     next(err);

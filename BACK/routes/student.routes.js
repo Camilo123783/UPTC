@@ -210,8 +210,10 @@ router.get(["/download/:studentId/:columnName", "/view/:studentId/:columnName"],
 
     if (req.user.role === "docent") {
       const rel = await queryDB(
-        "SELECT 1 FROM practica pr JOIN practica_estudiante pe ON pr.id = pe.practica_id WHERE pr.docente_cedula = ? AND pe.estudiante_cedula = ? LIMIT 1",
-        [req.user.cedula, studentId]
+        `SELECT 1 FROM practica pr JOIN practica_estudiante pe ON pr.id = pe.practica_id WHERE pr.docente_cedula = ? AND pe.estudiante_cedula = ?
+         UNION
+         SELECT 1 FROM historial_practica hp JOIN historial_practica_estudiante hpe ON hp.id = hpe.historial_id WHERE hp.docente_cedula = ? AND hpe.estudiante_cedula = ? LIMIT 1`,
+        [req.user.cedula, studentId, req.user.cedula, studentId]
       );
       if (rel.length === 0) {
         return res.status(403).json({

@@ -23,6 +23,8 @@ import {
   FileText,
   Activity,
   Briefcase,
+  Clock,
+  History,
 } from "lucide-react";
 import AuditorDashboardView from "../Auditor/AuditorDashboardView";
 
@@ -68,6 +70,8 @@ const DashboardHome = ({ userRole, onNavigate }) => {
     pendingEvaluations: 0,
     completedEvaluations: 0,
     pendingCertificates: 0,
+    endingSoonCount: 0,
+    closingSoonPractices: [],
     tasks: [],
   });
   const [isLoadingDocent, setIsLoadingDocent] = useState(userRole === "docent");
@@ -199,6 +203,8 @@ const DashboardHome = ({ userRole, onNavigate }) => {
           pendingEvaluations: data.pendingEvaluations ?? 0,
           completedEvaluations: data.completedEvaluations ?? 0,
           pendingCertificates: data.pendingCertificates ?? 0,
+          endingSoonCount: data.endingSoonCount ?? 0,
+          closingSoonPractices: data.closingSoonPractices || [],
           tasks: data.tasks || [],
         });
       }
@@ -445,6 +451,32 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Resumen Docente
             </h3>
+
+            {/* Aviso de prácticas próximas a finalizar (7 días o menos) */}
+            {docentStats.endingSoonCount > 0 && (
+              <div
+                onClick={() => onNavigate("docentPractices")}
+                className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 cursor-pointer hover:shadow-md hover:border-amber-400 dark:hover:border-amber-600 transition duration-150 flex items-start gap-3.5"
+              >
+                <div className="p-2.5 bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-xl flex-shrink-0">
+                  <Clock className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h4 className="font-bold text-amber-900 dark:text-amber-200 text-sm sm:text-base">
+                      ⚠️ Tienes {docentStats.endingSoonCount} práctica(s) por finalizar en 7 días o menos
+                    </h4>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/90 dark:bg-amber-900 text-amber-900 dark:text-amber-100 uppercase tracking-wide">
+                      Últimos cambios permitidos
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                    Recuerda registrar o actualizar las calificaciones, horas y observaciones de tus estudiantes. Al culminar la fecha final, la práctica pasará automáticamente al <strong>Historial institucional</strong> y quedará congelada de forma inmutable.
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 self-center" />
+              </div>
+            )}
 
             {/* Accesos Directos Docente: 3 en la fila superior, 3 en la fila inferior */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

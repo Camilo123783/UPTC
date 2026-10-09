@@ -43,6 +43,7 @@ import StudentEvaluations from "./components/Student/StudentEvaluations";
 import StudentPractices from "./components/Student/StudentPractices";
 import StudentProfile from "./components/Student/StudentProfile";
 import StudentDocentCommunication from "./components/Student/StudentDocentCommunication";
+import HistoryModule from "./components/History/HistoryModule";
 
 import {
   loadActiveSession,
@@ -88,6 +89,8 @@ export const PAGE_TO_ROUTE = {
   adminCertificateDesigner: "/admin/certificates",
   adminReports: "/admin/reports",
   adminInstitutionSettings: "/admin/settings",
+  // Historial
+  history: "/history",
 };
 
 export const ROUTE_TO_PAGE = Object.entries(PAGE_TO_ROUTE).reduce((acc, [page, route]) => {
@@ -98,6 +101,8 @@ export const ROUTE_TO_PAGE = Object.entries(PAGE_TO_ROUTE).reduce((acc, [page, r
 // Obtener el identificador 'page' para que el DashboardNavBar resalte la opción correcta
 export const getPageKeyFromPath = (pathname) => {
   if (ROUTE_TO_PAGE[pathname]) return ROUTE_TO_PAGE[pathname];
+
+  if (pathname.includes("/history")) return "history";
 
   if (pathname.startsWith("/admin/practices")) return "adminPractices";
   if (pathname.startsWith("/admin/users")) return "adminUsers";
@@ -458,6 +463,12 @@ const App = () => {
             />
           </>
         )}
+
+        {/* ─── Módulo Transversal de Historial ─── */}
+        <Route path="/history" element={<HistoryModule userRole={userRole} />} />
+        <Route path="/admin/history" element={<HistoryModule userRole={userRole} />} />
+        <Route path="/docent/history" element={<HistoryModule userRole={userRole} />} />
+        <Route path="/student/history" element={<HistoryModule userRole={userRole} />} />
 
         {/* Raíz redirige al dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -142,6 +142,7 @@ const AdminPractices = () => {
     horas_totales: 120,
     cupos: 10,
     estado: "Planificada",
+    motivo_cancelacion: "",
     descripcion: "",
     estudiantes: [], // Array de cédulas seleccionadas
   };
@@ -442,6 +443,11 @@ const AdminPractices = () => {
 
   // ─── Abrir Modal para Editar ───
   const handleOpenEditModal = (practice) => {
+    if (practice.estado === "Finalizada" || practice.estado === "Cancelada") {
+      toast.info(`La práctica está ${practice.estado.toLowerCase()} y su expediente está archivado en el Historial en modo solo lectura.`);
+      return;
+    }
+
     setIsEditing(true);
     const fIni = practice.fecha_inicio ? practice.fecha_inicio.substring(0, 10) : "";
     const fFin = practice.fecha_fin ? practice.fecha_fin.substring(0, 10) : "";
@@ -462,6 +468,7 @@ const AdminPractices = () => {
       horas_totales: practice.horas_totales || 120,
       cupos: practice.cupos || 10,
       estado: computedEstado,
+      motivo_cancelacion: practice.motivo_cancelacion || "",
       descripcion: practice.descripcion || "",
       creado_por_rol: practice.creado_por_rol || "admin",
       creado_por_cedula: practice.creado_por_cedula || null,
@@ -519,6 +526,11 @@ const AdminPractices = () => {
 
     // Sincronizar automáticamente el estado según fechas (Finalizada si llegó o pasó fecha_fin, Activa si llegó fecha_inicio, etc.)
     const finalEstado = calculateLifecycleStatus(formData.estado, formData.fecha_inicio, formData.fecha_fin);
+
+    if (finalEstado === "Cancelada" && (!formData.motivo_cancelacion || !formData.motivo_cancelacion.trim())) {
+      toast.error("Es obligatorio justificar y especificar el motivo por el cual se cancela la práctica formativa.");
+      return;
+    }
     const payload = { ...formData, estado: finalEstado };
 
     setIsSaving(true);
@@ -894,12 +906,21 @@ const AdminPractices = () => {
                   >
                     Ver Ficha
                   </button>
-                  <button
-                    onClick={() => handleOpenEditModal(p)}
-                    className="py-2 px-3 text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-lg transition text-center"
-                  >
-                    Editar
-                  </button>
+                  {p.estado === "Finalizada" || p.estado === "Cancelada" ? (
+                    <span
+                      title="Práctica archivada en Historial - Inmutable"
+                      className="py-2 px-3 text-xs font-semibold bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-lg text-center flex items-center justify-center cursor-not-allowed"
+                    >
+                      Archivada
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleOpenEditModal(p)}
+                      className="py-2 px-3 text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-lg transition text-center"
+                    >
+                      Editar
+                    </button>
+                  )}
                   <button
                     onClick={() => setDeletingPractice(p)}
                     className="py-2 px-3 text-xs font-semibold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-lg transition text-center"
@@ -1034,6 +1055,24 @@ const AdminPractices = () => {
                       ))}
                     </select>
                   </div>
+
+                  {formData.estado === "Cancelada" && (
+                    <div className="md:col-span-2 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-1.5">
+                      <label className="block text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-rose-500" />
+                        <span>Justificación / Motivo de Cancelación * (Obligatorio)</span>
+                      </label>
+                      <textarea
+                        name="motivo_cancelacion"
+                        required
+                        rows="2"
+                        placeholder="Escribe la justificación institucional detallada por la cual se cancela esta práctica formativa..."
+                        value={formData.motivo_cancelacion || ""}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-rose-300 dark:border-rose-800 rounded-xl bg-white dark:bg-zinc-800 text-rose-950 dark:text-rose-100 placeholder-rose-400 focus:ring-2 focus:ring-rose-500 outline-none shadow-sm"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">

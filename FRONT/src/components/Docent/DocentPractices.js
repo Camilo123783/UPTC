@@ -181,6 +181,18 @@ const DocentPractices = () => {
     }
   }, [todayIso]);
 
+  const endingSoonPractices = useMemo(() => {
+    return practices.filter(
+      (p) =>
+        p.alerta_cierre ||
+        (p.dias_restantes !== null &&
+          p.dias_restantes !== undefined &&
+          p.dias_restantes >= 0 &&
+          p.dias_restantes <= 7 &&
+          (p.estado === "Activa" || p.estado === "En Curso"))
+    );
+  }, [practices]);
+
   // Formulario para nueva observación
   const [targetStudentCedula, setTargetStudentCedula] = useState("all"); // "all" o cédula específica
   const [obsTipo, setObsTipo] = useState("General");
@@ -228,6 +240,7 @@ const DocentPractices = () => {
     horas_totales: 120,
     cupos: 10,
     estado: "Planificada",
+    motivo_cancelacion: "",
     auditor_cedula: "",
     estudiantes: [],
   };
@@ -462,6 +475,11 @@ const DocentPractices = () => {
   };
 
   const handleOpenEditModal = (practice) => {
+    if (practice.estado === "Finalizada" || practice.estado === "Cancelada") {
+      toast.info(`La práctica está ${practice.estado.toLowerCase()} y su expediente está archivado en el Historial en modo solo lectura.`);
+      return;
+    }
+
     setIsEditingPractice(true);
     setEditingPracticeId(practice.id);
     setPracticeFormError("");
@@ -487,6 +505,7 @@ const DocentPractices = () => {
       horas_totales: practice.horas_totales || 120,
       cupos: practice.cupos || 10,
       estado: computedEstado,
+      motivo_cancelacion: practice.motivo_cancelacion || "",
       auditor_cedula: practice.auditor_cedula ? String(practice.auditor_cedula) : "",
       estudiantes: (practice.estudiantes || []).map((e) => String(e.cedula || e.Cédula || e)),
     });
@@ -564,6 +583,12 @@ const DocentPractices = () => {
         practiceFormData.fecha_inicio,
         practiceFormData.fecha_fin
       );
+
+      if (finalEstado === "Cancelada" && (!practiceFormData.motivo_cancelacion || !practiceFormData.motivo_cancelacion.trim())) {
+        setPracticeFormError("Es obligatorio argumentar y especificar el motivo por el cual se cancela la práctica formativa.");
+        setIsSubmittingPractice(false);
+        return;
+      }
 
       const payload = {
         ...practiceFormData,
@@ -746,6 +771,44 @@ const DocentPractices = () => {
             </div>
           </div>
         )}
+
+        {/* ─── Alerta 7 Días Antes de Cierre de Práctica ─── */}
+        {!isLoading && !error && endingSoonPractices.length > 0 && (
+          <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 shadow-md">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-xl flex-shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h3 className="font-bold text-amber-900 dark:text-amber-200 text-base">
+                    ⚠️ Aviso Importante: Cierre Próximo de Prácticas Formativas ({endingSoonPractices.length})
+                  </h3>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-200/90 dark:bg-amber-900 text-amber-900 dark:text-amber-100 uppercase tracking-wide">
+                    Últimos cambios permitidos
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-300 leading-relaxed mb-3">
+                  Las siguientes prácticas formativas finalizan en <strong>7 días o menos</strong>. Por favor asegúrate de registrar y verificar las horas cumplidas, calificaciones finales y observaciones de los estudiantes. <strong>Una vez que la práctica finalice, su información completa pasará automáticamente al Historial de forma inmutable y no se podrán realizar más cambios.</strong>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {endingSoonPractices.map((ep) => (
+                    <span
+                      key={ep.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700/80 rounded-lg text-xs font-semibold text-amber-900 dark:text-amber-200 shadow-xs"
+                    >
+                      <Hospital className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>{ep.titulo}</span>
+                      <span className="text-amber-700 dark:text-amber-400 font-bold">
+                        ({ep.dias_restantes === 0 ? "Finaliza hoy" : ep.dias_restantes === 1 ? "Finaliza mañana" : `Quedan ${ep.dias_restantes} días`})
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Estado de Error ─── */}
@@ -848,6 +911,12 @@ const DocentPractices = () => {
                         <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getDocentPracticeStateBadge(practice.estado)}`}>
                           {practice.estado === "Planificada" ? <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> Planificada</span> : practice.estado || "Activa"}
                         </span>
+                        {practice.alerta_cierre && (
+                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/70 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800 inline-flex items-center gap-1 animate-pulse">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            {practice.dias_restantes === 0 ? "Cierra hoy" : `Cierra en ${practice.dias_restantes}d`}
+                          </span>
+                        )}
                         {practice.creado_por_rol === "docent" ? (
                           <span className="text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800 inline-flex items-center gap-1">
                             <UserCheck className="w-3 h-3" /> Creada por mí
@@ -898,16 +967,22 @@ const DocentPractices = () => {
                         {practice.total_estudiantes || 0} est.
                       </span>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEditModal(practice);
-                          }}
-                          className="px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/80 rounded-md transition"
-                        >
-                          Editar
-                        </button>
+                        {practice.estado === "Finalizada" || practice.estado === "Cancelada" ? (
+                          <span className="px-2 py-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-200 dark:border-slate-700 inline-flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> Archivada
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditModal(practice);
+                            }}
+                            className="px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/80 rounded-md transition"
+                          >
+                            Editar
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -949,14 +1024,24 @@ const DocentPractices = () => {
                         <FileText className="w-3.5 h-3.5" />
                         <span>Constancias</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditModal(selectedPractice)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 rounded-xl transition border border-blue-200 dark:border-blue-800 shadow-sm"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Editar Práctica</span>
-                      </button>
+                      {selectedPractice.estado === "Finalizada" || selectedPractice.estado === "Cancelada" ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm cursor-not-allowed"
+                          title="Las prácticas finalizadas o canceladas están archivadas y no se pueden modificar"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Archivada (Solo Lectura)</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(selectedPractice)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 rounded-xl transition border border-blue-200 dark:border-blue-800 shadow-sm"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Editar Práctica</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1300,6 +1385,33 @@ const DocentPractices = () => {
                           La fecha final de esta rotación ({practiceFormData.fecha_fin ? formatReadableDate(practiceFormData.fecha_fin) : "alcanzada"}) ha llegado o ha sido superada. La práctica quedará en estado <strong>"Finalizada"</strong> para el registro de horas y certificados de culminación.
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Alerta y campo obligatorio para Estado = Cancelada */}
+                  {practiceFormData.estado === "Cancelada" && (
+                    <div className="md:col-span-2">
+                      <div className="p-3.5 mb-3 rounded-xl border border-rose-200 dark:border-rose-900/70 bg-rose-50/80 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 flex items-start gap-3 text-xs leading-relaxed">
+                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block text-rose-800 dark:text-rose-300 font-bold mb-0.5">
+                            Cancelación de Práctica Formativa
+                          </strong>
+                          Por favor ingresa la justificación o argumento formal del motivo por el cual se cancela esta práctica. Este motivo quedará registrado en el historial institucional de manera inmutable.
+                        </div>
+                      </div>
+                      <label className="block text-xs font-semibold text-rose-700 dark:text-rose-400 mb-1">
+                        Motivo / Argumento de Cancelación *
+                      </label>
+                      <textarea
+                        name="motivo_cancelacion"
+                        rows="3"
+                        required
+                        placeholder="Especifica detalladamente el motivo de la cancelación de la práctica (ej. Incumplimiento de cupos por la entidad hospitalaria, fuerza mayor, etc.)..."
+                        value={practiceFormData.motivo_cancelacion || ""}
+                        onChange={handlePracticeInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-rose-300 dark:border-rose-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none shadow-sm"
+                      />
                     </div>
                   )}
 
