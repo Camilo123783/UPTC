@@ -14,11 +14,12 @@ const AdminUserEditModal = ({
   onSave,
   userRole: propUserRole,
 }) => {
-  const currentRole =
+  const currentRole = String(
     propUserRole ||
     localStorage.getItem("userRole") ||
     sessionStorage.getItem("userRole") ||
-    "";
+    ""
+  ).toLowerCase().trim();
 
   const [formData, setFormData] = useState({
     cedula: user?.Cédula || user?.cedula || "",
@@ -307,27 +308,32 @@ const AdminUserEditModal = ({
                       Estado de la Cuenta
                     </label>
                     <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-                      {formData.rol === "superadmin"
+                      {String(formData.rol || "").toLowerCase() === "superadmin"
                         ? "El superadministrador siempre permanece activo en la plataforma."
-                        : (formData.rol === "admin" || formData.rol === "administrador") && currentRole !== "superadmin"
+                        : (String(formData.rol || "").toLowerCase() === "admin" ||
+                            String(formData.rol || "").toLowerCase() === "administrador") &&
+                          currentRole !== "superadmin"
                         ? "Solo un superadministrador puede activar o desactivar cuentas de administradores."
                         : "Si el usuario está desactivado, el sistema impedirá su ingreso mostrando el correo del administrador."}
                     </p>
                   </div>
 
                   <div className="shrink-0">
-                    {formData.rol === "superadmin" ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                    {String(formData.rol || "").toLowerCase() === "superadmin" ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs select-none">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         Siempre activo
                       </span>
-                    ) : (formData.rol === "admin" || formData.rol === "administrador") && currentRole !== "superadmin" ? (
+                    ) : (String(formData.rol || "").toLowerCase() === "admin" ||
+                        String(formData.rol || "").toLowerCase() === "administrador") &&
+                      currentRole !== "superadmin" ? (
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-2xs ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-2xs select-none ${
                           formData.activo
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                             : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
                         }`}
+                        title="Solo el superadministrador puede activar o desactivar administradores."
                       >
                         <span className={`w-2 h-2 rounded-full ${formData.activo ? "bg-emerald-500" : "bg-rose-500"}`} />
                         {formData.activo ? "Activo" : "Desactivado"}

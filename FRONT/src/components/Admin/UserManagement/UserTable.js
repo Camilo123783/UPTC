@@ -322,13 +322,40 @@ const RoleSection = ({
                           ? !!user.activo
                           : true;
 
-                      const targetRole = String(user.Rol || "").toLowerCase().trim();
-                      const canToggle =
-                        targetRole === "superadmin"
-                          ? false
-                          : targetRole === "admin" || targetRole === "administrador"
-                          ? currentUserRole === "superadmin"
-                          : currentUserRole === "admin" || currentUserRole === "superadmin";
+                      const targetRole = String(
+                        user.Rol ||
+                        user.rol ||
+                        (id === "listado-administradores" ? "admin" : "") ||
+                        (id === "listado-estudiantes" ? "student" : "") ||
+                        (id === "listado-docentes" ? "docent" : "") ||
+                        (id === "listado-auditores" ? "auditor" : "")
+                      )
+                        .toLowerCase()
+                        .trim();
+
+                      const isTargetAdmin =
+                        id === "listado-administradores" ||
+                        targetRole === "admin" ||
+                        targetRole === "administrador";
+
+                      const isTargetSuperadmin = targetRole === "superadmin";
+
+                      const currentRoleNorm = String(currentUserRole || "")
+                        .toLowerCase()
+                        .trim();
+                      const isCurrentSuperadmin = currentRoleNorm === "superadmin";
+                      const isCurrentAdmin =
+                        currentRoleNorm === "admin" || currentRoleNorm === "administrador";
+
+                      // Regla de negocio estricta:
+                      // - Superadmin nunca se desactiva.
+                      // - Si el usuario objetivo es Administrador, SOLO el Superadmin puede activarlo o desactivarlo.
+                      // - Si el usuario objetivo es Auditor, Docente o Estudiante, el Administrador o Superadmin pueden activarlo o desactivarlo.
+                      const canToggle = isTargetSuperadmin
+                        ? false
+                        : isTargetAdmin
+                        ? isCurrentSuperadmin
+                        : isCurrentAdmin || isCurrentSuperadmin;
 
                       return (
                         <tr
@@ -422,8 +449,10 @@ const RoleSection = ({
                                     : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800"
                                 }`}
                                 title={
-                                  user.Rol === "admin" || user.Rol === "administrador"
+                                  isTargetAdmin
                                     ? "Solo el superadministrador puede activar o desactivar administradores."
+                                    : isTargetSuperadmin
+                                    ? "El superadministrador siempre permanece activo."
                                     : ""
                                 }
                               >
@@ -447,14 +476,16 @@ const RoleSection = ({
                               >
                                 <Edit3 className="w-3.5 h-3.5" /> Editar
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => requestDeleteUser(user)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
-                                title="Eliminar usuario"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                              </button>
+                              {(!isTargetAdmin || isCurrentSuperadmin) && (
+                                <button
+                                  type="button"
+                                  onClick={() => requestDeleteUser(user)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                                  title="Eliminar usuario"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

@@ -548,6 +548,24 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
   };
 
   const requestDeleteUser = (user) => {
+    const targetRole = String(user?.Rol || user?.rol || "")
+      .toLowerCase()
+      .trim();
+    const currentRoleNorm = String(userRole || "").toLowerCase().trim();
+    if (
+      (targetRole === "admin" || targetRole === "administrador") &&
+      currentRoleNorm !== "superadmin"
+    ) {
+      toast.warning(
+        "Solo el superadministrador tiene permisos para eliminar cuentas de administradores."
+      );
+      return;
+    }
+    if (targetRole === "superadmin") {
+      toast.warning("El superadministrador no se puede eliminar.");
+      return;
+    }
+
     const fullName =
       `${user.Nombre || ""} ${user.Apellidos || ""}`.trim() ||
       `Usuario #${user.Cédula || user.id_user_table}`;
@@ -665,6 +683,31 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
   const handleToggleStatusUser = (targetUser) => {
     if (!targetUser) return;
     const cedula = targetUser?.Cédula || targetUser?.cedula;
+    const targetRole = String(targetUser?.Rol || targetUser?.rol || "")
+      .toLowerCase()
+      .trim();
+    const isTargetAdmin = targetRole === "admin" || targetRole === "administrador";
+    const isTargetSuperadmin = targetRole === "superadmin";
+
+    const currentRoleNorm = String(userRole || "").toLowerCase().trim();
+    const isCurrentSuperadmin = currentRoleNorm === "superadmin";
+
+    // 1. Superadmin nunca puede ser desactivado
+    if (isTargetSuperadmin) {
+      toast.warning(
+        "El superadministrador siempre permanece activo y no se puede desactivar."
+      );
+      return;
+    }
+
+    // 2. Solo el superadministrador puede activar o desactivar administradores
+    if (isTargetAdmin && !isCurrentSuperadmin) {
+      toast.warning(
+        "Solo el superadministrador tiene permisos para activar o desactivar administradores."
+      );
+      return;
+    }
+
     const currentActive =
       targetUser?.Activo !== undefined && targetUser?.Activo !== null
         ? Number(targetUser.Activo) === 1
@@ -682,7 +725,7 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
       cedula,
       userName,
       newStatus,
-      role: targetUser?.Rol || targetUser?.rol,
+      role: targetRole || "usuario",
       email:
         targetUser?.Correo_Institucional ||
         targetUser?.correo_institucional ||

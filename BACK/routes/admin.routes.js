@@ -1043,6 +1043,13 @@ router.delete(["/users/:id", "/user/:id"], async (req, res, next) => {
           });
         }
 
+        if (role.roleName === "admin" && req.user?.role !== "superadmin") {
+          return res.status(403).json({
+            success: false,
+            message: "Solo un superadministrador puede eliminar cuentas de administradores.",
+          });
+        }
+
         try {
           if (role.dataTable && role.dataCedulaCol) {
             await queryDB(`DELETE FROM ${role.dataTable} WHERE ${role.dataCedulaCol} = ?`, [userCedula]);
