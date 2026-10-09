@@ -76,10 +76,53 @@ const TIPO_OBSERVACION_CONFIG = {
 const ESTADOS_PRACTICA_DOCENTE = [
   { value: "Activa", label: "Activa" },
   { value: "Planificada", label: "Planificada" },
-  { value: "En Curso", label: "En Curso" },
   { value: "Finalizada", label: "Finalizada" },
   { value: "Cancelada", label: "Cancelada" },
 ];
+
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const parseHorarioAHoras = (horarioStr) => {
+  const map = {};
+  if (!horarioStr || typeof horarioStr !== "string") return map;
+  DIAS_SEMANA.forEach((dia) => {
+    const regex = new RegExp(`${dia}(?:[\\s\\(:–-]+(\\d{1,2}:\\d{2})\\s*(?:-|a|al|hasta|–)\\s*(\\d{1,2}:\\d{2})\\)?)?`, "i");
+    const m = horarioStr.match(regex);
+    if (m) {
+      map[dia] = {
+        inicio: m[1] || "07:00",
+        fin: m[2] || "13:00",
+      };
+    }
+  });
+  return map;
+};
+
+const formatHorarioDesdeDias = (diasMap) => {
+  return DIAS_SEMANA
+    .filter((dia) => !!diasMap[dia])
+    .map((dia) => {
+      const { inicio, fin } = diasMap[dia];
+      return `${dia} (${inicio || "07:00"} - ${fin || "13:00"})`;
+    })
+    .join(", ");
+};
+
+const getRemainingCertDays = (fechaFin) => {
+  if (!fechaFin) return 30;
+  try {
+    const fStr = typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "";
+    if (!fStr) return 30;
+    const finDate = new Date(fStr);
+    const hoy = new Date();
+    finDate.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((hoy.getTime() - finDate.getTime()) / 86400000);
+    return Math.max(0, 30 - diffDays);
+  } catch (e) {
+    return 30;
+  }
+};
 
 const getTodayIso = () => {
   const d = new Date();
@@ -131,9 +174,6 @@ const getDocentPracticeStateBadge = (estado) => {
   }
   if (est === "planificada") {
     return "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800";
-  }
-  if (est === "en curso") {
-    return "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800";
   }
   if (est === "finalizada") {
     return "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800";
@@ -189,7 +229,7 @@ const DocentPractices = () => {
           p.dias_restantes !== undefined &&
           p.dias_restantes >= 0 &&
           p.dias_restantes <= 7 &&
-          (p.estado === "Activa" || p.estado === "En Curso"))
+          p.estado === "Activa")
     );
   }, [practices]);
 
@@ -252,6 +292,38 @@ const DocentPractices = () => {
   const [practiceFormError, setPracticeFormError] = useState("");
   const [practiceFormSuccess, setPracticeFormSuccess] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [scheduleDays, setScheduleDays] = useState(() => {
+    return parseHorarioAHoras(initialPracticeForm.horario || "");
+  });
+
+  const handleToggleScheduleDay = (dia) => {
+    setScheduleDays((prev) => {
+      const next = { ...prev };
+      if (next[dia]) {
+        delete next[dia];
+      } else {
+        next[dia] = { inicio: "07:00", fin: "13:00" };
+      }
+      const formatted = formatHorarioDesdeDias(next);
+      setPracticeFormData((f) => ({ ...f, horario: formatted }));
+      return next;
+    });
+  };
+
+  const handleScheduleTimeChange = (dia, field, value) => {
+    setScheduleDays((prev) => {
+      const next = {
+        ...prev,
+        [dia]: {
+          ...(prev[dia] || { inicio: "07:00", fin: "13:00" }),
+          [field]: value,
+        },
+      };
+      const formatted = formatHorarioDesdeDias(next);
+      setPracticeFormData((f) => ({ ...f, horario: formatted }));
+      return next;
+    });
+  };
 
   // Obtener la cédula del docente de forma segura
   const getDocentCedula = useCallback(() => {
@@ -469,6 +541,7 @@ const DocentPractices = () => {
       ...initialPracticeForm,
       programa_id: catalogs.docent_programa_id ? String(catalogs.docent_programa_id) : "",
     });
+    setScheduleDays({});
     setPracticeFormError("");
     setPracticeFormSuccess("");
     setStudentSearchTerm("");
@@ -478,12 +551,18 @@ const DocentPractices = () => {
 
   const handleOpenEditModal = (practice) => {
     if (practice.estado === "Finalizada" || practice.estado === "Cancelada") {
-      toast.info(`La práctica está ${practice.estado.toLowerCase()} y su expediente está archivado en el Historial en modo solo lectura.`);
+      const remaining = getRemainingCertDays(practice.fecha_fin);
+      toast.info(
+        practice.estado === "Finalizada"
+          ? `La rotación está finalizada y ya no se puede editar. Quedan ${remaining} días para emitir certificados.`
+          : "La práctica está cancelada y no admite modificaciones."
+      );
       return;
     }
 
     setIsEditingPractice(true);
     setEditingPracticeId(practice.id);
+    setScheduleDays(parseHorarioAHoras(practice.horario || ""));
     setPracticeFormError("");
     setPracticeFormSuccess("");
     setStudentSearchTerm("");
@@ -964,6 +1043,26 @@ const DocentPractices = () => {
                       </p>
                     </div>
 
+                    {/* Aviso oficial de 30 días para emitir certificados si la práctica está Finalizada */}
+                    {practice.estado === "Finalizada" && (() => {
+                      const remaining = getRemainingCertDays(practice.fecha_fin);
+                      return (
+                        <div className="mb-2.5 p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/70 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
+                          <Clock className="w-3.5 h-3.5 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                          <div className="space-y-0.5 leading-tight">
+                            <strong className="block font-bold">
+                              {remaining > 0
+                                ? `Quedan ${remaining} días para emitir certificados.`
+                                : "Plazo de 30 días para emisión de certificados cumplido."}
+                            </strong>
+                            <span className="text-[11px] opacity-80 block">
+                              Esta rotación está finalizada y ya no se puede editar.
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
                         <Users className="w-3.5 h-3.5 text-blue-500" />
@@ -971,7 +1070,14 @@ const DocentPractices = () => {
                       </span>
                       <div className="flex items-center gap-2">
                         {practice.estado === "Finalizada" || practice.estado === "Cancelada" ? (
-                          <span className="px-2 py-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-200 dark:border-slate-700 inline-flex items-center gap-1">
+                          <span
+                            title={
+                              practice.estado === "Finalizada"
+                                ? `Rotación finalizada - Ya no se puede editar (quedan ${getRemainingCertDays(practice.fecha_fin)} días para emitir certificados)`
+                                : "Práctica cancelada - Inmutable"
+                            }
+                            className="px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 rounded-md border border-purple-200/70 dark:border-purple-800/60 inline-flex items-center gap-1 cursor-not-allowed"
+                          >
                             <Lock className="w-3 h-3" /> Archivada
                           </span>
                         ) : (
@@ -1022,15 +1128,19 @@ const DocentPractices = () => {
                         type="button"
                         onClick={() => navigate(`/docent/reports?practiceId=${selectedPractice.id}`)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 rounded-xl transition border border-emerald-200 dark:border-emerald-800 shadow-sm"
-                        title="Generar constancias y reportes de esta práctica"
+                        title="Generar reportes y consolidados de esta práctica"
                       >
                         <FileText className="w-3.5 h-3.5" />
-                        <span>Constancias</span>
+                        <span>Reportes</span>
                       </button>
                       {selectedPractice.estado === "Finalizada" || selectedPractice.estado === "Cancelada" ? (
                         <span
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm cursor-not-allowed"
-                          title="Las prácticas finalizadas o canceladas están archivadas y no se pueden modificar"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 rounded-xl border border-purple-200/70 dark:border-purple-800/60 shadow-sm cursor-not-allowed"
+                          title={
+                            selectedPractice.estado === "Finalizada"
+                              ? `Rotación finalizada - Ya no se puede editar (quedan ${getRemainingCertDays(selectedPractice.fecha_fin)} días para emitir certificados)`
+                              : "Práctica cancelada - Inmutable"
+                          }
                         >
                           <Lock className="w-3.5 h-3.5" />
                           <span>Archivada (Solo Lectura)</span>
@@ -1047,6 +1157,26 @@ const DocentPractices = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Aviso oficial de 30 días para emitir certificados si la práctica está Finalizada */}
+                  {selectedPractice.estado === "Finalizada" && (() => {
+                    const remaining = getRemainingCertDays(selectedPractice.fecha_fin);
+                    return (
+                      <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
+                        <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                        <div>
+                          <strong className="block font-bold">
+                            {remaining > 0
+                              ? `Quedan ${remaining} días para emitir certificados.`
+                              : "Plazo de 30 días para emisión de certificados cumplido."}
+                          </strong>
+                          <span className="text-[11px] opacity-80 block">
+                            Esta rotación está finalizada y ya no se puede editar.
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
                     <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-slate-800">
@@ -1489,24 +1619,15 @@ const DocentPractices = () => {
                         Seleccionar días frecuentes:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
-                        {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((dia) => {
-                          const isIncluded = (practiceFormData.horario || "").includes(dia);
+                        {DIAS_SEMANA.map((dia) => {
+                          const isSelected = !!scheduleDays[dia];
                           return (
                             <button
                               key={dia}
                               type="button"
-                              onClick={() => {
-                                const current = practiceFormData.horario || "";
-                                let next;
-                                if (current.includes(dia)) {
-                                  next = current.replace(new RegExp(`${dia}(,?\\s*)?`, "gi"), "").trim().replace(/,\s*$/, "");
-                                } else {
-                                  next = current ? `${current}, ${dia}` : dia;
-                                }
-                                setPracticeFormData((prev) => ({ ...prev, horario: next }));
-                              }}
-                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition border ${
-                                isIncluded
+                              onClick={() => handleToggleScheduleDay(dia)}
+                              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition border cursor-pointer ${
+                                isSelected
                                   ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                                   : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-blue-400"
                               }`}
@@ -1518,11 +1639,64 @@ const DocentPractices = () => {
                       </div>
                     </div>
 
+                    {/* Selector de reloj individual por cada día seleccionado */}
+                    {Object.keys(scheduleDays).length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+                        <span className="block text-[11px] font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider">
+                          Asignar hora de inicio y fin para cada día (Reloj):
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {DIAS_SEMANA.filter((dia) => !!scheduleDays[dia]).map((dia) => (
+                            <div
+                              key={dia}
+                              className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-blue-200/70 dark:border-zinc-700 flex items-center justify-between gap-2 shadow-xs"
+                            >
+                              <span className="font-bold text-xs text-blue-700 dark:text-blue-300 shrink-0 w-20">
+                                {dia}:
+                              </span>
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-gray-400">Inicio:</span>
+                                  <input
+                                    type="time"
+                                    value={scheduleDays[dia]?.inicio || "07:00"}
+                                    onChange={(e) => handleScheduleTimeChange(dia, "inicio", e.target.value)}
+                                    className="px-2 py-1 rounded-lg border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs font-mono font-bold text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                                <span className="text-gray-400 font-bold">-</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-gray-400">Fin:</span>
+                                  <input
+                                    type="time"
+                                    value={scheduleDays[dia]?.fin || "13:00"}
+                                    onChange={(e) => handleScheduleTimeChange(dia, "fin", e.target.value)}
+                                    className="px-2 py-1 rounded-lg border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs font-mono font-bold text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleScheduleDay(dia)}
+                                className="p-1 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                title={`Quitar ${dia}`}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                        Resumen del horario registrado:
+                      </label>
                       <input
                         type="text"
                         name="horario"
-                        placeholder="Ej: Lunes, Martes y Jueves de 07:00 a 13:00 (Rotación Clínica)"
+                        placeholder="Ej: Lunes (07:00 - 13:00), Jueves (08:00 - 14:00)"
                         value={practiceFormData.horario || ""}
                         onChange={handlePracticeInputChange}
                         className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-medium"

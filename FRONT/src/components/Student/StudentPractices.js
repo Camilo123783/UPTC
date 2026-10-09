@@ -42,13 +42,6 @@ const ESTADO_CONFIG = {
     dot: "bg-emerald-500",
     label: "Activa",
   },
-  "En Curso": {
-    bg: "bg-blue-100 dark:bg-blue-950/60",
-    text: "text-blue-800 dark:text-blue-300",
-    border: "border-blue-300 dark:border-blue-800",
-    dot: "bg-blue-500",
-    label: "En Curso",
-  },
   Planificada: {
     bg: "bg-blue-100 dark:bg-blue-950/60",
     text: "text-blue-800 dark:text-blue-300",
@@ -70,6 +63,22 @@ const ESTADO_CONFIG = {
     dot: "bg-rose-500",
     label: "Cancelada",
   },
+};
+
+const getRemainingCertDays = (fechaFin) => {
+  if (!fechaFin) return 30;
+  try {
+    const fStr = typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "";
+    if (!fStr) return 30;
+    const finDate = new Date(fStr);
+    const hoy = new Date();
+    finDate.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((hoy.getTime() - finDate.getTime()) / 86400000);
+    return Math.max(0, 30 - diffDays);
+  } catch (e) {
+    return 30;
+  }
 };
 
 const StudentPractices = () => {
@@ -117,7 +126,7 @@ const StudentPractices = () => {
     if (status === "Finalizada") return 100;
     if (status === "Cancelada") return 0;
     if (status === "Planificada") return 0;
-    if (!startDate || !endDate) return status === "Activa" || status === "En Curso" ? 50 : 20;
+    if (!startDate || !endDate) return status === "Activa" ? 50 : 20;
 
     const start = new Date(startDate).getTime();
     const end = new Date(endDate).getTime();
@@ -256,9 +265,9 @@ const StudentPractices = () => {
                 </p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-slate-800/40 rounded-xl">
-                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Activas / En Curso</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Prácticas Activas</span>
                 <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {practices.filter((p) => p.estado === "Activa" || p.estado === "En Curso").length}
+                  {practices.filter((p) => p.estado === "Activa").length}
                 </p>
               </div>
               <div className="p-3 bg-gray-50 dark:bg-slate-800/40 rounded-xl">
@@ -403,6 +412,26 @@ const StudentPractices = () => {
                     </>
                   )}
                 </div>
+
+                {/* Aviso oficial de 30 días para certificados si la práctica está Finalizada */}
+                {practice.estado === "Finalizada" && (() => {
+                  const remaining = getRemainingCertDays(practice.fecha_fin);
+                  return (
+                    <div className="mb-5 p-3.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5 shadow-xs">
+                      <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                      <div>
+                        <strong className="block font-bold">
+                          {remaining > 0
+                            ? `Quedan ${remaining} días para la emisión y descarga de certificados.`
+                            : "Plazo de 30 días para emisión de certificados cumplido."}
+                        </strong>
+                        <span className="text-[11px] opacity-80 block">
+                          Esta rotación ha finalizado formalmente.
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Grid de Información Clave */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-5">

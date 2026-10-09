@@ -189,80 +189,135 @@ router.get("/details/:studentId", verifyToken, async (req, res, next) => {
 
 // ──────────────────────────────────────────────
 // GET /api/student/download/:studentId/:columnName
+// GET /api/student/view/:studentId/:columnName
+// GET /api/student/documents/:studentId/:columnName
 // Soporta tanto descarga directa (attachment) como previsualización en navegador (inline)
 // ──────────────────────────────────────────────
-router.get(["/download/:studentId/:columnName", "/view/:studentId/:columnName"], verifyToken, async (req, res, next) => {
-  try {
-    const { studentId, columnName } = req.params;
-    const allowedColumns = DOCUMENT_FIELDS_MAP.map((f) => f.dbColumn);
+router.get(
+  [
+    "/download/:studentId/:columnName",
+    "/view/:studentId/:columnName",
+    "/documents/:studentId/:columnName",
+    "/document/:studentId/:columnName",
+  ],
+  verifyToken,
+  async (req, res, next) => {
+    try {
+      const { studentId, columnName } = req.params;
+      const allowedColumns = DOCUMENT_FIELDS_MAP.map((f) => f.dbColumn);
 
-    if (!allowedColumns.includes(columnName)) {
-      return res.status(400).json({ success: false, message: "Nombre de columna no válido." });
-    }
+      if (!allowedColumns.includes(columnName)) {
+        return res.status(400).json({ success: false, message: "Nombre de columna no válido." });
+      }
 
-    // Autorización (Prevenir IDOR y Broken Object Level Authorization):
-    if (req.user.role === "student" && String(req.user.cedula) !== String(studentId)) {
-      return res.status(403).json({
-        success: false,
-        message: "Acceso denegado. Solo puedes consultar tus propios documentos.",
-      });
-    }
-
-    if (req.user.role === "docent") {
-      const rel = await queryDB(
-        `SELECT 1 FROM practica pr JOIN practica_estudiante pe ON pr.id = pe.practica_id WHERE pr.docente_cedula = ? AND pe.estudiante_cedula = ?
-         UNION
-         SELECT 1 FROM historial_practica hp JOIN historial_practica_estudiante hpe ON hp.id = hpe.historial_id WHERE hp.docente_cedula = ? AND hpe.estudiante_cedula = ? LIMIT 1`,
-        [req.user.cedula, studentId, req.user.cedula, studentId]
+      // Resolver la cédula real en caso de que se haya enviado el id autonumérico o la cédula
+      let targetCedula = studentId;
+      const estMatch = await queryDB(
+        `SELECT cedula FROM estudiante WHERE cedula = ? OR id = ? LIMIT 1`,
+        [studentId, studentId]
       );
-      if (rel.length === 0) {
+      if (estMatch.length > 0) {
+        targetCedula = estMatch[0].cedula;
+      }
+
+      // Autorización (Prevenir IDOR y Broken Object Level Authorization):
+      if (
+        req.user.role === "student" &&
+        String(req.user.cedula) !== String(targetCedula) &&
+        String(req.user.cedula) !== String(studentId)
+      ) {
         return res.status(403).json({
           success: false,
-          message: "Acceso denegado: no estás asignado como docente de este estudiante.",
+          message: "Acceso denegado. Solo puedes consultar tus propios documentos.",
         });
       }
-    }
 
-    if (req.user.role === "auditor") {
-      const rel = await queryDB(
-        `SELECT 1 FROM practica pr 
-         JOIN practica_estudiante pe ON pr.id = pe.practica_id 
-         WHERE (pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
-           AND pe.estudiante_cedula = ? LIMIT 1`,
-        [req.user.cedula, req.user.cedula, studentId]
+      if (req.user.role === "docent") {
+        const rel = await queryDB(
+          `SELECT 1 FROM practica pr JOIN practica_estudiante pe ON pr.id = pe.practica_id WHERE pr.docente_cedula = ? AND (pe.estudiante_cedula = ? OR pe.estudiante_cedula = ?)
+           UNION
+           SELECT 1 FROM historial_practica hp JOIN historial_practica_estudiante hpe ON hp.id = hpe.historial_id WHERE hp.docente_cedula = ? AND (hpe.estudiante_cedula = ? OR hpe.estudiante_cedula = ?) LIMIT 1`,
+          [req.user.cedula, targetCedula, studentId, req.user.cedula, targetCedula, studentId]
+        );
+        if (rel.length === 0) {
+          return res.status(403).json({
+            success: false,
+            message: "Acceso denegado: no estás asignado como docente de este estudiante.",
+          });
+        }
+      }
+
+      if (req.user.role === "auditor") {
+        const rel = await queryDB(
+          `SELECT 1 FROM practica pr 
+           JOIN practica_estudiante pe ON pr.id = pe.practica_id 
+           WHERE (pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+             AND (pe.estudiante_cedula = ? OR pe.estudiante_cedula = ?)
+           UNION
+           SELECT 1 FROM historial_practica hp
+           JOIN historial_practica_estudiante hpe ON hp.id = hpe.historial_id
+           WHERE (hp.auditor_cedula = ? OR hp.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+             AND (hpe.estudiante_cedula = ? OR hpe.estudiante_cedula = ?) LIMIT 1`,
+          [req.user.cedula, req.user.cedula, targetCedula, studentId, req.user.cedula, req.user.cedula, targetCedula, studentId]
+        );
+        if (rel.length === 0) {
+          return res.status(403).json({
+            success: false,
+            message: "Acceso denegado: no estás asignado como auditor de este estudiante.",
+          });
+        }
+      }
+
+      const rows = await queryDB(
+        `SELECT ${columnName} FROM datos_estudiante WHERE cedula_estudiante = ? OR cedula_estudiante = ? LIMIT 1`,
+        [targetCedula, studentId]
       );
-      if (rel.length === 0) {
-        return res.status(403).json({
-          success: false,
-          message: "Acceso denegado: no estás asignado como auditor de este estudiante.",
-        });
+
+      if (rows.length === 0 || !rows[0][columnName]) {
+        return res.status(404).json({ success: false, message: "Archivo no encontrado o vacío." });
       }
+
+      const fileBuffer = rows[0][columnName];
+      const isInline =
+        req.query.view === "true" ||
+        req.query.inline === "true" ||
+        req.path.includes("/view/") ||
+        req.path.includes("/documents/") ||
+        req.path.includes("/document/");
+
+      // Detección dinámica de tipo MIME (PDF vs JPG/PNG/WebP)
+      let mimeType = "application/pdf";
+      let fileExt = "pdf";
+
+      if (fileBuffer && fileBuffer.length >= 4) {
+        if (fileBuffer[0] === 0x25 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x44 && fileBuffer[3] === 0x46) {
+          mimeType = "application/pdf";
+          fileExt = "pdf";
+        } else if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x4E && fileBuffer[3] === 0x47) {
+          mimeType = "image/png";
+          fileExt = "png";
+        } else if (fileBuffer[0] === 0xff && fileBuffer[1] === 0xd8 && fileBuffer[2] === 0xff) {
+          mimeType = "image/jpeg";
+          fileExt = "jpg";
+        } else if (fileBuffer[0] === 0x52 && fileBuffer[1] === 0x49 && fileBuffer[2] === 0x46 && fileBuffer[3] === 0x46) {
+          mimeType = "image/webp";
+          fileExt = "webp";
+        }
+      }
+
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader(
+        "Content-Disposition",
+        `${isInline ? "inline" : "attachment"}; filename="${columnName}_${studentId}.${fileExt}"`
+      );
+      res.setHeader("Content-Length", fileBuffer.length);
+      console.log(`✅ Archivo ${columnName} de estudiante ${studentId} enviado (${isInline ? "inline" : "attachment"}, ${mimeType}).`);
+      res.end(fileBuffer);
+    } catch (err) {
+      next(err);
     }
-
-    const rows = await queryDB(
-      `SELECT ${columnName} FROM datos_estudiante WHERE cedula_estudiante = ? LIMIT 1`,
-      [studentId]
-    );
-
-    if (rows.length === 0 || !rows[0][columnName]) {
-      return res.status(404).json({ success: false, message: "Archivo no encontrado o vacío." });
-    }
-
-    const fileBuffer = rows[0][columnName];
-    const isInline = req.query.view === "true" || req.query.inline === "true" || req.path.includes("/view/");
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `${isInline ? "inline" : "attachment"}; filename="${columnName}_${studentId}.pdf"`
-    );
-    res.setHeader("Content-Length", fileBuffer.length);
-    console.log(`✅ Archivo ${columnName} enviado (${isInline ? "inline" : "attachment"}).`);
-    res.end(fileBuffer);
-  } catch (err) {
-    next(err);
   }
-});
+);
 
 // Caché ultrarrápida en memoria RAM para fotos de perfil (tiempo de respuesta < 1ms)
 const photoMemoryCache = new Map();

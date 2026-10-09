@@ -31,10 +31,53 @@ const API_BASE_URL = BACKEND_URL;
 const ESTADOS_PRACTICA = [
   { value: "Activa", label: "Activa", color: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800" },
   { value: "Planificada", label: "Planificada", color: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800" },
-  { value: "En Curso", label: "En Curso", color: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800" },
   { value: "Finalizada", label: "Finalizada", color: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800" },
   { value: "Cancelada", label: "Cancelada", color: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800" },
 ];
+
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const parseHorarioAHoras = (horarioStr) => {
+  const map = {};
+  if (!horarioStr || typeof horarioStr !== "string") return map;
+  DIAS_SEMANA.forEach((dia) => {
+    const regex = new RegExp(`${dia}(?:[\\s\\(:–-]+(\\d{1,2}:\\d{2})\\s*(?:-|a|al|hasta|–)\\s*(\\d{1,2}:\\d{2})\\)?)?`, "i");
+    const m = horarioStr.match(regex);
+    if (m) {
+      map[dia] = {
+        inicio: m[1] || "07:00",
+        fin: m[2] || "13:00",
+      };
+    }
+  });
+  return map;
+};
+
+const formatHorarioDesdeDias = (diasMap) => {
+  return DIAS_SEMANA
+    .filter((dia) => !!diasMap[dia])
+    .map((dia) => {
+      const { inicio, fin } = diasMap[dia];
+      return `${dia} (${inicio || "07:00"} - ${fin || "13:00"})`;
+    })
+    .join(", ");
+};
+
+const getRemainingCertDays = (fechaFin) => {
+  if (!fechaFin) return 30;
+  try {
+    const fStr = typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "";
+    if (!fStr) return 30;
+    const finDate = new Date(fStr);
+    const hoy = new Date();
+    finDate.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((hoy.getTime() - finDate.getTime()) / 86400000);
+    return Math.max(0, 30 - diffDays);
+  } catch (e) {
+    return 30;
+  }
+};
 
 const getTodayIso = () => {
   const d = new Date();
@@ -193,6 +236,38 @@ const AdminPractices = () => {
   const [deletingPractice, setDeletingPractice] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
+  const [scheduleDays, setScheduleDays] = useState(() => {
+    return parseHorarioAHoras(formData.horario || "");
+  });
+
+  const handleToggleScheduleDay = (dia) => {
+    setScheduleDays((prev) => {
+      const next = { ...prev };
+      if (next[dia]) {
+        delete next[dia];
+      } else {
+        next[dia] = { inicio: "07:00", fin: "13:00" };
+      }
+      const formatted = formatHorarioDesdeDias(next);
+      setFormData((f) => ({ ...f, horario: formatted }));
+      return next;
+    });
+  };
+
+  const handleScheduleTimeChange = (dia, field, value) => {
+    setScheduleDays((prev) => {
+      const next = {
+        ...prev,
+        [dia]: {
+          ...(prev[dia] || { inicio: "07:00", fin: "13:00" }),
+          [field]: value,
+        },
+      };
+      const formatted = formatHorarioDesdeDias(next);
+      setFormData((f) => ({ ...f, horario: formatted }));
+      return next;
+    });
+  };
 
   // Guardar automáticamente el borrador en memoria de sesión si el modal está abierto
   useEffect(() => {
@@ -438,6 +513,7 @@ const AdminPractices = () => {
   const handleOpenCreateModal = () => {
     setIsEditing(false);
     setFormData(initialFormState);
+    setScheduleDays({});
     setStudentSearch("");
     setIsModalOpen(true);
   };
@@ -445,11 +521,17 @@ const AdminPractices = () => {
   // ─── Abrir Modal para Editar ───
   const handleOpenEditModal = (practice) => {
     if (practice.estado === "Finalizada" || practice.estado === "Cancelada") {
-      toast.info(`La práctica está ${practice.estado.toLowerCase()} y su expediente está archivado en el Historial en modo solo lectura.`);
+      const remaining = getRemainingCertDays(practice.fecha_fin);
+      toast.info(
+        practice.estado === "Finalizada"
+          ? `La rotación está finalizada y ya no se puede editar. Quedan ${remaining} días para emitir certificados.`
+          : "La práctica está cancelada y su expediente no admite edición."
+      );
       return;
     }
 
     setIsEditing(true);
+    setScheduleDays(parseHorarioAHoras(practice.horario || ""));
     const fIni = practice.fecha_inicio ? practice.fecha_inicio.substring(0, 10) : "";
     const fFin = practice.fecha_fin ? practice.fecha_fin.substring(0, 10) : "";
     const computedEstado = calculateLifecycleStatus(practice.estado || "Planificada", fIni, fFin);
@@ -487,6 +569,7 @@ const AdminPractices = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setIsModalOpen(false);
     setIsEditing(false);
+    setScheduleDays({});
     setFormData(initialFormState);
   };
 
@@ -902,7 +985,7 @@ const AdminPractices = () => {
 
               {/* Footer de la tarjeta */}
               <div>
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-zinc-800 pt-3 mb-4">
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-zinc-800 pt-3 mb-2.5">
                   <span className="inline-flex items-center gap-1">
                     <GraduationCap className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                     <span><strong>{p.total_estudiantes}</strong> / {p.cupos || 10} cupos</span>
@@ -913,6 +996,26 @@ const AdminPractices = () => {
                   </span>
                 </div>
 
+                {/* Aviso oficial si la práctica está Finalizada (plazo de 30 días para certificados y bloqueo de edición) */}
+                {p.estado === "Finalizada" && (() => {
+                  const remaining = getRemainingCertDays(p.fecha_fin);
+                  return (
+                    <div className="mb-3 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/70 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
+                      <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                      <div className="space-y-0.5 leading-tight">
+                        <strong className="block font-bold">
+                          {remaining > 0
+                            ? `Quedan ${remaining} días para emitir certificados.`
+                            : "Plazo de 30 días para emisión de certificados cumplido."}
+                        </strong>
+                        <span className="text-[11px] opacity-80 block">
+                          Esta rotación está finalizada y ya no se puede editar.
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => setViewingPractice(p)}
@@ -920,9 +1023,16 @@ const AdminPractices = () => {
                   >
                     Ver Ficha
                   </button>
-                  {p.estado === "Finalizada" || p.estado === "Cancelada" ? (
+                  {p.estado === "Finalizada" ? (
                     <span
-                      title="Práctica archivada en Historial - Inmutable"
+                      title={`Rotación finalizada - Ya no se puede editar (quedan ${getRemainingCertDays(p.fecha_fin)} días para emitir certificados)`}
+                      className="py-2 px-3 text-xs font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/60 rounded-lg text-center flex items-center justify-center cursor-not-allowed"
+                    >
+                      Archivada
+                    </span>
+                  ) : p.estado === "Cancelada" ? (
+                    <span
+                      title="Práctica cancelada - Inmutable"
                       className="py-2 px-3 text-xs font-semibold bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-lg text-center flex items-center justify-center cursor-not-allowed"
                     >
                       Archivada
@@ -1189,12 +1299,12 @@ const AdminPractices = () => {
                     />
                   </div>
 
-                  {/* Horario de la Práctica */}
-                  <div className="md:col-span-2 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+                  {/* Horario de la Práctica (Por día con selector de reloj inicio/fin) */}
+                  <div className="md:col-span-2 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5 uppercase tracking-wide">
                         <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        Horario de la Práctica (Días de la semana y horas)
+                        Horario de la Práctica (Días de la semana y horas con reloj)
                       </label>
                       <span className="text-[11px] text-gray-500 dark:text-gray-400">
                         Visible para el administrador y los participantes vinculados
@@ -1206,24 +1316,15 @@ const AdminPractices = () => {
                         Seleccionar días frecuentes:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
-                        {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((dia) => {
-                          const isIncluded = (formData.horario || "").includes(dia);
+                        {DIAS_SEMANA.map((dia) => {
+                          const isSelected = !!scheduleDays[dia];
                           return (
                             <button
                               key={dia}
                               type="button"
-                              onClick={() => {
-                                const current = formData.horario || "";
-                                let next;
-                                if (current.includes(dia)) {
-                                  next = current.replace(new RegExp(`${dia}(,?\\s*)?`, "gi"), "").trim().replace(/,\s*$/, "");
-                                } else {
-                                  next = current ? `${current}, ${dia}` : dia;
-                                }
-                                setFormData((prev) => ({ ...prev, horario: next }));
-                              }}
-                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition border ${
-                                isIncluded
+                              onClick={() => handleToggleScheduleDay(dia)}
+                              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition border cursor-pointer ${
+                                isSelected
                                   ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                                   : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-blue-400"
                               }`}
@@ -1235,11 +1336,64 @@ const AdminPractices = () => {
                       </div>
                     </div>
 
+                    {/* Selector de reloj individual por cada día seleccionado */}
+                    {Object.keys(scheduleDays).length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+                        <span className="block text-[11px] font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider">
+                          Asignar hora de inicio y fin para cada día (Reloj):
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {DIAS_SEMANA.filter((dia) => !!scheduleDays[dia]).map((dia) => (
+                            <div
+                              key={dia}
+                              className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-blue-200/70 dark:border-zinc-700 flex items-center justify-between gap-2 shadow-xs"
+                            >
+                              <span className="font-bold text-xs text-blue-700 dark:text-blue-300 shrink-0 w-20">
+                                {dia}:
+                              </span>
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-gray-400">Inicio:</span>
+                                  <input
+                                    type="time"
+                                    value={scheduleDays[dia]?.inicio || "07:00"}
+                                    onChange={(e) => handleScheduleTimeChange(dia, "inicio", e.target.value)}
+                                    className="px-2 py-1 rounded-lg border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs font-mono font-bold text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                                <span className="text-gray-400 font-bold">-</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-gray-400">Fin:</span>
+                                  <input
+                                    type="time"
+                                    value={scheduleDays[dia]?.fin || "13:00"}
+                                    onChange={(e) => handleScheduleTimeChange(dia, "fin", e.target.value)}
+                                    className="px-2 py-1 rounded-lg border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs font-mono font-bold text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleScheduleDay(dia)}
+                                className="p-1 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                title={`Quitar ${dia}`}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                        Resumen del horario registrado:
+                      </label>
                       <input
                         type="text"
                         name="horario"
-                        placeholder="Ej: Lunes, Martes y Miércoles de 07:00 a 13:00 (Turno Mañana)"
+                        placeholder="Ej: Lunes (07:00 - 13:00), Jueves (08:00 - 14:00)"
                         value={formData.horario || ""}
                         onChange={handleInputChange}
                         className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm font-medium"
@@ -1592,6 +1746,26 @@ const AdminPractices = () => {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Periodo Académico: {viewingPractice.periodo || "2024-1"}
                 </p>
+
+                {/* Aviso oficial de 30 días para emitir certificados en rotación finalizada */}
+                {viewingPractice.estado === "Finalizada" && (() => {
+                  const remaining = getRemainingCertDays(viewingPractice.fecha_fin);
+                  return (
+                    <div className="mt-2.5 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
+                      <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                      <div>
+                        <strong className="block font-bold">
+                          {remaining > 0
+                            ? `Quedan ${remaining} días para emitir certificados.`
+                            : "Plazo de 30 días para emisión de certificados cumplido."}
+                        </strong>
+                        <span className="text-[11px] opacity-80 block">
+                          Esta rotación está finalizada y ya no se puede editar.
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <button
                 onClick={() => setViewingPractice(null)}

@@ -353,8 +353,10 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
     let sql = "";
     let params = [];
 
+    const constanciaCondition = `(hc.categoria_solicitud IS NULL OR hc.categoria_solicitud != 'constancia') AND (hc.tipo_certificado IS NULL OR hc.tipo_certificado NOT LIKE '%constancia%')`;
+
     if (role === "student") {
-      // Estudiante: Máximo 1 año a partir de la fecha de emisión
+      // Estudiante: Máximo 1 año a partir de la fecha de emisión (solo certificados)
       sql = `
         SELECT 
           hc.*,
@@ -363,12 +365,13 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
         FROM historial_certificado hc
         WHERE hc.estudiante_cedula = ?
           AND (hc.fecha_expiracion_estudiante IS NULL OR hc.fecha_expiracion_estudiante >= NOW())
+          AND ${constanciaCondition}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
       params = [cedula];
     } else if (role === "admin") {
-      // Administrador: Se guardan para siempre con buscador y filtros avanzados
-      let whereClauses = ["1=1"];
+      // Administrador: Se guardan para siempre con buscador y filtros avanzados (solo certificados)
+      let whereClauses = [constanciaCondition];
 
       if (q && q.trim()) {
         const searchTerm = `%${q.trim()}%`;
@@ -425,6 +428,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes
         FROM historial_certificado hc
         WHERE hc.docente_cedula = ?
+          AND ${constanciaCondition}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
       params = [cedula];
@@ -435,6 +439,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
           hc.*,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes
         FROM historial_certificado hc
+        WHERE ${constanciaCondition}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
     }

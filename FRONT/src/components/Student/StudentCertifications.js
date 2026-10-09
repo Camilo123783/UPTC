@@ -67,7 +67,7 @@ const StudentCertifications = () => {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [selectedPracticeForRequest, setSelectedPracticeForRequest] = useState(null);
   const [requestFormData, setRequestFormData] = useState({
-    tipo_certificado: "Certificado Oficial de Aprobación de Práctica Clínica",
+    tipo_certificado: "Certificado de Aprobación de Práctica Clínica",
     motivo: "Trámite de Grado",
     observaciones: "",
   });
@@ -402,7 +402,7 @@ const StudentCertifications = () => {
         toast.success(
           isReport
             ? `¡Solicitud de Reporte enviada exitosamente a ${docentName}!`
-            : `¡Solicitud de Certificado enviada exitosamente a ${docentName}! El docente avalará tu certificación oficial.`
+            : `¡Solicitud de Certificado enviada exitosamente a ${docentName}! El docente avalará tu certificación.`
         );
         notifyDataChanged("certificate-requests", "create");
         await loadData();
@@ -413,7 +413,7 @@ const StudentCertifications = () => {
           setRequestCategory("reporte");
           setRequestFormData((prev) => ({
             ...prev,
-            tipo_certificado: "Constancia de Práctica Formativa Vigente / En Curso",
+            tipo_certificado: "Reporte de Práctica Formativa Vigente",
             motivo: "Trámite Institucional / EPS",
           }));
           return;
@@ -669,10 +669,10 @@ const StudentCertifications = () => {
                 <span>Certificación de Culminación y Aprobación</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
-                Solicitud de Certificados Oficiales a Docentes
+                Solicitud de Certificados a Docentes
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Selecciona la práctica formativa para solicitar el certificado oficial avalado por tu docente. Requiere calificación final aprobada.
+                Selecciona la práctica formativa para solicitar el certificado avalado por tu docente. Requiere calificación final aprobada.
               </p>
             </div>
           </div>
@@ -945,13 +945,13 @@ const StudentCertifications = () => {
             <div>
               <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
                 <FileText className="w-4 h-4" />
-                <span>Gestión de Informes y Horas en Curso</span>
+                <span>Gestión de Informes y Horas Formativas</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
                 Solicitud de Reportes de Práctica y Cumplimiento
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Tramita constancias de práctica vigente, reporte de horas y asistencia ante tu docente sin necesidad de esperar a la nota final.
+                Tramita reportes de práctica vigente, registro de horas y asistencia ante tu docente sin necesidad de esperar a la nota final.
               </p>
             </div>
           </div>
@@ -964,7 +964,7 @@ const StudentCertifications = () => {
                 ¿Cuándo solicitar un Reporte de Práctica?
               </strong>
               <p className="leading-relaxed text-gray-700 dark:text-zinc-300">
-                Si requieres acreditar tu vinculación asistencial activa, turnos rotatorios, horas acumuladas a la fecha o constancia de rotación ante EPS, IPS o convenios institucionales, puedes solicitar tu reporte en cualquier momento de tu práctica.
+                Si requieres acreditar tu vinculación asistencial activa, turnos rotatorios, horas acumuladas a la fecha o acreditación de rotación ante EPS, IPS o convenios institucionales, puedes solicitar tu reporte en cualquier momento de tu práctica.
               </p>
             </div>
           </div>
@@ -1366,7 +1366,7 @@ const StudentCertifications = () => {
                     <span>Calificación Pendiente en esta Práctica</span>
                   </div>
                   <p className="leading-relaxed text-gray-700 dark:text-zinc-300 text-[11px]">
-                    Esta práctica aún no cuenta con nota definitiva registrada por el docente. No es posible tramitar un Certificado Oficial de Aprobación sin nota.
+                    Esta práctica aún no cuenta con nota definitiva registrada por el docente. No es posible tramitar un Certificado de Aprobación sin nota.
                   </p>
                   <button
                     type="button"
@@ -1374,7 +1374,7 @@ const StudentCertifications = () => {
                       setRequestCategory("reporte");
                       setRequestFormData((prev) => ({
                         ...prev,
-                        tipo_certificado: "Constancia de Práctica Formativa Vigente / En Curso",
+                        tipo_certificado: "Reporte de Práctica Formativa Vigente",
                         motivo: "Trámite Institucional / EPS",
                       }));
                     }}
@@ -1400,8 +1400,8 @@ const StudentCertifications = () => {
                 >
                   {requestCategory === "reporte" ? (
                     <>
-                      <option value="Constancia de Práctica Formativa Vigente / En Curso">
-                        Constancia de Práctica Formativa Vigente / En Curso
+                      <option value="Reporte de Práctica Formativa Vigente">
+                        Reporte de Práctica Formativa Vigente
                       </option>
                       <option value="Reporte de Cumplimiento de Horas y Asistencia">
                         Reporte de Cumplimiento de Horas y Asistencia
@@ -1415,8 +1415,8 @@ const StudentCertifications = () => {
                     </>
                   ) : (
                     <>
-                      <option value="Certificado Oficial de Aprobación de Práctica Clínica">
-                        Certificado Oficial de Aprobación de Práctica Clínica
+                      <option value="Certificado de Aprobación de Práctica Clínica">
+                        Certificado de Aprobación de Práctica Clínica
                       </option>
                       <option value="Certificación de Intensidad Horaria y Desempeño Asistencial">
                         Certificación de Intensidad Horaria y Desempeño Asistencial

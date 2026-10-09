@@ -6,6 +6,7 @@
 // - Identificador hexadecimal único en cada certificado y descarga directa en PDF
 // ============================================================
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Award,
   Search,
@@ -35,7 +36,6 @@ import { useAuth } from "../../utils/useAuth";
 import { useTheme } from "../../context/ThemeContext";
 import toast from "../../utils/toast";
 import { generateProfessionalCertificate } from "../../utils/certificateGenerator";
-import { generateConstanciaPracticaVigente } from "../../utils/reportGenerator";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -112,7 +112,15 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
       }
 
       const json = await res.json();
-      setCertificates(Array.isArray(json.data) ? json.data : []);
+      const rawList = Array.isArray(json.data) ? json.data : [];
+      // Filtrar estrictamente solo certificados (sin constancias)
+      const certsOnly = rawList.filter((c) => {
+        const isConstancia =
+          c.categoria_solicitud === "constancia" ||
+          (c.tipo_certificado && c.tipo_certificado.toLowerCase().includes("constancia"));
+        return !isConstancia;
+      });
+      setCertificates(certsOnly);
     } catch (err) {
       console.error("Error al obtener certificados:", err);
       toast.error(err.message || "No se pudo sincronizar el historial de certificados.");
@@ -134,54 +142,28 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
     setTimeout(() => setCopiedHex(null), 2500);
   };
 
-  // Descargar PDF oficial
+  // Descargar PDF del Certificado
   const handleDownloadPDF = (cert, e) => {
     if (e) e.stopPropagation();
 
-    const isConstancia =
-      cert.categoria_solicitud === "constancia" ||
-      (cert.tipo_certificado && cert.tipo_certificado.toLowerCase().includes("constancia")) ||
-      (cert.tipo_certificado && cert.tipo_certificado.toLowerCase().includes("vigente"));
-
     try {
-      if (isConstancia) {
-        generateConstanciaPracticaVigente({
-          studentName: cert.estudiante_nombre,
-          studentCedula: cert.estudiante_cedula,
-          studentCareer: cert.programa_nombre || "Medicina",
-          practiceProgram: cert.programa_nombre || "Medicina",
-          practiceName: cert.practica_titulo || "Práctica Formativa",
-          serviceName: cert.servicio_nombre || "",
-          institutionName: cert.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
-          docentName: cert.docente_nombre || "Docente Tutor UPTC",
-          period: cert.periodo || "2026-1",
-          startDate: cert.fecha_inicio || "",
-          endDate: cert.fecha_fin || "",
-          totalHours: cert.horas_totales || 120,
-          accumulatedHours: cert.horas_totales || 120,
-          issueDate: cert.fecha_emision ? cert.fecha_emision.substring(0, 10) : "",
-          id_hex: cert.id_hex,
-          institutionSettings: instSettings,
-        });
-      } else {
-        generateProfessionalCertificate({
-          studentName: cert.estudiante_nombre,
-          cedula: cert.estudiante_cedula,
-          career: cert.programa_nombre || "Medicina",
-          practiceName: cert.practica_titulo || "Práctica Formativa",
-          serviceName: cert.servicio_nombre || "",
-          institution: cert.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
-          docentName: cert.docente_nombre || "Docente Tutor UPTC",
-          hours: cert.horas_totales || 120,
-          period: cert.periodo || "2026-1",
-          startDate: cert.fecha_inicio || "",
-          endDate: cert.fecha_fin || "",
-          grade: cert.calificacion,
-          date: cert.fecha_emision ? cert.fecha_emision.substring(0, 10) : "",
-          id_hex: cert.id_hex,
-          institutionSettings: instSettings,
-        });
-      }
+      generateProfessionalCertificate({
+        studentName: cert.estudiante_nombre,
+        cedula: cert.estudiante_cedula,
+        career: cert.programa_nombre || "Medicina",
+        practiceName: cert.practica_titulo || "Práctica Formativa",
+        serviceName: cert.servicio_nombre || "",
+        institution: cert.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
+        docentName: cert.docente_nombre || "Docente Tutor UPTC",
+        hours: cert.horas_totales || 120,
+        period: cert.periodo || "2026-1",
+        startDate: cert.fecha_inicio || "",
+        endDate: cert.fecha_fin || "",
+        grade: cert.calificacion,
+        date: cert.fecha_emision ? cert.fecha_emision.substring(0, 10) : "",
+        id_hex: cert.id_hex,
+        institutionSettings: instSettings,
+      });
       toast.success(`Certificado #${cert.id_hex} descargado en formato PDF.`);
     } catch (err) {
       console.error("Error al generar PDF:", err);
@@ -257,8 +239,8 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400">
                   {userRole === "admin" || userRole === "superadmin"
-                    ? "Archivo histórico permanente de todos los certificados oficiales y constancias emitidas en la institución."
-                    : "Expediente digital de tus certificados y constancias oficiales avaladas en tus prácticas formativas."}
+                    ? "Archivo histórico permanente de todos los certificados emitidos en la institución."
+                    : "Expediente digital de tus certificados avalados en tus prácticas formativas."}
                 </p>
               </div>
             </div>
@@ -348,7 +330,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
               Recomendación importante para el estudiante
             </h4>
             <p>
-              Te recomendamos <strong>descargar tus certificados en formato PDF</strong> y guardarlos en tu computador o dispositivo personal. Por políticas institucionales de almacenamiento, tus certificados y constancias permanecerán disponibles para consulta y descarga en tu perfil durante un período máximo de <strong>un (1) año</strong> a partir de su fecha de emisión.
+              Te recomendamos <strong>descargar tus certificados en formato PDF</strong> y guardarlos en tu computador o dispositivo personal. Por políticas institucionales de almacenamiento, tus certificados permanecerán disponibles para consulta y descarga en tu perfil durante un período máximo de <strong>un (1) año</strong> a partir de su fecha de emisión.
             </p>
           </div>
         </div>
@@ -430,39 +412,9 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
         {/* Pestañas de Filtro Rápido */}
         <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setTypeFilter("all")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                typeFilter === "all"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
-              }`}
-            >
-              Todos los Documentos ({certificates.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter("certificado")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                typeFilter === "certificado"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
-              }`}
-            >
-              Certificados Oficiales
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter("constancia")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                typeFilter === "constancia"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
-              }`}
-            >
-              Constancias de Práctica
-            </button>
+            <span className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-xs">
+              Certificados ({certificates.length})
+            </span>
           </div>
 
           <div className="text-xs text-gray-500 dark:text-zinc-400 font-medium">
@@ -494,7 +446,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
               ? "Prueba modificando los criterios de búsqueda o limpiando los filtros actuales."
               : userRole === "student"
               ? "Tus certificados aparecerán aquí una vez que hayan sido avalados por tus docentes o emitidos oficialmente."
-              : "Los certificados y constancias emitidos en la institución se archivarán automáticamente aquí para siempre."}
+              : "Los certificados emitidos en la institución se archivarán automáticamente aquí para siempre."}
           </p>
         </div>
       ) : (
@@ -538,14 +490,8 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
                         )}
                       </button>
 
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                          isConstancia
-                            ? "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/80 dark:text-blue-300 dark:border-blue-800"
-                            : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800"
-                        }`}
-                      >
-                        {isConstancia ? "Constancia" : "Certificado Oficial"}
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800">
+                        Certificado
                       </span>
                     </div>
 
@@ -683,8 +629,8 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
       )}
 
       {/* ── MODAL DETALLADO DE CERTIFICADO ── */}
-      {isModalOpen && selectedCert && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
+      {isModalOpen && selectedCert && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
           <div
             className={`w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden transition-all ${
               isDark ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-zinc-900"
@@ -699,7 +645,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-                    {selectedCert.tipo_certificado}
+                    Certificado
                   </span>
                   <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700">
                     ID #{selectedCert.id_hex}
@@ -850,12 +796,13 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Descargar Certificado Oficial (PDF)</span>
+                  <span>Descargar Certificado (PDF)</span>
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Footer sutil institucional */}

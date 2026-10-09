@@ -2,6 +2,7 @@
 // src/components/History/HistoryModule.js — Módulo de Historial
 // ============================================================
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import toast from "../../utils/toast";
 import {
   Search,
@@ -213,14 +214,25 @@ const HistoryModule = ({ userRole }) => {
     setIsModalOpen(true);
   };
 
-  // Ver documento de estudiante
+  // Ver documento de estudiante en nueva pestaña (inline)
   const handleViewDocument = (studentCedula, docType) => {
     const token =
       localStorage.getItem("authToken") ||
       sessionStorage.getItem("authToken") ||
       localStorage.getItem("token") ||
       sessionStorage.getItem("token");
-    const docUrl = `${API_BASE_URL}/api/student/documents/${studentCedula}/${docType}?view=true${token ? `&token=${encodeURIComponent(token)}` : ""}`;
+    const docUrl = `${API_BASE_URL}/api/student/view/${studentCedula}/${docType}?inline=true${token ? `&token=${encodeURIComponent(token)}` : ""}`;
+    window.open(docUrl, "_blank", "noopener,noreferrer");
+  };
+
+  // Descargar documento de estudiante directamente (attachment)
+  const handleDownloadDocument = (studentCedula, docType) => {
+    const token =
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token");
+    const docUrl = `${API_BASE_URL}/api/student/download/${studentCedula}/${docType}?${token ? `token=${encodeURIComponent(token)}` : ""}`;
     window.open(docUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -577,8 +589,8 @@ const HistoryModule = ({ userRole }) => {
       )}
 
       {/* ── MODAL DETALLADO / EXPEDIENTE HISTÓRICO ── */}
-      {isModalOpen && selectedPractice && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
+      {isModalOpen && selectedPractice && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
           <div
             className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden transition-all ${
               isDark ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-zinc-900"
@@ -863,14 +875,24 @@ const HistoryModule = ({ userRole }) => {
                                   </div>
 
                                   {doc.vinculado && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleViewDocument(st.cedula, doc.tipo)}
-                                      className="p-1 rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition cursor-pointer flex-shrink-0"
-                                      title="Visualizar documento"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </button>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleViewDocument(st.cedula, doc.tipo)}
+                                        className="p-1 rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition cursor-pointer"
+                                        title="Ver documento en navegador"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadDocument(st.cedula, doc.tipo)}
+                                        className="p-1 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition cursor-pointer"
+                                        title="Descargar documento (archivo)"
+                                      >
+                                        <Download className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               ))}
@@ -890,7 +912,8 @@ const HistoryModule = ({ userRole }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Footer sutil institucional */}

@@ -297,7 +297,7 @@ const AdminCertificateDesigner = () => {
       // Las prácticas canceladas no se muestran en emisión de certificados
       if (status === "cancelada") return false;
       if (statusFilter === "activas") {
-        if (status !== "activa" && status !== "en curso") return false;
+        if (status !== "activa") return false;
       } else if (statusFilter === "finalizadas") {
         if (status !== "finalizada" && status !== "concluida") return false;
       }
@@ -485,7 +485,7 @@ const AdminCertificateDesigner = () => {
         );
       } else {
         toast.success(
-          `Certificado oficial de "${certificateData.studentName}" generado exitosamente.`
+          `Certificado de "${certificateData.studentName}" generado exitosamente.`
         );
       }
     } catch (err) {
@@ -636,12 +636,11 @@ const AdminCertificateDesigner = () => {
                     : "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
                   }`}
               >
-                Activas / En Curso (
+                Activas (
                 {
                   practices.filter(
                     (p) =>
-                      (p.estado || "").toLowerCase() === "activa" ||
-                      (p.estado || "").toLowerCase() === "en curso"
+                      (p.estado || "").toLowerCase() === "activa"
                   ).length
                 }
                 )
@@ -704,7 +703,7 @@ const AdminCertificateDesigner = () => {
                       <div className="flex items-center justify-between gap-2 mb-3">
                         <span
                           className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
-                            (pr.estado || "").toLowerCase() === "activa" || (pr.estado || "").toLowerCase() === "en curso"
+                            (pr.estado || "").toLowerCase() === "activa"
                               ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
                               : (pr.estado || "").toLowerCase() === "planificada"
                               ? "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-300 dark:border-blue-800"
@@ -823,7 +822,7 @@ const AdminCertificateDesigner = () => {
                     </h2>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                        (selectedPractice.estado || "").toLowerCase() === "activa" || (selectedPractice.estado || "").toLowerCase() === "en curso"
+                        (selectedPractice.estado || "").toLowerCase() === "activa"
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
                           : (selectedPractice.estado || "").toLowerCase() === "planificada"
                           ? "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border-blue-300 dark:border-blue-800"

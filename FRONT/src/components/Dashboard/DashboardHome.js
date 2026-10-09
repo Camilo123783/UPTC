@@ -237,7 +237,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
         if (response.ok) {
           const practices = await response.json();
           const active = practices.filter(
-            (p) => p.estado === "Activa" || p.estado === "En Curso"
+            (p) => p.estado === "Activa"
           ).length;
           const pending = practices.filter(
             (p) => p.calificacion === null || p.estado_evaluacion === "Pendiente"
@@ -812,7 +812,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                     </p>
                     <div className="flex flex-col text-[11px] leading-tight text-emerald-800 dark:text-emerald-300 border-l border-emerald-300 dark:border-emerald-800 pl-3 space-y-0.5 select-none">
                       <span className="flex items-center gap-1">
-                        <strong>Activas</strong> en curso
+                        <strong>Activas</strong> vigentes
                       </span>
                       <span className="flex items-center gap-1">
                         Rotaciones clínicas

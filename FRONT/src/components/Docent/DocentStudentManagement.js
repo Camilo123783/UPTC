@@ -47,7 +47,7 @@ import {
 
 const API_BASE_URL = BACKEND_URL;
 
-const PRACTICE_STATUSES = ['Activa', 'Planificada', 'En Curso', 'Finalizada', 'Cancelada'];
+const PRACTICE_STATUSES = ['Activa', 'Planificada', 'Finalizada', 'Cancelada'];
 
 const DocentStudentManagement = () => {
   // ─── Estados Principales ───
@@ -1601,7 +1601,7 @@ const DocentStudentManagement = () => {
 
       {/* ─── Modal Profesional de Verificación Documental y Aval Docente ─── */}
       {isValidatingModalOpen && validatingStudent && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-3xl w-full p-6 max-h-[92vh] flex flex-col">
             {/* Cabecera del Modal */}
             <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-zinc-800">
