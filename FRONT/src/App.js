@@ -249,22 +249,9 @@ export const getPageTitle = (pathname, userRole) => {
     return "Cambiar Contraseña - Gestor de Prácticas";
   }
 
-  // Dashboard por Rol
+  // Dashboard
   if (pathname.startsWith("/dashboard") || pathname === "/") {
-    switch (userRole) {
-      case "docent":
-        return "Dashboard (Docente) - Gestor de Prácticas";
-      case "student":
-        return "Dashboard (Estudiante) - Gestor de Prácticas";
-      case "auditor":
-        return "Dashboard (Auditor) - Gestor de Prácticas";
-      case "admin":
-        return "Dashboard (Administrador) - Gestor de Prácticas";
-      case "superadmin":
-        return "Dashboard (Superadmin) - Gestor de Prácticas";
-      default:
-        return "Dashboard - Gestor de Prácticas";
-    }
+    return "Dashboard - Gestor de Prácticas";
   }
 
   return "Gestor de Prácticas - UPTC";

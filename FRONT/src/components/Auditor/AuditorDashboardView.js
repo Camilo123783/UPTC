@@ -150,7 +150,7 @@ const AuditorDashboardView = ({ onNavigate }) => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-            Resumen Auditor
+            Resumen General
           </h3>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-zinc-400 mt-1">
             Accesos directos a la supervisión de prácticas, usuarios y canales de comunicación.

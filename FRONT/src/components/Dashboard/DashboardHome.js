@@ -307,7 +307,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                  Mi Panel Académico
+                  Resumen General
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Accede a cada uno de tus módulos de formación, rotaciones clínicas y solicitudes oficiales.
@@ -456,7 +456,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
         return (
           <>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Resumen Docente
+              Resumen General
             </h3>
 
             {/* Aviso de prácticas próximas a finalizar (7 días o menos) */}
@@ -648,14 +648,14 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Crown className="w-6 h-6 text-amber-500" /> Panel de Control Super Administrador
+                  <Crown className="w-6 h-6 text-amber-500" /> Panel de Control General
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Gestión integral de la institución educativa, parámetros globales y usuarios de todas las facultades.
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                <Crown className="w-3.5 h-3.5" /> Superadmin Activo
+                <Crown className="w-3.5 h-3.5" /> Sesión Activa
               </span>
             </div>
 
@@ -715,12 +715,12 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-8">
-              Como Super Administrador tienes el control total para configurar la entidad educativa, personalizar la estética de la plataforma y gestionar la base de datos de usuarios administradores.
+              Desde aquí tienes el control total para configurar la entidad educativa, personalizar la estética de la plataforma y gestionar la base de datos de usuarios administradores.
             </p>
 
             <div className="mt-6 p-6 bg-gray-50/80 dark:bg-zinc-800/50 rounded-2xl border border-gray-200 dark:border-zinc-800">
               <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" /> Tareas Rápidas de Superadmin
+                <Zap className="w-5 h-5 text-amber-500" /> Tareas Rápidas del Sistema
               </h4>
               <ul className="space-y-2">
                 <li className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -745,7 +745,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                  Resumen Administrador Maestro
+                  Resumen General
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-zinc-400 mt-1">
                   Control integral del sistema, parametrización de catálogos y gestión de rotaciones clínicas.
