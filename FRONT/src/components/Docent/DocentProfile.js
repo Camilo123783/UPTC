@@ -77,9 +77,9 @@ const DocentProfile = () => {
         const stored = sessionStorage.getItem("userData") || localStorage.getItem("userData");
         const parsed = stored ? JSON.parse(stored) : {};
         setProfileData({
-          cedula: parsed.cedula || getDocentCedula() || "3",
-          nombre_completo: `${parsed.nombre || "Gloria"} ${parsed.apellidos || "Alvarez"}`.trim(),
-          correo_institucional: parsed.correo_institucional || parsed.email || "gh@ghj.com",
+          cedula: parsed.cedula || getDocentCedula() || "",
+          nombre_completo: `${parsed.nombre || "Docente"} ${parsed.apellidos || ""}`.trim(),
+          correo_institucional: parsed.correo_institucional || parsed.email || "",
           programa: parsed.nombreprograma || "Facultad de Ciencias de la Salud",
           foto_perfil: parsed.foto_perfil || null,
           foto_firma: parsed.foto_firma || null,
@@ -192,6 +192,8 @@ const DocentProfile = () => {
 
       // Notificar reactivamente a la barra superior (Navbar)
       window.dispatchEvent(new CustomEvent("uptc:profile-updated", { detail: { foto_perfil: photoPreview } }));
+      window.dispatchEvent(new CustomEvent("uptc:profile-photo-updated", { detail: { foto_perfil: photoPreview } }));
+      window.dispatchEvent(new CustomEvent("uptc:user-data-updated", { detail: { foto_perfil: photoPreview } }));
       notifyDataChanged("docent-profile", "update");
 
       setProfileData((prev) => ({

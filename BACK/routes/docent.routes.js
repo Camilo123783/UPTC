@@ -1276,10 +1276,10 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
       LEFT JOIN datos_estudiante de ON pe.estudiante_cedula = de.cedula_estudiante
       LEFT JOIN reporte_auditor ra ON ra.practica_id = pe.practica_id AND ra.estudiante_cedula = pe.estudiante_cedula
       LEFT JOIN auditor au ON ra.auditor_cedula = au.cedula
-      WHERE (pr.docente_cedula = ? OR pr.creado_por_cedula = ?)
+      WHERE pr.docente_cedula = ?
         ${docentProgramaId ? "AND (e.programa_id = ? OR e.programa_id IS NULL)" : ""}
       ORDER BY pr.id DESC, e.apellidos ASC
-    `, docentProgramaId ? [docentId, docentId, docentProgramaId] : [docentId, docentId]);
+    `, docentProgramaId ? [docentId, docentProgramaId] : [docentId]);
 
     const studentList = rows.map((r) => {
       let criteriosParsed = null;
@@ -1575,8 +1575,8 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
     const practicesRows = await queryDB(`
       SELECT id, titulo, estado, fecha_fin
       FROM practica
-      WHERE docente_cedula = ? OR creado_por_cedula = ?
-    `, [docentId, docentId]);
+      WHERE docente_cedula = ?
+    `, [docentId]);
 
     const totalPractices = practicesRows.length;
     const activePractices = practicesRows.filter((p) => p.estado === "Activa" || p.estado === "En Curso").length;

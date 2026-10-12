@@ -122,6 +122,7 @@ export const getPageKeyFromPath = (pathname) => {
   if (pathname.startsWith("/docent/evaluations")) return "docentEvaluations";
   if (pathname.startsWith("/docent/communication-students")) return "docentStudentCommunication";
   if (pathname.startsWith("/docent/communication")) return "docentCommunication";
+  if (pathname.startsWith("/docent/profile")) return "docentProfile";
 
   if (pathname.startsWith("/student/profile")) return "studentProfile";
   if (pathname.startsWith("/student/practices")) return "studentPractices";

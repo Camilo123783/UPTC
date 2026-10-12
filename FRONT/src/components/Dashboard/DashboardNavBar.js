@@ -162,10 +162,12 @@ const DashboardLayout = ({
       loadUserData();
     };
     window.addEventListener("storage", handleProfileUpdate);
+    window.addEventListener("uptc:profile-updated", handleProfileUpdate);
     window.addEventListener("uptc:profile-photo-updated", handleProfileUpdate);
     window.addEventListener("uptc:user-data-updated", handleProfileUpdate);
     return () => {
       window.removeEventListener("storage", handleProfileUpdate);
+      window.removeEventListener("uptc:profile-updated", handleProfileUpdate);
       window.removeEventListener("uptc:profile-photo-updated", handleProfileUpdate);
       window.removeEventListener("uptc:user-data-updated", handleProfileUpdate);
     };
@@ -1056,7 +1058,8 @@ const DashboardLayout = ({
     ],
     docent: [
       { name: "Dashboard", page: "dashboard" },
-      { name: "Mis Prácticas", page: "docentPractices", section: "Gestión" },
+      { name: "Mi Perfil", page: "docentProfile", section: "Gestión" },
+      { name: "Mis Prácticas", page: "docentPractices" },
       { name: "Estudiantes", page: "docentStudents" },
       { name: "Cumplimiento de Horas", page: "docentHoursCompliance" },
       { name: "Solicitud de Certificados", page: "docentCertificateRequests" },
@@ -1314,6 +1317,38 @@ const DashboardLayout = ({
 
               {/* Botones de Acción */}
               <div className="space-y-2">
+                {/* Botón de Mi Perfil (Foto, Firma y Datos) */}
+                {(userRole === "docent" || userRole === "student") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onNavigate(userRole === "docent" ? "docentProfile" : "studentProfile");
+                    }}
+                    className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 cursor-pointer ${
+                      isDark
+                        ? "bg-purple-600/90 hover:bg-purple-600 text-white shadow-sm shadow-purple-600/30"
+                        : "bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-600/20"
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth="2"
+                      stroke="currentColor"
+                      className="w-4 h-4 text-purple-200 flex-shrink-0"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+                      />
+                    </svg>
+                    <span>Mi Perfil (Foto y Datos)</span>
+                  </button>
+                )}
+
                 {/* Botón de Cambiar Contraseña */}
                 <button
                   type="button"

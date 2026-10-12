@@ -205,13 +205,19 @@ const DocentStudentManagement = () => {
     });
   }, [docentPractices, practiceSearchTerm, practiceStatusFilter]);
 
-  // ─── Estudiantes de la Práctica Seleccionada ───
+  // ─── Estudiantes de la Práctica Seleccionada (Estrictamente de prácticas asignadas al docente) ───
+  const docentPracticeIds = useMemo(() => new Set(docentPractices.map((p) => String(p.id))), [docentPractices]);
+
+  const assignedStudents = useMemo(() => {
+    return students.filter((s) => docentPracticeIds.has(String(s.practiceId)));
+  }, [students, docentPracticeIds]);
+
   const practiceStudents = useMemo(() => {
     if (!currentPractice) {
-      return students; // si es 'Todas'
+      return assignedStudents; // si es 'Todas'
     }
-    return students.filter((s) => String(s.practiceId) === String(currentPractice.id));
-  }, [students, currentPractice]);
+    return assignedStudents.filter((s) => String(s.practiceId) === String(currentPractice.id));
+  }, [assignedStudents, currentPractice]);
 
   // ─── Filtrado de Estudiantes por Búsqueda y Evaluación ───
   const filteredStudents = useMemo(() => {
@@ -256,14 +262,14 @@ const DocentStudentManagement = () => {
 
   // ─── Contadores Globales para Métricas Superiores ───
   const globalMetrics = useMemo(() => {
-    const totalStudents = students.length;
-    const totalEvaluated = students.filter(
+    const totalStudents = assignedStudents.length;
+    const totalEvaluated = assignedStudents.filter(
       (s) => s.evaluationStatus === 'Completada' || (s.score !== null && s.score !== undefined)
     ).length;
     const totalPending = totalStudents - totalEvaluated;
     const totalPractices = docentPractices.length;
     return { totalStudents, totalEvaluated, totalPending, totalPractices };
-  }, [students, docentPractices]);
+  }, [assignedStudents, docentPractices]);
 
   // ─── Cálculo Automático de Nota y Desempeño según los 4 Ítems ───
   const computedScore = useMemo(() => {

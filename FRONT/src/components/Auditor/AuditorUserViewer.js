@@ -260,7 +260,7 @@ const AuditorUserViewer = () => {
 
           <div className="p-4 rounded-2xl bg-purple-50/80 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60">
             <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
-              Docentes Tutores Vinculados
+              Docentes Asignados
             </span>
             <p className="text-3xl font-black text-purple-950 dark:text-purple-100 mt-1">
               {summaryCounts.docentsCount}
@@ -322,7 +322,7 @@ const AuditorUserViewer = () => {
                   </span>
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-                  Elige una práctica para consultar de forma rápida y filtrada a sus docentes tutores y estudiantes asignados.
+                  Elige una práctica para consultar de forma rápida y filtrada a sus docentes y estudiantes asignados.
                 </p>
               </div>
 
