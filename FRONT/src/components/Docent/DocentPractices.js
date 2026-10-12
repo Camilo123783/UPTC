@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
+import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
 import toast from "../../utils/toast";
 import StudentAvatar from "../Shared/StudentAvatar";
@@ -827,7 +828,11 @@ const DocentPractices = () => {
         </div>
 
         {/* Métricas rápidas */}
-        {!isLoading && !error && (
+        {isLoading ? (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-800">
+            <SkeletonStatsRow count={4} />
+          </div>
+        ) : !error && (
           <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div className="p-3 bg-gray-50 dark:bg-slate-800/40 rounded-xl">
               <span className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Mis Prácticas</span>
@@ -912,20 +917,7 @@ const DocentPractices = () => {
 
       {/* ─── Skeleton de Carga ─── */}
       {isLoading && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((n) => (
-              <div
-                key={n}
-                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 animate-pulse space-y-3"
-              >
-                <div className="h-5 w-3/4 bg-gray-200 dark:bg-slate-700 rounded"></div>
-                <div className="h-4 w-1/2 bg-gray-200 dark:bg-slate-700 rounded"></div>
-                <div className="h-4 w-full bg-gray-200 dark:bg-slate-700 rounded"></div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <SkeletonCardGrid count={6} />
       )}
 
       {/* ─── Estado Vacío: Docente sin Prácticas Asignadas ─── */}

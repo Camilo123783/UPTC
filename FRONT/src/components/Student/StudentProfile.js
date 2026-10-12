@@ -25,6 +25,7 @@ import {
   Check,
   Clock,
 } from "lucide-react";
+import { SkeletonProfile } from "../Shared/Skeleton";
 import { API_URL, BACKEND_URL } from "../../config/api";
 
 // --- RESOLUCIÓN ROBUSTA DE SESIÓN Y CREDENCIALES ---
@@ -616,19 +617,7 @@ const StudentProfile = () => {
   // ESTADOS DE CARGA Y ERROR
   // =========================================================================
   if (isLoading) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-3 p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-md">
-          <RefreshCw className="w-8 h-8 text-amber-500 animate-spin" />
-          <p className="text-gray-800 dark:text-zinc-200 font-semibold text-base">
-            Cargando información del estudiante...
-          </p>
-          <span className="text-xs text-gray-500 dark:text-zinc-400">
-            Sincronizando datos académicos y soportes
-          </span>
-        </div>
-      </div>
-    );
+    return <SkeletonProfile />;
   }
 
   if (error) {

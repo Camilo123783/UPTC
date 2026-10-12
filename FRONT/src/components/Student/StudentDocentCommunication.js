@@ -30,6 +30,7 @@ import {
   Megaphone,
   Trash2,
 } from "lucide-react";
+import { Skeleton, SkeletonChat } from "../Shared/Skeleton";
 
 const StudentDocentCommunication = () => {
   const { user } = useAuth();
@@ -333,8 +334,17 @@ const StudentDocentCommunication = () => {
             {/* Lista de Prácticas */}
             <div className="space-y-2 max-h-[580px] overflow-y-auto pr-1">
               {isLoadingPractices ? (
-                <div className="py-8 text-center text-xs text-gray-400 animate-pulse">
-                  Cargando tus prácticas...
+                <div className="space-y-2">
+                  {[1, 2, 3].map((k) => (
+                    <div key={k} className="p-4 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-800/40 space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-16 rounded-full" />
+                        <Skeleton className="h-3 w-12 rounded" />
+                      </div>
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                    </div>
+                  ))}
                 </div>
               ) : practices.length === 0 ? (
                 <div className="py-8 text-center text-xs text-gray-400">
@@ -475,10 +485,7 @@ const StudentDocentCommunication = () => {
               {/* Feed de Mensajes */}
               <div className="p-5 sm:p-6 min-h-[380px] max-h-[500px] overflow-y-auto space-y-4 bg-gray-50/30 dark:bg-zinc-950/20">
                 {isLoadingMessages ? (
-                  <div className="py-16 text-center text-xs text-gray-400 animate-pulse flex flex-col items-center justify-center gap-2">
-                    <RefreshCw className="w-5 h-5 animate-spin text-emerald-500" />
-                    <span>Cargando mensajes del docente...</span>
-                  </div>
+                  <SkeletonChat count={4} />
                 ) : filteredMessages.length === 0 ? (
                   <div className="py-16 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-2">
                     <MessageSquare className="w-8 h-8 text-gray-300 dark:text-zinc-700" />

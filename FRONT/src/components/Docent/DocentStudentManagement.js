@@ -11,6 +11,7 @@ import { notifyDataChanged, useDataSync } from '../../utils/dataSync';
 import toast from '../../utils/toast';
 import StudentAvatar from '../Shared/StudentAvatar';
 import StudentFichaModal from '../Shared/StudentFichaModal';
+import { SkeletonCardGrid, SkeletonTable } from '../Shared/Skeleton';
 import {
   Download,
   FileText,
@@ -734,12 +735,7 @@ const DocentStudentManagement = () => {
 
         {/* Galería de Tarjetas de Prácticas */}
         {isLoading ? (
-          <div className="py-16 text-center">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-3" />
-            <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400">
-              Cargando prácticas formativas...
-            </p>
-          </div>
+          <SkeletonCardGrid count={6} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
         ) : filteredPractices.length === 0 ? (
           <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400">
             <ClipboardList className="w-10 h-10 mx-auto text-gray-400 mb-2" />
@@ -972,9 +968,7 @@ const DocentStudentManagement = () => {
 
             {/* Tabla de Estudiantes de la Práctica Seleccionada */}
             {isLoading ? (
-              <div className="p-12 text-center text-blue-600 dark:text-blue-400 font-semibold">
-                <RefreshCw className="w-4 h-4 animate-spin inline mr-2 text-blue-600" /> Sincronizando estudiantes y calificaciones de {currentPractice.titulo}...
-              </div>
+              <SkeletonTable rows={6} cols={7} />
             ) : filteredStudents.length === 0 ? (
               <div className="p-12 text-center text-gray-500 dark:text-gray-400">
                 <GraduationCap className="w-10 h-10 mx-auto text-gray-400 mb-2" />

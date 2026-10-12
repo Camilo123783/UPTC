@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Award, RefreshCw } from 'lucide-react';
 import { BACKEND_URL } from '../../config/api';
 import { useDataSync } from '../../utils/dataSync';
+import { SkeletonCardGrid } from '../Shared/Skeleton';
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -113,9 +114,7 @@ const StudentEvaluations = () => {
       </div>
 
       {isLoading ? (
-        <div className="p-12 text-center text-blue-600 dark:text-blue-400 font-semibold animate-pulse flex items-center justify-center gap-2">
-          <RefreshCw className="w-4 h-4 animate-spin" /> Cargando tus evaluaciones oficiales...
-        </div>
+        <SkeletonCardGrid count={3} columns="grid-cols-1" />
       ) : evaluations.length === 0 ? (
         <div className="p-12 text-center bg-gray-50 dark:bg-zinc-800/40 rounded-2xl border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-gray-400">
           No tienes evaluaciones de rotación clínica registradas en este momento.

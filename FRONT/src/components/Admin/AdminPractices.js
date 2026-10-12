@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
+import { SkeletonCardGrid } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -837,10 +838,7 @@ const AdminPractices = () => {
 
       {/* ─── LISTADO DE PRÁCTICAS ─── */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Cargando catálogo de prácticas formativas...</p>
-        </div>
+        <SkeletonCardGrid count={6} />
       ) : filteredPractices.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800">
           <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />

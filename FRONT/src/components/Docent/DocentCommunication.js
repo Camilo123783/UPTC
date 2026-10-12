@@ -31,6 +31,7 @@ import {
   Mail,
   Building2,
 } from "lucide-react";
+import { Skeleton, SkeletonChat } from "../Shared/Skeleton";
 
 const DocentCommunication = () => {
   const [practices, setPractices] = useState([]);
@@ -343,8 +344,17 @@ const DocentCommunication = () => {
             {/* Lista de Prácticas */}
             <div className="space-y-2 max-h-[580px] overflow-y-auto pr-1">
               {isLoadingPractices ? (
-                <div className="py-8 text-center text-xs text-gray-400 animate-pulse">
-                  Cargando prácticas asignadas...
+                <div className="space-y-2">
+                  {[1, 2, 3].map((k) => (
+                    <div key={k} className="p-4 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-gray-50/70 dark:bg-zinc-800/40 space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-16 rounded-full" />
+                        <Skeleton className="h-3 w-12 rounded" />
+                      </div>
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                    </div>
+                  ))}
                 </div>
               ) : filteredPractices.length === 0 ? (
                 <div className="py-8 text-center text-xs text-gray-400">
@@ -515,9 +525,7 @@ const DocentCommunication = () => {
               {/* Feed de Conversación / Mensajes */}
               <div className="p-5 sm:p-6 bg-gray-50/50 dark:bg-zinc-950/40 min-h-[380px] max-h-[460px] overflow-y-auto space-y-4">
                 {isLoadingMessages ? (
-                  <div className="text-center py-16 text-xs text-gray-400 animate-pulse">
-                    Cargando mensajes de la práctica...
-                  </div>
+                  <SkeletonChat count={4} />
                 ) : filteredMessages.length === 0 ? (
                   <div className="text-center py-16 px-4 space-y-2">
                     <MessageSquare className="w-10 h-10 text-gray-300 dark:text-zinc-700 mx-auto" />

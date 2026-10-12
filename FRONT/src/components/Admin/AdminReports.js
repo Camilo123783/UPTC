@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import uptcLogo from "../../assets/images/uptc.png";
 import facultyLogo from "../../assets/images/logooo.png";
+import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -847,63 +848,67 @@ const AdminReports = () => {
       </div>
 
       {/* ── Tarjetas de Indicadores Rápidos (KPIs) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-            <GraduationCap className="w-6 h-6" />
+      {isLoading ? (
+        <SkeletonStatsRow count={4} />
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+              <GraduationCap className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                Estudiantes Activos
+              </p>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">
+                {kpiData.totalEstudiantesActivos}
+              </h3>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-              Estudiantes Activos
-            </p>
-            <h3 className="text-xl font-black text-gray-900 dark:text-white">
-              {kpiData.totalEstudiantesActivos}
-            </h3>
-          </div>
-        </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-            <UserCheck className="w-6 h-6" />
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              <UserCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                {isDocent ? "Mis Prácticas" : "Docentes con Asignación"}
+              </p>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">
+                {isDocent ? practices.length : kpiData.totalDocentesActivos}
+              </h3>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-              {isDocent ? "Mis Prácticas" : "Docentes con Asignación"}
-            </p>
-            <h3 className="text-xl font-black text-gray-900 dark:text-white">
-              {isDocent ? practices.length : kpiData.totalDocentesActivos}
-            </h3>
-          </div>
-        </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-            <Building2 className="w-6 h-6" />
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                Prácticas en Curso
+              </p>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">
+                {kpiData.totalPracticasActivas}
+              </h3>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-              Prácticas en Curso
-            </p>
-            <h3 className="text-xl font-black text-gray-900 dark:text-white">
-              {kpiData.totalPracticasActivas}
-            </h3>
-          </div>
-        </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
-              Horas en Ejecución
-            </p>
-            <h3 className="text-xl font-black text-gray-900 dark:text-white">
-              {kpiData.totalHorasEnEjecucion} hrs
-            </h3>
+          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                Horas en Ejecución
+              </p>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">
+                {kpiData.totalHorasEnEjecucion} hrs
+              </h3>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Banner Informativo Docente ── */}
       {isDocent && (
@@ -1037,10 +1042,7 @@ const AdminReports = () => {
 
               {/* Grid de Tarjetas de Prácticas */}
               {isLoading ? (
-                <div className="p-12 text-center text-gray-500 dark:text-zinc-400">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-                  <p className="font-semibold text-sm">Cargando catálogo de prácticas formativas...</p>
-                </div>
+                <SkeletonCardGrid count={6} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
               ) : filteredCatalogPractices.length === 0 ? (
                 <div className="p-12 border border-dashed border-gray-300 dark:border-zinc-800 rounded-3xl text-center bg-white dark:bg-zinc-900/50">
                   <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-2" />

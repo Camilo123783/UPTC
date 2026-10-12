@@ -30,6 +30,7 @@ import {
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
 import { useDataSync } from "../../utils/dataSync";
+import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -243,7 +244,11 @@ const StudentPractices = () => {
         </div>
 
         {/* Resumen numérico con Horas Reales */}
-        {!isLoading && !error && (() => {
+        {isLoading ? (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-800">
+            <SkeletonStatsRow count={4} />
+          </div>
+        ) : !error && (() => {
           const totalCumplidas = practices.reduce((acc, p) => acc + (Number(p.horas_cumplidas) || 0), 0);
           const totalAsignadas = practices.reduce(
             (acc, p) => acc + (Number(p.horas_asignadas) || Number(p.horas_totales) || 120),
@@ -300,25 +305,7 @@ const StudentPractices = () => {
 
       {/* ─── Skeleton de Carga ─── */}
       {isLoading && (
-        <div className="space-y-6">
-          {[1, 2].map((n) => (
-            <div
-              key={n}
-              className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 animate-pulse space-y-4"
-            >
-              <div className="flex justify-between items-center">
-                <div className="h-6 w-1/3 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
-                <div className="h-6 w-24 bg-gray-200 dark:bg-slate-700 rounded-full"></div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-2/3"></div>
-                <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/2"></div>
-              </div>
-              <div className="h-2.5 bg-gray-200 dark:bg-slate-700 rounded-full w-full mt-4"></div>
-            </div>
-          ))}
-        </div>
+        <SkeletonCardGrid count={4} />
       )}
 
       {/* ─── Estado Vacío (Sin Prácticas Asignadas) ─── */}

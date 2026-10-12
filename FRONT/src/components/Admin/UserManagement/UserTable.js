@@ -18,6 +18,7 @@ import {
 import TableSearchBar from "./TableSearchBar";
 import TablePagination from "./TablePagination";
 import TableSortIcon from "./TableSortIcon";
+import { SkeletonTable } from "../../Shared/Skeleton";
 
 // ─── Utilidad para renderizar iconos de Lucide (forwardRef) o elementos JSX de forma segura ───
 const renderSafeIcon = (IconCmp, className = "") => {
@@ -593,10 +594,8 @@ export const UserTable = ({
   // Si está cargando o hay error general
   if (isLoading) {
     return (
-      <div className="mb-8 p-8 border border-gray-200 dark:border-zinc-800 rounded-3xl shadow-xl bg-white dark:bg-zinc-900 text-center">
-        <p className="text-blue-600 dark:text-blue-400 font-semibold text-lg animate-pulse flex items-center justify-center gap-2">
-          <RefreshCw className="w-5 h-5 animate-spin" /> Cargando usuarios del sistema...
-        </p>
+      <div className="mb-8">
+        <SkeletonTable rows={8} cols={5} />
       </div>
     );
   }

@@ -44,6 +44,7 @@ import { generateConstanciaPracticaVigente, generatePdf } from "../../utils/repo
 import toast from "../../utils/toast";
 import uptcLogo from "../../assets/images/uptc.png";
 import facultySeal from "../../assets/images/logooo.png";
+import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -573,46 +574,52 @@ const StudentCertifications = () => {
         </div>
 
         {/* Resumen numérico rápido */}
-        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-100 dark:border-blue-900/60 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                Prácticas Asignadas
-              </span>
-              <p className="text-2xl font-black text-blue-950 dark:text-blue-100 mt-0.5">
-                {practices.length}
-              </p>
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">Rotaciones formativas registradas</span>
-            </div>
-            <Hospital className="w-8 h-8 text-blue-400/50" />
+        {isLoading ? (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-800">
+            <SkeletonStatsRow count={3} />
           </div>
+        ) : (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-100 dark:border-blue-900/60 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                  Prácticas Asignadas
+                </span>
+                <p className="text-2xl font-black text-blue-950 dark:text-blue-100 mt-0.5">
+                  {practices.length}
+                </p>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">Rotaciones formativas registradas</span>
+              </div>
+              <Hospital className="w-8 h-8 text-blue-400/50" />
+            </div>
 
-          <div className="p-4 bg-amber-50/70 dark:bg-amber-950/40 rounded-xl border border-amber-100 dark:border-amber-900/60 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
-                Certificados Emitidos
-              </span>
-              <p className="text-2xl font-black text-amber-950 dark:text-amber-100 mt-0.5">
-                {issuedCertificates.length}
-              </p>
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">Listos para descargar en PDF</span>
+            <div className="p-4 bg-amber-50/70 dark:bg-amber-950/40 rounded-xl border border-amber-100 dark:border-amber-900/60 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                  Certificados Emitidos
+                </span>
+                <p className="text-2xl font-black text-amber-950 dark:text-amber-100 mt-0.5">
+                  {issuedCertificates.length}
+                </p>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">Listos para descargar en PDF</span>
+              </div>
+              <FileCheck className="w-8 h-8 text-amber-400/50" />
             </div>
-            <FileCheck className="w-8 h-8 text-amber-400/50" />
-          </div>
 
-          <div className="p-4 bg-purple-50/70 dark:bg-purple-950/40 rounded-xl border border-purple-100 dark:border-purple-900/60 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                Solicitudes en Trámite
-              </span>
-              <p className="text-2xl font-black text-purple-950 dark:text-purple-100 mt-0.5">
-                {requests.filter((r) => r.estado === "Pendiente").length}
-              </p>
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">En revisión por docentes</span>
+            <div className="p-4 bg-purple-50/70 dark:bg-purple-950/40 rounded-xl border border-purple-100 dark:border-purple-900/60 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                  Solicitudes en Trámite
+                </span>
+                <p className="text-2xl font-black text-purple-950 dark:text-purple-100 mt-0.5">
+                  {requests.filter((r) => r.estado === "Pendiente").length}
+                </p>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">En revisión por docentes</span>
+              </div>
+              <Clock className="w-8 h-8 text-purple-400/50" />
             </div>
-            <Clock className="w-8 h-8 text-purple-400/50" />
           </div>
-        </div>
+        )}
 
         {/* Pestañas Principales de Navegación */}
         <div className="flex border-b border-gray-200 dark:border-slate-800 gap-2 mt-6 overflow-x-auto">
@@ -700,7 +707,9 @@ const StudentCertifications = () => {
           </div>
 
           {/* Grid de Prácticas */}
-          {displayedPractices.length === 0 ? (
+          {isLoading ? (
+            <SkeletonCardGrid count={3} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
+          ) : displayedPractices.length === 0 ? (
             <div className="p-8 text-center bg-gray-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
               <p className="text-gray-500 dark:text-gray-400 text-sm">
                 No tienes prácticas formativas registradas para el filtro seleccionado.

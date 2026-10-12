@@ -27,6 +27,7 @@ import {
   History,
 } from "lucide-react";
 import AuditorDashboardView from "../Auditor/AuditorDashboardView";
+import { SkeletonDashboard } from "../Shared/Skeleton";
 
 // URL BASE para el backend
 const API_BASE_URL = BACKEND_URL;
@@ -298,6 +299,9 @@ const DashboardHome = ({ userRole, onNavigate }) => {
   const getRoleSpecificContent = (role) => {
     switch (role) {
       case "student":
+        if (isLoadingStudent) {
+          return <SkeletonDashboard role="student" />;
+        }
         return (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -446,6 +450,9 @@ const DashboardHome = ({ userRole, onNavigate }) => {
         );
 
       case "docent":
+        if (isLoadingDocent) {
+          return <SkeletonDashboard role="docent" />;
+        }
         return (
           <>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
@@ -633,6 +640,9 @@ const DashboardHome = ({ userRole, onNavigate }) => {
         return <AuditorDashboardView onNavigate={onNavigate} />;
 
       case "superadmin":
+        if (isLoadingUsers) {
+          return <SkeletonDashboard role="superadmin" />;
+        }
         return (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -727,6 +737,9 @@ const DashboardHome = ({ userRole, onNavigate }) => {
         );
 
       case "admin":
+        if (isLoadingUsers && isLoadingPractices) {
+          return <SkeletonDashboard role="admin" />;
+        }
         return (
           <>
             <div className="flex items-center justify-between mb-6">

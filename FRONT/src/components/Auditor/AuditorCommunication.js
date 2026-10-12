@@ -27,6 +27,7 @@ import {
   Trash2,
   Mail,
 } from "lucide-react";
+import { Skeleton, SkeletonChat } from "../Shared/Skeleton";
 
 const getAuthToken = () => {
   return (
@@ -336,8 +337,17 @@ const AuditorCommunication = () => {
 
             <div className="flex-1 overflow-y-auto space-y-2 max-h-[500px] pr-1">
               {isLoadingPractices ? (
-                <div className="text-center py-10 text-xs text-gray-500 dark:text-zinc-500">
-                  Cargando prácticas asignadas...
+                <div className="space-y-2">
+                  {[1, 2, 3].map((k) => (
+                    <div key={k} className="p-4 rounded-2xl border border-gray-200 dark:border-zinc-700/60 bg-gray-50 dark:bg-zinc-800/50 space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-16 rounded-full" />
+                        <Skeleton className="h-3 w-12 rounded" />
+                      </div>
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                    </div>
+                  ))}
                 </div>
               ) : filteredPractices.length === 0 ? (
                 <div className="p-4 text-center rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-700 text-xs text-gray-500">
@@ -468,9 +478,7 @@ const AuditorCommunication = () => {
                 {/* Hilo de Mensajes */}
                 <div className="flex-1 overflow-y-auto space-y-3 py-4 max-h-[360px] pr-2">
                   {isLoadingMessages ? (
-                    <div className="text-center py-12 text-xs text-gray-500">
-                      Cargando historial de comunicaciones...
-                    </div>
+                    <SkeletonChat count={4} />
                   ) : filteredMessages.length === 0 ? (
                     <div className="text-center py-12 px-4 rounded-2xl bg-white/50 dark:bg-zinc-900/40 border border-dashed border-gray-200 dark:border-zinc-800">
                       <MessageSquare className="w-8 h-8 text-gray-400 mx-auto mb-2 opacity-50" />

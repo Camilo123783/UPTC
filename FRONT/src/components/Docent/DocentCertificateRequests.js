@@ -38,6 +38,7 @@ import { useAuth } from "../../utils/useAuth";
 import { useDataSync, notifyDataChanged } from "../../utils/dataSync";
 import { generateProfessionalCertificate } from "../../utils/certificateGenerator";
 import toast from "../../utils/toast";
+import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -528,52 +529,58 @@ const DocentCertificateRequests = () => {
         </div>
 
         {/* ─── Contadores Rápidos (Solo 3 tarjetas, sin Rechazadas) ─── */}
-        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button
-            type="button"
-            onClick={() => setStatusFilter("all")}
-            className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-              statusFilter === "all"
-                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900 shadow-md"
-                : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-zinc-700"
-            }`}
-          >
-            <span className="text-xs uppercase font-bold tracking-wider block opacity-80">
-              Total Solicitudes
-            </span>
-            <p className="text-2xl sm:text-3xl font-black mt-1">{counts.total}</p>
-          </button>
+        {isLoading ? (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-zinc-800">
+            <SkeletonStatsRow count={3} />
+          </div>
+        ) : (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
+                statusFilter === "all"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900 shadow-md"
+                  : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-zinc-700"
+              }`}
+            >
+              <span className="text-xs uppercase font-bold tracking-wider block opacity-80">
+                Total Solicitudes
+              </span>
+              <p className="text-2xl sm:text-3xl font-black mt-1">{counts.total}</p>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter("Pendiente")}
-            className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-              statusFilter === "Pendiente"
-                ? "bg-amber-600 text-white border-amber-600 shadow-md"
-                : "bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 hover:border-amber-300"
-            }`}
-          >
-            <span className="text-xs uppercase font-bold tracking-wider block opacity-80">
-              Pendientes de Firma
-            </span>
-            <p className="text-2xl sm:text-3xl font-black mt-1">{counts.pendientes}</p>
-          </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Pendiente")}
+              className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
+                statusFilter === "Pendiente"
+                  ? "bg-amber-600 text-white border-amber-600 shadow-md"
+                  : "bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 hover:border-amber-300"
+              }`}
+            >
+              <span className="text-xs uppercase font-bold tracking-wider block opacity-80">
+                Pendientes de Firma
+              </span>
+              <p className="text-2xl sm:text-3xl font-black mt-1">{counts.pendientes}</p>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter("Aprobado")}
-            className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-              statusFilter === "Aprobado"
-                ? "bg-emerald-600 text-white border-emerald-600 shadow-md"
-                : "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-900 dark:text-emerald-200 hover:border-emerald-300"
-            }`}
-          >
-            <span className="text-xs uppercase font-bold tracking-wider block opacity-80">
-              Aprobadas / Avaladas
-            </span>
-            <p className="text-2xl sm:text-3xl font-black mt-1">{counts.aprobadas}</p>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Aprobado")}
+              className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
+                statusFilter === "Aprobado"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-md"
+                  : "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-900 dark:text-emerald-200 hover:border-emerald-300"
+              }`}
+            >
+              <span className="text-xs uppercase font-bold tracking-wider block opacity-80">
+                Aprobadas / Avaladas
+              </span>
+              <p className="text-2xl sm:text-3xl font-black mt-1">{counts.aprobadas}</p>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ─── SECCIÓN DINÁMICA: Panel de Prácticas O Vista de Solicitudes ─── */}
@@ -606,9 +613,7 @@ const DocentCertificateRequests = () => {
           </div>
 
           {isLoading ? (
-            <div className="py-16 text-center text-xs text-gray-400 animate-pulse">
-              Cargando prácticas y solicitudes reales...
-            </div>
+            <SkeletonCardGrid count={6} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
           ) : filteredPractices.length === 0 ? (
             <div className="bg-white dark:bg-zinc-900 p-12 rounded-3xl border border-gray-200 dark:border-zinc-800 text-center">
               <Award className="w-12 h-12 text-gray-400 mx-auto mb-3 opacity-40" />
@@ -758,7 +763,9 @@ const DocentCertificateRequests = () => {
 
           {/* Listado de Solicitudes */}
           <div className="space-y-4">
-            {filteredRequests.length === 0 ? (
+            {isLoading ? (
+              <SkeletonCardGrid count={3} columns="grid-cols-1" />
+            ) : filteredRequests.length === 0 ? (
               <div className="bg-white dark:bg-zinc-900 p-12 rounded-3xl shadow-sm border border-gray-200 dark:border-zinc-800 text-center">
                 <Award className="w-12 h-12 text-gray-400 mx-auto mb-3 opacity-40" />
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">

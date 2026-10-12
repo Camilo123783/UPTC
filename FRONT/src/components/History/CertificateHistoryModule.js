@@ -36,6 +36,7 @@ import { useAuth } from "../../utils/useAuth";
 import { useTheme } from "../../context/ThemeContext";
 import toast from "../../utils/toast";
 import { generateProfessionalCertificate } from "../../utils/certificateGenerator";
+import { SkeletonCardGrid } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -425,12 +426,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
 
       {/* ── Listado de Tarjetas de Certificados ── */}
       {isLoading ? (
-        <div className="p-16 text-center space-y-4">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-          <p className="text-sm font-semibold text-gray-500 dark:text-zinc-400">
-            Cargando historial de certificados...
-          </p>
-        </div>
+        <SkeletonCardGrid count={6} />
       ) : certificates.length === 0 ? (
         <div
           className={`p-12 sm:p-16 text-center rounded-3xl border ${

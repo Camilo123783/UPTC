@@ -89,6 +89,42 @@ button[aria-disabled="true"],
   transform: translateY(-3px);
 }
 
+/* ============================================================
+   SKELETON SCREEN: ANIMACIÓN SHIMMER SUAVE
+   Efecto de onda de luz continua sobre marcadores de posición
+   para una carga visual fluida y sin saltos de interfaz (CLS)
+   ============================================================ */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(229, 231, 235, 0.75) 0%,
+    rgba(243, 244, 246, 0.98) 50%,
+    rgba(229, 231, 235, 0.75) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(39, 39, 42, 0.65) 0%,
+    rgba(63, 63, 70, 0.85) 50%,
+    rgba(39, 39, 42, 0.65) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
 /* ───────────────────────────────────────────────────────────
    MODO OSCURO (.dark): Negro, gris grafito y azul oscuro
    ─────────────────────────────────────────────────────────── */

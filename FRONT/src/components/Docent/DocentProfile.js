@@ -28,6 +28,7 @@ import {
   Info,
   Shield,
 } from "lucide-react";
+import { SkeletonProfile } from "../Shared/Skeleton";
 
 const DocentProfile = () => {
   const { user } = useAuth();
@@ -220,6 +221,10 @@ const DocentProfile = () => {
       .map((n) => n[0].toUpperCase())
       .join("");
   };
+
+  if (isLoading) {
+    return <SkeletonProfile />;
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-7 pb-16">

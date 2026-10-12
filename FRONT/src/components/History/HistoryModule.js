@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { useTheme } from "../../context/ThemeContext";
+import { Skeleton, SkeletonCardGrid } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -295,7 +296,7 @@ const HistoryModule = ({ userRole }) => {
             <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-1">
               Total Archivadas
             </span>
-            <div className="text-2xl font-black">{metrics.total}</div>
+            <div className="text-2xl font-black">{isLoading ? <Skeleton className="h-7 w-12" /> : metrics.total}</div>
           </div>
 
           <div className={`p-4 rounded-2xl border ${
@@ -305,7 +306,7 @@ const HistoryModule = ({ userRole }) => {
               <CheckCircle2 className="w-3.5 h-3.5" /> Finalizadas
             </span>
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-              {metrics.finalizadas}
+              {isLoading ? <Skeleton className="h-7 w-12" /> : metrics.finalizadas}
             </div>
           </div>
 
@@ -316,7 +317,7 @@ const HistoryModule = ({ userRole }) => {
               <XCircle className="w-3.5 h-3.5" /> Canceladas
             </span>
             <div className="text-2xl font-black text-rose-600 dark:text-rose-400">
-              {metrics.canceladas}
+              {isLoading ? <Skeleton className="h-7 w-12" /> : metrics.canceladas}
             </div>
           </div>
 
@@ -327,7 +328,7 @@ const HistoryModule = ({ userRole }) => {
               <Users className="w-3.5 h-3.5" /> Estudiantes Registrados
             </span>
             <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
-              {metrics.totalEstudiantes}
+              {isLoading ? <Skeleton className="h-7 w-12" /> : metrics.totalEstudiantes}
             </div>
           </div>
         </div>
@@ -432,12 +433,7 @@ const HistoryModule = ({ userRole }) => {
 
       {/* ── Listado de Registros del Historial ── */}
       {isLoading ? (
-        <div className="p-16 text-center space-y-4">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-500" />
-          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-            Cargando expediente histórico...
-          </p>
-        </div>
+        <SkeletonCardGrid count={6} />
       ) : filteredList.length === 0 ? (
         <div className={`p-12 sm:p-16 text-center rounded-3xl border ${
           isDark ? "bg-zinc-900/40 border-zinc-800 text-zinc-400" : "bg-white border-gray-200 text-gray-500"

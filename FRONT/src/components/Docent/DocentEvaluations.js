@@ -19,6 +19,7 @@ import { notifyDataChanged, useDataSync } from '../../utils/dataSync';
 import toast from '../../utils/toast';
 import StudentAvatar from '../Shared/StudentAvatar';
 import StudentFichaModal from '../Shared/StudentFichaModal';
+import { SkeletonTable } from '../Shared/Skeleton';
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -237,9 +238,7 @@ const DocentEvaluations = () => {
       {/* Tabla Dinámica de Evaluaciones */}
       <div className="border border-gray-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-zinc-900 mb-8">
         {isLoading ? (
-          <div className="p-12 text-center text-blue-600 dark:text-blue-400 font-semibold animate-pulse flex items-center justify-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin" /> Sincronizando evaluaciones en tiempo real...
-          </div>
+          <SkeletonTable rows={5} cols={6} />
         ) : evaluations.length === 0 ? (
           <div className="p-12 text-center text-gray-500 dark:text-gray-400">
             No tienes estudiantes pendientes de evaluación en tus prácticas clínicas.

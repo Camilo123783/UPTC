@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
+import { SkeletonDashboard } from "../Shared/Skeleton";
 import {
   Clock,
   Users,
@@ -139,6 +140,10 @@ const AuditorDashboardView = ({ onNavigate }) => {
 
     return list;
   }, [practices]);
+
+  if (isLoading) {
+    return <SkeletonDashboard role="auditor" />;
+  }
 
   return (
     <>

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import StudentAvatar from "../Shared/StudentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
+import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 
 const AuditorReports = () => {
   const [practices, setPractices] = useState([]);
@@ -275,47 +276,53 @@ const AuditorReports = () => {
         )}
 
         {/* ─── Tarjetas de Resumen Global ─── */}
-        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700/60">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-              Prácticas a Cargo
-            </span>
-            <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">
-              {totalMetrics.totalPractices}
-            </p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Rotaciones bajo auditoría</p>
+        {isLoading ? (
+          <div className="mt-6">
+            <SkeletonStatsRow count={4} />
           </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
+                Prácticas a Cargo
+              </span>
+              <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">
+                {totalMetrics.totalPractices}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Rotaciones bajo auditoría</p>
+            </div>
 
-          <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-              Estudiantes Asignados
-            </span>
-            <p className="text-2xl font-black text-blue-900 dark:text-blue-100 mt-1">
-              {totalMetrics.totalEst}
-            </p>
-            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5">En todos los servicios</p>
-          </div>
+            <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                Estudiantes Asignados
+              </span>
+              <p className="text-2xl font-black text-blue-900 dark:text-blue-100 mt-1">
+                {totalMetrics.totalEst}
+              </p>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5">En todos los servicios</p>
+            </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-              Informes Emitidos
-            </span>
-            <p className="text-2xl font-black text-emerald-900 dark:text-emerald-100 mt-1">
-              {totalMetrics.emitidos}
-            </p>
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">Entregados al docente</p>
-          </div>
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                Informes Emitidos
+              </span>
+              <p className="text-2xl font-black text-emerald-900 dark:text-emerald-100 mt-1">
+                {totalMetrics.emitidos}
+              </p>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">Entregados al docente</p>
+            </div>
 
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-              Pendientes por Evaluar
-            </span>
-            <p className="text-2xl font-black text-amber-900 dark:text-amber-100 mt-1">
-              {totalMetrics.pendientes}
-            </p>
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">Requieren rúbrica</p>
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                Pendientes por Evaluar
+              </span>
+              <p className="text-2xl font-black text-amber-900 dark:text-amber-100 mt-1">
+                {totalMetrics.pendientes}
+              </p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">Requieren rúbrica</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ─── Barra de Filtros ─── */}
         <div className="mt-6 flex flex-col md:flex-row gap-3">
@@ -357,9 +364,7 @@ const AuditorReports = () => {
         {/* ─── LISTA COMPLETA DE PRÁCTICAS Y ESTUDIANTES ─── */}
         <div className="mt-8 space-y-6">
           {isLoading ? (
-            <div className="text-center py-16 text-xs text-gray-500 animate-pulse">
-              Cargando todas las prácticas formativas y expedientes de estudiantes...
-            </div>
+            <SkeletonCardGrid count={3} columns="grid-cols-1" />
           ) : filteredPractices.length === 0 ? (
             <div className="text-center py-16 px-4 rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-800">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2 opacity-50" />

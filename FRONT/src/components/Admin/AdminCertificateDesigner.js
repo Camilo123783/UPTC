@@ -29,6 +29,7 @@ import { useAuth } from "../../utils/useAuth";
 import toast from "../../utils/toast";
 import uptcLogo from "../../assets/images/uptc.png";
 import facultyLogo from "../../assets/images/logooo.png";
+import { SkeletonCardGrid } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -668,10 +669,7 @@ const AdminCertificateDesigner = () => {
 
           {/* Grid de Prácticas */}
           {isLoading ? (
-            <div className="p-12 text-center text-gray-500 dark:text-zinc-400">
-              <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-3" />
-              <p className="font-semibold text-sm">Cargando catálogo de prácticas formativas...</p>
-            </div>
+            <SkeletonCardGrid count={6} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
           ) : filteredPractices.length === 0 ? (
             <div className="p-12 border border-dashed border-gray-300 dark:border-zinc-800 rounded-3xl text-center bg-white dark:bg-zinc-900/50">
               <Building2 className="w-10 h-10 text-gray-400 mx-auto mb-2" />

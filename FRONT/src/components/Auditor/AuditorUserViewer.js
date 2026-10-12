@@ -35,6 +35,7 @@ import StudentAvatar from "../Shared/StudentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
 import { generateCsv } from "../../utils/reportGenerator";
 import toast from "../../utils/toast";
+import { SkeletonTable, SkeletonCardGrid } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -520,9 +521,7 @@ const AuditorUserViewer = () => {
 
           <div className="space-y-6">
           {isLoading ? (
-            <div className="text-center py-16 text-xs text-gray-500 animate-pulse">
-              Cargando tus prácticas asignadas y usuarios vinculados...
-            </div>
+            <SkeletonTable rows={6} cols={5} />
           ) : filteredPractices.length === 0 ? (
             <div className="text-center py-16 px-4 rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-800">
               <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-2 opacity-50" />

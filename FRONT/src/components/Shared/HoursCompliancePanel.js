@@ -33,6 +33,7 @@ import {
   Save,
   MousePointerClick
 } from "lucide-react";
+import { SkeletonCardGrid } from "./Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -685,12 +686,7 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
 
         {/* Galería de Tarjetas de Prácticas — Estilo Idéntico al Panel de Creación */}
         {isLoading ? (
-          <div className="py-16 text-center">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-3" />
-            <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400">
-              Cargando prácticas formativas...
-            </p>
-          </div>
+          <SkeletonCardGrid count={6} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
         ) : filteredPractices.length === 0 ? (
           <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400">
             <ClipboardList className="w-10 h-10 mx-auto text-gray-400 mb-2" />
