@@ -316,7 +316,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
               {/* 1. Mi Perfil (Azul) */}
               <div
                 onClick={() => onNavigate("studentProfile")}
-                className="group relative bg-blue-50/80 dark:bg-blue-950/40 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-blue-50/80 dark:bg-blue-950/40 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 group-hover:scale-110 transition-transform duration-200 border border-blue-200 dark:border-blue-800">
@@ -344,7 +344,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
               {/* 2. Mis Prácticas (Verde / Emerald) */}
               <div
                 onClick={() => onNavigate("studentPractices")}
-                className="group relative bg-emerald-50/80 dark:bg-emerald-950/40 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-emerald-50/80 dark:bg-emerald-950/40 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 group-hover:scale-110 transition-transform duration-200 border border-emerald-200 dark:border-emerald-800">
@@ -372,7 +372,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
               {/* 3. Evaluaciones (Púrpura / Morado) */}
               <div
                 onClick={() => onNavigate("studentEvaluations")}
-                className="group relative bg-purple-50/80 dark:bg-purple-950/40 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-purple-50/80 dark:bg-purple-950/40 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 group-hover:scale-110 transition-transform duration-200 border border-purple-200 dark:border-purple-800">
@@ -400,7 +400,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
               {/* 4. Certificaciones (Ámbar / Naranja) */}
               <div
                 onClick={() => onNavigate("studentCertifications")}
-                className="group relative bg-amber-50/80 dark:bg-amber-950/40 p-5 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-amber-50/80 dark:bg-amber-950/40 p-5 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 group-hover:scale-110 transition-transform duration-200 border border-amber-200 dark:border-amber-800">
@@ -482,7 +482,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* 1. Mis Prácticas (Púrpura) */}
               <div
-                className="bg-purple-50/80 dark:bg-purple-950/40 p-5 rounded-2xl shadow-sm border border-purple-200 dark:border-purple-800/60 cursor-pointer hover:shadow-md hover:border-purple-400 dark:hover:border-purple-600 transition duration-150 flex flex-col justify-between"
+                className="bg-purple-50/80 dark:bg-purple-950/40 p-5 rounded-2xl shadow-sm border border-purple-200 dark:border-purple-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentPractices")}
               >
                 <div>
@@ -500,7 +500,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* 2. Estudiantes (Esmeralda) */}
               <div
-                className="bg-emerald-50/80 dark:bg-emerald-950/40 p-5 rounded-2xl shadow-sm border border-emerald-200 dark:border-emerald-800/60 cursor-pointer hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-600 transition duration-150 flex flex-col justify-between"
+                className="bg-emerald-50/80 dark:bg-emerald-950/40 p-5 rounded-2xl shadow-sm border border-emerald-200 dark:border-emerald-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentStudents")}
               >
                 <div>
@@ -518,7 +518,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* 3. Cumplimiento de Horas (Azul) */}
               <div
-                className="bg-blue-50/80 dark:bg-blue-950/40 p-5 rounded-2xl shadow-sm border border-blue-200 dark:border-blue-800/60 cursor-pointer hover:shadow-md hover:border-blue-400 dark:hover:border-blue-600 transition duration-150 flex flex-col justify-between"
+                className="bg-blue-50/80 dark:bg-blue-950/40 p-5 rounded-2xl shadow-sm border border-blue-200 dark:border-blue-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentHoursCompliance")}
               >
                 <div>
@@ -541,7 +541,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* 4. Solicitud de Certificados (Ámbar / Naranja) */}
               <div
-                className="bg-amber-50/80 dark:bg-amber-950/40 p-5 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:shadow-md hover:border-amber-400 dark:hover:border-amber-600 transition duration-150 flex flex-col justify-between"
+                className="bg-amber-50/80 dark:bg-amber-950/40 p-5 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentCertificateRequests")}
               >
                 <div>
@@ -564,7 +564,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* 5. Diseñar Certificados (Rosa / Fucsia) */}
               <div
-                className="bg-rose-50/80 dark:bg-rose-950/40 p-5 rounded-2xl shadow-sm border border-rose-200 dark:border-rose-800/60 cursor-pointer hover:shadow-md hover:border-rose-400 dark:hover:border-rose-600 transition duration-150 flex flex-col justify-between"
+                className="bg-rose-50/80 dark:bg-rose-950/40 p-5 rounded-2xl shadow-sm border border-rose-200 dark:border-rose-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-rose-400 dark:hover:border-rose-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentCertificateDesigner")}
               >
                 <div>
@@ -582,7 +582,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* 6. Reportes y Constancias (Cian / Índigo) */}
               <div
-                className="bg-cyan-50/80 dark:bg-cyan-950/40 p-5 rounded-2xl shadow-sm border border-cyan-200 dark:border-cyan-800/60 cursor-pointer hover:shadow-md hover:border-cyan-400 dark:hover:border-cyan-600 transition duration-150 flex flex-col justify-between"
+                className="bg-cyan-50/80 dark:bg-cyan-950/40 p-5 rounded-2xl shadow-sm border border-cyan-200 dark:border-cyan-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-cyan-400 dark:hover:border-cyan-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentReports")}
               >
                 <div>
@@ -652,7 +652,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Tarjeta 1: Parametrización Institucional */}
               <div
-                className="bg-amber-50/80 dark:bg-amber-950/40 p-6 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:shadow-md hover:border-amber-400 dark:hover:border-amber-600 transition duration-150"
+                className="bg-amber-50/80 dark:bg-amber-950/40 p-6 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200"
                 onClick={() => onNavigate("adminInstitutionSettings")}
               >
                 <div className="flex items-center justify-between">
@@ -671,7 +671,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* Tarjeta 2: Total Administradores */}
               <div
-                className="bg-gray-100 dark:bg-zinc-800/60 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-700 cursor-pointer hover:shadow-md transition duration-150"
+                className="bg-gray-100 dark:bg-zinc-800/60 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-700 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-zinc-500 transition-all duration-200"
                 onClick={() => onNavigate("adminUsers")}
               >
                 <p className="text-gray-700 dark:text-gray-300 text-sm font-bold uppercase tracking-wider">
@@ -743,7 +743,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Tarjeta 1: Total Usuarios (Azul Zafiro / Cyan) */}
               <div
-                className="group relative bg-blue-50/80 dark:bg-blue-950/35 p-6 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-blue-50/80 dark:bg-blue-950/35 p-6 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminUsers")}
               >
                 <div>
@@ -794,7 +794,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* Tarjeta 2: Prácticas Formativas (Verde Esmeralda) */}
               <div
-                className="group relative bg-emerald-50/80 dark:bg-emerald-950/35 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-emerald-50/80 dark:bg-emerald-950/35 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminPractices")}
               >
                 <div>
@@ -831,7 +831,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* Tarjeta 3: Diseñar Certificados (Ámbar Dorado UPTC) */}
               <div
-                className="group relative bg-amber-50/80 dark:bg-amber-950/35 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-amber-50/80 dark:bg-amber-950/35 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminCertificateDesigner")}
               >
                 <div>
@@ -861,7 +861,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
               {/* Tarjeta 4: Reportes Emitidos (Púrpura / Violeta - En lugar del 15 fijo) */}
               <div
-                className="group relative bg-purple-50/80 dark:bg-purple-950/35 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-purple-50/80 dark:bg-purple-950/35 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminReports")}
               >
                 <div>

@@ -148,50 +148,16 @@ const AuditorDashboardView = ({ onNavigate }) => {
             Resumen Auditor
           </h3>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-zinc-400 mt-1">
-            Accesos directos al control de horas, seguimiento asistencial de usuarios y comunicación.
+            Accesos directos a la supervisión de prácticas, usuarios y canales de comunicación.
           </p>
         </div>
       </div>
 
-      {/* ─── Fila Principal de los 4 Accesos Directos con Colores y Formas ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* 1. Cumplimiento de Horas (Verde Asistencial / Emerald) */}
+      {/* ─── Fila Principal de los 3 Accesos Directos con Colores y Formas ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 1. Prácticas Supervisadas (Azul Zafiro / Cyan) */}
         <div
-          className="group relative bg-emerald-50/80 dark:bg-emerald-950/35 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
-          onClick={() => onNavigate("auditorHoursCompliance")}
-        >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wider">
-                Cumplimiento de Horas
-              </p>
-              <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 group-hover:scale-110 transition-transform">
-                <Clock className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-3 mt-1">
-              <p className="text-4xl font-black text-emerald-950 dark:text-emerald-100 flex-shrink-0">
-                {isLoading ? "..." : `${stats?.totalHoursAudited || 0}h`}
-              </p>
-              <div className="flex flex-col text-[11px] leading-tight text-emerald-800 dark:text-emerald-300 border-l border-emerald-300 dark:border-emerald-800 pl-3 space-y-0.5 select-none">
-                <span title="Estudiantes supervisados" className="flex items-center gap-1">
-                  <GraduationCap className="w-3 h-3" /> <strong>{isLoading ? "-" : totalStudentsCount}</strong> Estudiantes
-                </span>
-                <span title="Horas confirmadas" className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> <strong>{isLoading ? "-" : stats?.totalHoursAudited || 0}h</strong> Hechas
-                </span>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-5 font-bold flex items-center justify-between">
-            <span>Gestionar asistencia y turnos</span>
-            <span className="group-hover:translate-x-1 transition-transform">→</span>
-          </p>
-        </div>
-
-        {/* 2. Prácticas Supervisadas (Azul Zafiro / Cyan) */}
-        <div
-          className="group relative bg-blue-50/80 dark:bg-blue-950/35 p-6 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+          className="group relative bg-blue-50/80 dark:bg-blue-950/35 p-6 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
           onClick={() => onNavigate("auditorHoursCompliance")}
         >
           <div>
@@ -223,9 +189,9 @@ const AuditorDashboardView = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* 3. Visualizar Usuarios (Púrpura / Violeta) */}
+        {/* 2. Visualizar Usuarios (Púrpura / Violeta) */}
         <div
-          className="group relative bg-purple-50/80 dark:bg-purple-950/35 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+          className="group relative bg-purple-50/80 dark:bg-purple-950/35 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
           onClick={() => onNavigate("auditorUserViewer")}
         >
           <div>
@@ -257,9 +223,9 @@ const AuditorDashboardView = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* 4. Comunicación con Docentes (Ámbar / Naranja UPTC) */}
+        {/* 3. Comunicación con Docentes (Ámbar / Naranja UPTC) */}
         <div
-          className="group relative bg-amber-50/80 dark:bg-amber-950/35 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
+          className="group relative bg-amber-50/80 dark:bg-amber-950/35 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
           onClick={() => onNavigate("auditorCommunication")}
         >
           <div>

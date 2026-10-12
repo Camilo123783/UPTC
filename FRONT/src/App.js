@@ -138,6 +138,130 @@ export const getPageKeyFromPath = (pathname) => {
   return "dashboard";
 };
 
+// Obtener el título descriptivo para la pestaña y el menú de navegación/devolver del navegador
+export const getPageTitle = (pathname, userRole) => {
+  if (!pathname) return "Gestor de Prácticas - UPTC";
+
+  // Historial
+  if (pathname.includes("/certificate-history")) {
+    return "Historial de Certificados - Gestor de Prácticas";
+  }
+  if (pathname.includes("/history")) {
+    return "Historial de Prácticas - Gestor de Prácticas";
+  }
+
+  // Rutas Administrador
+  if (pathname.startsWith("/admin/users")) {
+    return "Gestión de Usuarios - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/admin/practices")) {
+    return "Gestión de Prácticas - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/admin/certificates")) {
+    return "Diseñar Certificados - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/admin/reports")) {
+    return "Reportes y Constancias - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/admin/settings")) {
+    return "Configuración Institucional - Gestor de Prácticas";
+  }
+
+  // Rutas Docente
+  if (pathname.startsWith("/docent/practices")) {
+    return "Mis Prácticas - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/students")) {
+    return "Estudiantes a Cargo - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/hours-compliance")) {
+    return "Cumplimiento de Horas - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/certificate-requests")) {
+    return "Solicitud de Certificados - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/certificates")) {
+    return "Diseñar Certificados - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/reports")) {
+    return "Reportes y Constancias - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/evaluations")) {
+    return "Evaluaciones Formativas - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/communication-students")) {
+    return "Comunicación con el Estudiante - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/communication")) {
+    return "Comunicación con el Auditor - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/docent/profile")) {
+    return "Mi Perfil - Gestor de Prácticas";
+  }
+
+  // Rutas Estudiante
+  if (pathname.startsWith("/student/profile")) {
+    return "Mi Perfil - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/student/practices")) {
+    return "Mis Prácticas - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/student/evaluations")) {
+    return "Evaluaciones - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/student/certifications")) {
+    return "Solicitud de Certificados - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/student/communication")) {
+    return "Comunicación con el Docente - Gestor de Prácticas";
+  }
+
+  // Rutas Auditor
+  if (pathname.startsWith("/auditor/hours-compliance")) {
+    return "Cumplimiento de Horas - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/auditor/users")) {
+    return "Visualizar Usuarios - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/auditor/reports")) {
+    return "Reportes y Auditoría - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/auditor/communication")) {
+    return "Comunicación con el Docente - Gestor de Prácticas";
+  }
+
+  // Rutas de Autenticación
+  if (pathname.startsWith("/login")) {
+    return "Iniciar Sesión - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/forgot-password")) {
+    return "Recuperar Contraseña - Gestor de Prácticas";
+  }
+  if (pathname.startsWith("/change-password")) {
+    return "Cambiar Contraseña - Gestor de Prácticas";
+  }
+
+  // Dashboard por Rol
+  if (pathname.startsWith("/dashboard") || pathname === "/") {
+    switch (userRole) {
+      case "docent":
+        return "Dashboard (Docente) - Gestor de Prácticas";
+      case "student":
+        return "Dashboard (Estudiante) - Gestor de Prácticas";
+      case "auditor":
+        return "Dashboard (Auditor) - Gestor de Prácticas";
+      case "admin":
+        return "Dashboard (Administrador) - Gestor de Prácticas";
+      case "superadmin":
+        return "Dashboard (Superadmin) - Gestor de Prácticas";
+      default:
+        return "Dashboard - Gestor de Prácticas";
+    }
+  }
+
+  return "Gestor de Prácticas - UPTC";
+};
+
 // Layout protegido con DashboardNavBar y Outlet para vistas hijas
 const DashboardLayoutWrapper = ({
   userRole,
@@ -231,6 +355,13 @@ const App = () => {
       saveActiveSession(userRole, location.pathname);
     }
   }, [userRole, location.pathname]);
+
+  // Actualizar document.title dinámicamente con el nombre exacto de la sección actual
+  // para que el historial y el botón de devolver del navegador muestren dónde estaba el usuario
+  useEffect(() => {
+    const title = getPageTitle(location.pathname, userRole);
+    document.title = title;
+  }, [location.pathname, userRole]);
 
   // 2. Control de inactividad (5 minutos sin interacción -> Cierre automático)
   // Robusto ante suspensión de pantalla móvil, bloqueo de terminal, pestañas en segundo plano y multiventana.

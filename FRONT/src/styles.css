@@ -13,6 +13,82 @@ body, aside, header, main, div, table, tr, th, td, input, select, textarea {
   transition-timing-function: ease-in-out;
 }
 
+/* ============================================================
+   RESPUESTA TÁCTIL Y HOVER ELEGANTE UNIVERSAL PARA BOTONES Y ACCIONES
+   Aplica a toda la plataforma y a todos los roles de usuario:
+   - Elevación suave (-1.5px a -2px) al pasar el cursor (hover)
+   - Resalte sutil pero claramente perceptible de borde
+   - Sombra difuminada y resplandor refinado (glow)
+   - Retroalimentación táctil de pulsación al hacer clic (:active)
+   ============================================================ */
+
+button:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift),
+[role="button"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift) {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform;
+}
+
+button:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover,
+[role="button"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover {
+  transform: translateY(-1.5px);
+}
+
+button:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):active,
+[role="button"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):active {
+  transform: translateY(0.5px) scale(0.985);
+}
+
+/* Modo Claro: resalte de borde y sombra al pasar el cursor */
+:not(.dark) button:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover,
+:not(.dark) [role="button"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover {
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+:not(.dark) button[class*="border"]:not([class*="hover:border-"]):not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover {
+  border-color: #94a3b8;
+}
+
+/* Modo Oscuro: resalte de borde iluminado y resplandor refinado */
+.dark button:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover,
+.dark [role="button"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover {
+  box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.dark button[class*="border"]:not([class*="hover:border-"]):not(:disabled):not([disabled]):not([aria-disabled="true"]):not(.no-hover-lift):hover {
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+/* Deshabilitados: sin transformaciones */
+button:disabled,
+button[disabled],
+button[aria-disabled="true"],
+[role="button"]:disabled,
+[role="button"][disabled],
+[role="button"][aria-disabled="true"] {
+  transform: none !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+/* Tarjetas interactivas y accesos directos de módulos */
+.interactive-card,
+[data-interactive-card="true"] {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform;
+}
+
+.interactive-card:hover,
+[data-interactive-card="true"]:hover {
+  transform: translateY(-3px);
+}
+
 /* ───────────────────────────────────────────────────────────
    MODO OSCURO (.dark): Negro, gris grafito y azul oscuro
    ─────────────────────────────────────────────────────────── */
