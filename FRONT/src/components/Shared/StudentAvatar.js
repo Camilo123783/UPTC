@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BACKEND_URL } from "../../config/api";
+import { DATA_SYNC_EVENT } from "../../utils/dataSync";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -8,6 +9,7 @@ const API_BASE_URL = BACKEND_URL;
  * Muestra la foto de perfil real del estudiante si existe en el sistema.
  * Si no tiene foto cargada o falla la carga, realiza un fallback elegante
  * mostrando la letra inicial del nombre sobre un fondo estilizado.
+ * Se sincroniza en tiempo real ante cualquier cambio de foto sin necesidad de recargar.
  */
 const StudentAvatar = ({
   cedula,
@@ -20,11 +22,41 @@ const StudentAvatar = ({
 }) => {
   const [hasError, setHasError] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [version, setVersion] = useState(() => Date.now());
+  const [forceHasPhoto, setForceHasPhoto] = useState(null);
 
   useEffect(() => {
     setHasError(false);
     setLoaded(false);
-  }, [cedula, hasPhoto]);
+  }, [cedula, hasPhoto, version]);
+
+  // Escuchar actualizaciones de foto en tiempo real
+  useEffect(() => {
+    if (!cedula) return;
+
+    const handlePhotoUpdate = (e) => {
+      const targetCedula = e?.detail?.cedula;
+      // Solo refrescar si el evento corresponde a este estudiante específico o es general
+      if (!targetCedula || String(targetCedula) === String(cedula)) {
+        setVersion(Date.now());
+        setForceHasPhoto(true);
+        setHasError(false);
+        setLoaded(false);
+      }
+    };
+
+    window.addEventListener("uptc:profile-photo-updated", handlePhotoUpdate);
+    window.addEventListener("uptc:profile-updated", handlePhotoUpdate);
+    window.addEventListener("uptc:user-data-updated", handlePhotoUpdate);
+    window.addEventListener(DATA_SYNC_EVENT, handlePhotoUpdate);
+
+    return () => {
+      window.removeEventListener("uptc:profile-photo-updated", handlePhotoUpdate);
+      window.removeEventListener("uptc:profile-updated", handlePhotoUpdate);
+      window.removeEventListener("uptc:user-data-updated", handlePhotoUpdate);
+      window.removeEventListener(DATA_SYNC_EVENT, handlePhotoUpdate);
+    };
+  }, [cedula]);
 
   const sizeClasses = {
     xs: "w-6 h-6 text-[10px]",
@@ -37,11 +69,11 @@ const StudentAvatar = ({
   }[size] || size;
 
   const initial = (name && typeof name === "string" ? name.trim().charAt(0) : "E").toUpperCase();
-  // Si sabemos con certeza que el estudiante no tiene foto cargada, no hacer petición HTTP
-  const shouldFetchPhoto = hasPhoto !== false && Boolean(cedula);
+  const effectiveHasPhoto = forceHasPhoto !== null ? forceHasPhoto : hasPhoto;
+  const shouldFetchPhoto = effectiveHasPhoto !== false && Boolean(cedula);
   const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken")) : null;
   const photoUrl = shouldFetchPhoto
-    ? `${API_BASE_URL}/api/student/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`
+    ? `${API_BASE_URL}/api/student/photo/${cedula}?v=${version}${token ? `&token=${encodeURIComponent(token)}` : ""}`
     : null;
 
   return (
@@ -53,6 +85,7 @@ const StudentAvatar = ({
       {photoUrl && !hasError ? (
         <>
           <img
+            key={`${cedula}-${version}`}
             src={photoUrl}
             alt={name || "Estudiante"}
             className={`w-full h-full object-cover rounded-full transition-opacity duration-200 ${

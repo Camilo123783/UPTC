@@ -348,7 +348,7 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
       res.setHeader("Content-Type", inMem.mimeType);
       res.setHeader("ETag", inMem.etag);
       res.setHeader("Content-Length", inMem.buffer.length);
-      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      res.setHeader("Cache-Control", "no-cache, private, must-revalidate");
       return res.end(inMem.buffer);
     }
 
@@ -428,7 +428,7 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
     res.setHeader("Content-Type", mimeType);
     res.setHeader("ETag", etag);
     res.setHeader("Content-Length", fileBuffer.length);
-    res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+    res.setHeader("Cache-Control", "no-cache, private, must-revalidate");
     res.end(fileBuffer);
   } catch (err) {
     next(err);

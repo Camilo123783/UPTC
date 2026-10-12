@@ -129,7 +129,7 @@ const DashboardLayout = ({
           cedula
         ) {
           const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-          setPhotoUrl(`${BACKEND_URL}/api/student/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`);
+          setPhotoUrl(`${BACKEND_URL}/api/student/photo/${cedula}?v=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ""}`);
           setPhotoError(false);
           setPhotoLoading(true);
         } else {
@@ -1058,13 +1058,13 @@ const DashboardLayout = ({
     ],
     docent: [
       { name: "Dashboard", page: "dashboard" },
-      { name: "Mi Perfil", page: "docentProfile", section: "Gestión" },
-      { name: "Mis Prácticas", page: "docentPractices" },
+      { name: "Mis Prácticas", page: "docentPractices", section: "Gestión" },
       { name: "Estudiantes", page: "docentStudents" },
       { name: "Cumplimiento de Horas", page: "docentHoursCompliance" },
       { name: "Solicitud de Certificados", page: "docentCertificateRequests" },
       { name: "Diseñar Certificados", page: "docentCertificateDesigner" },
       { name: "Reportes y Constancias", page: "docentReports" },
+      { name: "Mi Perfil", page: "docentProfile" },
       { name: "Comunicación con el Auditor", page: "docentCommunication", section: "Comunicación" },
       { name: "Comunicación con el Estudiante", page: "docentStudentCommunication" },
       { name: "Historial de Prácticas", page: "history", section: "Historial" },

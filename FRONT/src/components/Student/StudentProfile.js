@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { SkeletonProfile } from "../Shared/Skeleton";
 import { API_URL, BACKEND_URL } from "../../config/api";
+import { notifyDataChanged } from "../../utils/dataSync";
 
 // --- RESOLUCIÓN ROBUSTA DE SESIÓN Y CREDENCIALES ---
 const getStoredUser = () => {
@@ -578,18 +579,49 @@ const StudentProfile = () => {
         }
       } catch (e) {}
 
+      // Actualizar sesión local para reflejar foto en Navbar y demás componentes de inmediato
+      ["userData", "user"].forEach((key) => {
+        try {
+          const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (String(parsed.cedula || parsed.id) === String(currentCedula)) {
+              parsed.foto_url = updatedPhotoUrl;
+              parsed.foto_perfil = updatedPhotoUrl;
+              parsed.tiene_foto = true;
+              localStorage.setItem(key, JSON.stringify(parsed));
+              sessionStorage.setItem(key, JSON.stringify(parsed));
+            }
+          }
+        } catch (e) {}
+      });
+
       setSuccessMessage("¡Perfil y documentación actualizados correctamente!");
       setProfile((prev) => ({
         ...prev,
         photoFile: null,
-        photoPreview: prev.photoPreview || updatedPhotoUrl,
+        photoPreview: updatedPhotoUrl,
       }));
       setPhotoError(false);
+
+      // Despachar eventos reactivos globales e individuales
       window.dispatchEvent(
         new CustomEvent("uptc:profile-updated", {
           detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
         })
       );
+      window.dispatchEvent(
+        new CustomEvent("uptc:profile-photo-updated", {
+          detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("uptc:user-data-updated", {
+          detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
+        })
+      );
+      notifyDataChanged("students", "update", { cedula: currentCedula, photoUrl: updatedPhotoUrl });
+
       // Refrescar expediente del estudiante
       fetchStudentData(currentCedula);
 
