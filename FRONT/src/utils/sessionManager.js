@@ -3,8 +3,9 @@
 // ============================================================
 "use strict";
 
-export const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;      // 5 minutos de inactividad
-export const PROGRESS_GRACE_PERIOD_MS = 5 * 60 * 1000;  // 5 minutos tras cierre para recuperar progreso
+export const INACTIVITY_TIMEOUT_MS = 25 * 60 * 1000;     // 25 minutos de inactividad
+export const INACTIVITY_WARNING_MS = 2 * 60 * 1000;      // Advertencia 2 minutos antes
+export const PROGRESS_GRACE_PERIOD_MS = 15 * 60 * 1000; // 15 minutos tras cierre para recuperar progreso
 
 const KEYS = {
   USER_ROLE: "userRole",
@@ -106,6 +107,27 @@ export const touchLastActivity = () => {
     localStorage.setItem(KEYS.LAST_ACTIVITY, String(now));
   }
   return true;
+};
+
+/**
+ * Retorna los milisegundos restantes antes de que la sesión expire por inactividad.
+ */
+export const getInactivityRemainingMs = () => {
+  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
+  if (!lastActivityStr) return INACTIVITY_TIMEOUT_MS;
+  const lastActivity = parseInt(lastActivityStr, 10);
+  if (isNaN(lastActivity)) return INACTIVITY_TIMEOUT_MS;
+  const elapsed = Date.now() - lastActivity;
+  return Math.max(0, INACTIVITY_TIMEOUT_MS - elapsed);
+};
+
+/**
+ * Renueva y reinicia el temporizador de inactividad de forma forzada.
+ */
+export const resetInactivityTimer = () => {
+  const now = Date.now();
+  lastTouchTime = now;
+  localStorage.setItem(KEYS.LAST_ACTIVITY, String(now));
 };
 
 /**

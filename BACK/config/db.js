@@ -19,7 +19,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   timezone: "-05:00",
   dateStrings: true,
-  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10,
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 30,
   connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT, 10) || 20000,
   waitForConnections: true,
   queueLimit: 0,
@@ -75,4 +75,29 @@ async function queryDB(sql, values = []) {
   return rows;
 }
 
-module.exports = { pool, queryDB, getColombiaToday };
+/**
+ * Ejecuta una serie de operaciones dentro de una transacción atómica SQL (ACID).
+ * Si ocurre cualquier error, revierte (ROLLBACK) automáticamente.
+ * Si todo es exitoso, consolida (COMMIT).
+ * @param {Function} callback - Función que recibe connection: async (conn) => { ... }
+ */
+async function withTransaction(callback) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (err) {
+    try {
+      await connection.rollback();
+    } catch (rbErr) {
+      console.error("Error al hacer rollback:", rbErr.message);
+    }
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+module.exports = { pool, queryDB, withTransaction, getColombiaToday };

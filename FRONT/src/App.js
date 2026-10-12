@@ -11,40 +11,44 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
 
-import AdminCertificateDesigner from "./components/Admin/AdminCertificateDesigner";
-import AdminInstitutionSettings from "./components/Admin/AdminInstitutionSettings";
-import AdminPractices from "./components/Admin/AdminPractices";
-import AdminReports from "./components/Admin/AdminReports";
-import AdminUserManagement from "./components/Admin/AdminUserManagement";
+import { Clock } from "lucide-react";
 
-import AuditorReports from "./components/Auditor/AuditorReports";
-import AuditorUserViewer from "./components/Auditor/AuditorUserViewer";
-import AuditorHoursCompliance from "./components/Auditor/AuditorHoursCompliance";
-import AuditorCommunication from "./components/Auditor/AuditorCommunication";
-
+// Módulos críticos inmediatos (Carga directa)
 import AuthChangePassword from "./components/Auth/AuthChangePassword";
 import AuthForgotPassword from "./components/Auth/AuthForgotPassword";
 import AuthLogin from "./components/Auth/Login";
-
 import DashboardHome from "./components/Dashboard/DashboardHome";
 import DashboardNavBar from "./components/Dashboard/DashboardNavBar";
 
-import DocentEvaluations from "./components/Docent/DocentEvaluations";
-import DocentPractices from "./components/Docent/DocentPractices";
-import DocentStudents from "./components/Docent/DocentStudents";
-import DocentHoursCompliance from "./components/Docent/DocentHoursCompliance";
-import DocentCertificateRequests from "./components/Docent/DocentCertificateRequests";
-import DocentCommunication from "./components/Docent/DocentCommunication";
-import DocentStudentCommunication from "./components/Docent/DocentStudentCommunication";
-import DocentProfile from "./components/Docent/DocentProfile";
+// Carga diferida inteligente (Code Splitting con React.lazy para optimizar rendimiento)
+const AdminCertificateDesigner = React.lazy(() => import("./components/Admin/AdminCertificateDesigner"));
+const AdminInstitutionSettings = React.lazy(() => import("./components/Admin/AdminInstitutionSettings"));
+const AdminPractices = React.lazy(() => import("./components/Admin/AdminPractices"));
+const AdminReports = React.lazy(() => import("./components/Admin/AdminReports"));
+const AdminUserManagement = React.lazy(() => import("./components/Admin/AdminUserManagement"));
 
-import StudentCertifications from "./components/Student/StudentCertifications";
-import StudentEvaluations from "./components/Student/StudentEvaluations";
-import StudentPractices from "./components/Student/StudentPractices";
-import StudentProfile from "./components/Student/StudentProfile";
-import StudentDocentCommunication from "./components/Student/StudentDocentCommunication";
-import HistoryModule from "./components/History/HistoryModule";
-import CertificateHistoryModule from "./components/History/CertificateHistoryModule";
+const AuditorReports = React.lazy(() => import("./components/Auditor/AuditorReports"));
+const AuditorUserViewer = React.lazy(() => import("./components/Auditor/AuditorUserViewer"));
+const AuditorHoursCompliance = React.lazy(() => import("./components/Auditor/AuditorHoursCompliance"));
+const AuditorCommunication = React.lazy(() => import("./components/Auditor/AuditorCommunication"));
+
+const DocentEvaluations = React.lazy(() => import("./components/Docent/DocentEvaluations"));
+const DocentPractices = React.lazy(() => import("./components/Docent/DocentPractices"));
+const DocentStudents = React.lazy(() => import("./components/Docent/DocentStudents"));
+const DocentHoursCompliance = React.lazy(() => import("./components/Docent/DocentHoursCompliance"));
+const DocentCertificateRequests = React.lazy(() => import("./components/Docent/DocentCertificateRequests"));
+const DocentCommunication = React.lazy(() => import("./components/Docent/DocentCommunication"));
+const DocentStudentCommunication = React.lazy(() => import("./components/Docent/DocentStudentCommunication"));
+const DocentProfile = React.lazy(() => import("./components/Docent/DocentProfile"));
+
+const StudentCertifications = React.lazy(() => import("./components/Student/StudentCertifications"));
+const StudentEvaluations = React.lazy(() => import("./components/Student/StudentEvaluations"));
+const StudentPractices = React.lazy(() => import("./components/Student/StudentPractices"));
+const StudentProfile = React.lazy(() => import("./components/Student/StudentProfile"));
+const StudentDocentCommunication = React.lazy(() => import("./components/Student/StudentDocentCommunication"));
+
+const HistoryModule = React.lazy(() => import("./components/History/HistoryModule"));
+const CertificateHistoryModule = React.lazy(() => import("./components/History/CertificateHistoryModule"));
 
 import {
   loadActiveSession,
@@ -54,6 +58,9 @@ import {
   saveInactivityProgress,
   clearActiveSession,
   isSessionExpired,
+  INACTIVITY_WARNING_MS,
+  getInactivityRemainingMs,
+  resetInactivityTimer,
 } from "./utils/sessionManager";
 
 // Mapa bidireccional entre identificadores de página y rutas URL del navegador
@@ -263,6 +270,19 @@ export const getPageTitle = (pathname, userRole) => {
   return "Gestor de Prácticas - UPTC";
 };
 
+// Fallback animado durante la carga diferida de vistas (Code Splitting)
+const RouteLoadingFallback = () => (
+  <div className="w-full h-full p-6 space-y-6 animate-pulse select-none">
+    <div className="h-20 w-full rounded-3xl bg-gray-100 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/50" />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="h-28 rounded-2xl bg-gray-100 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/50" />
+      <div className="h-28 rounded-2xl bg-gray-100 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/50" />
+      <div className="h-28 rounded-2xl bg-gray-100 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/50" />
+    </div>
+    <div className="h-72 w-full rounded-3xl bg-gray-100 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/50" />
+  </div>
+);
+
 // Layout protegido con DashboardNavBar y Outlet para vistas hijas
 const DashboardLayoutWrapper = ({
   userRole,
@@ -282,7 +302,9 @@ const DashboardLayoutWrapper = ({
       onLogout={onLogout}
       onNavigate={onNavigate}
     >
-      <Outlet />
+      <React.Suspense fallback={<RouteLoadingFallback />}>
+        <Outlet />
+      </React.Suspense>
     </DashboardNavBar>
   );
 };
@@ -296,6 +318,14 @@ const App = () => {
     const session = loadActiveSession();
     return session && !session.expiredDueToInactivity ? session.userRole : null;
   });
+
+  // Estado para modal preventivo de inactividad (countdown en segundos cuando quedan <= 2 min)
+  const [inactivityWarningSeconds, setInactivityWarningSeconds] = useState(null);
+
+  const handleKeepSessionActive = useCallback(() => {
+    resetInactivityTimer();
+    setInactivityWarningSeconds(null);
+  }, []);
 
   // Adaptador de navegación compatible con cualquier llamada previa onNavigate(page)
   const handleNavigate = useCallback(
@@ -364,30 +394,41 @@ const App = () => {
     document.title = title;
   }, [location.pathname, userRole]);
 
-  // 2. Control de inactividad (5 minutos sin interacción -> Cierre automático)
+  // 2. Control de inactividad (25 minutos con advertencia preventiva a los 23 minutos)
   // Robusto ante suspensión de pantalla móvil, bloqueo de terminal, pestañas en segundo plano y multiventana.
   useEffect(() => {
     if (!userRole) return;
 
     const checkAndHandleSessionExpiration = () => {
-      const session = loadActiveSession();
-      if (session && session.expiredDueToInactivity) {
+      if (isSessionExpired()) {
+        setInactivityWarningSeconds(null);
         saveInactivityProgress(userRole, location.pathname);
         clearActiveSession();
         setUserRole(null);
         navigate("/login", { replace: true });
         return true;
       }
+
+      // Advertencia preventiva en los últimos 2 minutos
+      const remainingMs = getInactivityRemainingMs();
+      if (remainingMs <= INACTIVITY_WARNING_MS && remainingMs > 0) {
+        setInactivityWarningSeconds(Math.ceil(remainingMs / 1000));
+      } else {
+        setInactivityWarningSeconds(null);
+      }
       return false;
     };
 
     const handleUserActivity = () => {
-      // Si la sesión ya superó los 5 minutos, cerrar de inmediato antes de que el toque resetee el timestamp
       if (isSessionExpired()) {
         checkAndHandleSessionExpiration();
         return;
       }
       touchLastActivity();
+      const remainingMs = getInactivityRemainingMs();
+      if (remainingMs > INACTIVITY_WARNING_MS) {
+        setInactivityWarningSeconds(null);
+      }
     };
 
     const activityEvents = [
@@ -460,7 +501,8 @@ const App = () => {
   };
 
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* ─── Rutas Públicas ─── */}
       <Route
         path="/login"
@@ -626,7 +668,48 @@ const App = () => {
         path="*"
         element={<Navigate to={userRole ? "/dashboard" : "/login"} replace />}
       />
-    </Routes>
+      </Routes>
+
+      {/* ─── Modal Preventivo de Advertencia de Inactividad ─── */}
+      {inactivityWarningSeconds !== null && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in select-none">
+          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-600/60 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8 animate-pulse text-amber-500" />
+            </div>
+            <h3 className="text-xl font-black text-gray-900 dark:text-white">
+              ¿Sigues ahí? Tu sesión está por expirar
+            </h3>
+            <p className="text-xs text-gray-600 dark:text-zinc-400 mt-2">
+              Por seguridad institucional, tu sesión se cerrará automáticamente en:
+            </p>
+            <div className="text-3xl font-mono font-black text-amber-500 my-4 tracking-wider">
+              {Math.floor(inactivityWarningSeconds / 60)}:
+              {String(inactivityWarningSeconds % 60).padStart(2, "0")}
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-zinc-500 mb-5">
+              Haz clic en "Continuar trabajando" para renovar tu sesión y no perder ningún avance.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-700 dark:text-zinc-300 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition cursor-pointer"
+              >
+                Cerrar Sesión
+              </button>
+              <button
+                type="button"
+                onClick={handleKeepSessionActive}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition cursor-pointer"
+              >
+                Continuar trabajando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

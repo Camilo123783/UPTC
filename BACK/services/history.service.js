@@ -3,7 +3,7 @@
 // ============================================================
 "use strict";
 
-const { queryDB } = require("../config/db");
+const { queryDB, withTransaction } = require("../config/db");
 
 /**
  * Obtiene toda la información detallada de una práctica y sus estudiantes vinculados,
@@ -268,79 +268,80 @@ async function archivePractice(practiceId, overrideMotivoCancelacion = null) {
       fecha_archivo = NOW()
   `;
 
-  await queryDB(insertSql, [
-    practice.id,
-    practice.titulo,
-    practice.periodo,
-    practice.fecha_inicio,
-    practice.fecha_fin,
-    practice.horas_totales,
-    practice.cupos,
-    estadoHistorial,
-    finalMotivo,
-    practice.descripcion,
-    practice.horario || null,
-    practice.programa_id,
-    practice.programa_nombre,
-    practice.asignatura_id,
-    practice.asignatura_nombre,
-    practice.asignatura_codigo,
-    practice.institucion_id,
-    practice.institucion_nombre,
-    practice.servicio_id,
-    practice.servicio_nombre,
-    practice.docente_cedula,
-    practice.docente_nombre,
-    practice.docente_correo,
-    practice.auditor_cedula,
-    practice.auditor_nombre,
-    practice.auditor_correo,
-    practice.creado_por_rol,
-    practice.creador_nombre,
-    JSON.stringify(studentsData),
-    JSON.stringify(asistenciasResumen),
-    studentsData.length,
-  ]);
+  const historialId = await withTransaction(async (conn) => {
+    await conn.execute(insertSql, [
+      practice.id,
+      practice.titulo,
+      practice.periodo,
+      practice.fecha_inicio,
+      practice.fecha_fin,
+      practice.horas_totales,
+      practice.cupos,
+      estadoHistorial,
+      finalMotivo,
+      practice.descripcion,
+      practice.horario || null,
+      practice.programa_id,
+      practice.programa_nombre,
+      practice.asignatura_id,
+      practice.asignatura_nombre,
+      practice.asignatura_codigo,
+      practice.institucion_id,
+      practice.institucion_nombre,
+      practice.servicio_id,
+      practice.servicio_nombre,
+      practice.docente_cedula,
+      practice.docente_nombre,
+      practice.docente_correo,
+      practice.auditor_cedula,
+      practice.auditor_nombre,
+      practice.auditor_correo,
+      practice.creado_por_rol,
+      practice.creador_nombre,
+      JSON.stringify(studentsData),
+      JSON.stringify(asistenciasResumen),
+      studentsData.length,
+    ]);
 
-  // Obtener el ID del registro en historial_practica
-  const histRow = await queryDB(
-    "SELECT id FROM historial_practica WHERE practica_id = ? LIMIT 1",
-    [practice.id]
-  );
-  const historialId = histRow[0]?.id;
+    const [histRow] = await conn.execute(
+      "SELECT id FROM historial_practica WHERE practica_id = ? LIMIT 1",
+      [practice.id]
+    );
+    const hid = histRow[0]?.id;
 
-  if (historialId) {
-    // 6. Poblar tabla normalizada historial_practica_estudiante
-    await queryDB("DELETE FROM historial_practica_estudiante WHERE historial_id = ?", [historialId]);
+    if (hid) {
+      await conn.execute("DELETE FROM historial_practica_estudiante WHERE historial_id = ?", [hid]);
 
-    for (const st of studentsData) {
-      await queryDB(`
-        INSERT INTO historial_practica_estudiante (
-          historial_id,
-          practica_id,
-          estudiante_cedula,
-          estudiante_nombre,
-          estudiante_codigo,
-          calificacion,
-          estado_evaluacion,
-          horas_cumplidas,
-          horas_asignadas,
-          tiene_documentos
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        historialId,
-        practice.id,
-        st.cedula,
-        st.nombre_completo,
-        st.codigo,
-        st.calificacion,
-        st.estado_evaluacion,
-        st.horas_cumplidas,
-        st.horas_asignadas,
-        st.total_documentos_vinculados > 0 ? 1 : 0,
-      ]);
+      for (const st of studentsData) {
+        await conn.execute(`
+          INSERT INTO historial_practica_estudiante (
+            historial_id,
+            practica_id,
+            estudiante_cedula,
+            estudiante_nombre,
+            estudiante_codigo,
+            calificacion,
+            estado_evaluacion,
+            horas_cumplidas,
+            horas_asignadas,
+            tiene_documentos
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          hid,
+          practice.id,
+          st.cedula,
+          st.nombre_completo,
+          st.codigo,
+          st.calificacion,
+          st.estado_evaluacion,
+          st.horas_cumplidas,
+          st.horas_asignadas,
+          st.total_documentos_vinculados > 0 ? 1 : 0,
+        ]);
+      }
     }
-  }
+    return hid;
+  });
 
   console.log(`📦 Práctica #${practiceId} (${practice.titulo}) archivada con éxito en el Historial.`);
   return {

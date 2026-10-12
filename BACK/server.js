@@ -60,26 +60,35 @@ app.use(
   })
 );
 
-// ── 6. Rate Limiting — protección contra fuerza bruta ─────
+const compression = require("compression");
+
+// ── 6. Compresión HTTP (Gzip/Brotli para alto volumen) ─────
+app.use(compression());
+
+// ── 6.1 Rate Limiting — optimizado para concurrencia institucional ─────
+// Nota: skipSuccessfulRequests permite que cientos de estudiantes legítimos
+// en la misma red Wi-Fi/NAT institucional inicien sesión sin bloquearse,
+// limitando únicamente los intentos fallidos repetidos (ataques de fuerza bruta).
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100,                  // límite amplio para desarrollo
+  max: 300,                  // Margen amplio para campus con NAT/proxy compartido
+  skipSuccessfulRequests: true, // No penaliza accesos correctos
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    message: "Demasiados intentos de autenticación. Por favor espera unos minutos.",
+    message: "Demasiados intentos fallidos de autenticación. Por favor espera unos minutos.",
   },
 });
 
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: 1000,                // 1000 peticiones por minuto
+  max: 2500,                // 2500 peticiones por minuto por IP (soporta campus con IP pública compartida)
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    message: "Demasiadas solicitudes. Por favor intenta más tarde.",
+    message: "Demasiadas solicitudes simultáneas. Por favor intenta más tarde.",
   },
 });
 
