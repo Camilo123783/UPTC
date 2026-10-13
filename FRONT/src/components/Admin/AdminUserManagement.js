@@ -656,9 +656,17 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
   const handleSaveEditedUser = async (updatedUser) => {
     const cedula = updatedUser.cedula || updatedUser.Cédula || updatedUser.id_user_table;
     try {
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const response = await fetch(`${API_BASE_URL}/api/admin/users/${cedula}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(updatedUser),
       });
 

@@ -8,6 +8,7 @@ import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
 import { generateCsv, generateXls } from "../../utils/reportGenerator";
 import ClinicalReportModal from "./ClinicalReportModal";
+import { PracticeScheduleViewer } from "../Shared/PracticeSchedule";
 import {
   FileText,
   Download,
@@ -429,10 +430,9 @@ const AuditorReports = () => {
                           )}
                         </span>
                         {pr.horario && (
-                          <span className="flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>Horario: {pr.horario}</span>
-                          </span>
+                          <div className="w-full mt-2">
+                            <PracticeScheduleViewer horario={pr.horario} variant="card" />
+                          </div>
                         )}
                       </div>
                     </div>

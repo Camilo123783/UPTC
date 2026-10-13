@@ -34,7 +34,7 @@ const ROLE_LABELS = {
 const EXPECTED_HEADERS_BY_TYPE = {
   user_admin: ["cedula", "nombre", "apellidos", "correo_institucional", "password"],
   user_superadmin: ["cedula", "nombre", "apellidos", "correo_institucional", "password"],
-  user_estudiante: ["cedula", "nombre", "apellidos", "correo_institucional", "password", "programa"],
+  user_estudiante: ["cedula", "codigo", "nombre", "apellidos", "correo_institucional", "password", "programa"],
   user_docente: ["cedula", "nombre", "apellidos", "correo_institucional", "password", "programa"],
   user_auditor: ["cedula", "nombre", "apellidos", "correo_institucional", "password", "institucion"],
   programa: ["nombreprograma"],
@@ -67,13 +67,13 @@ const AdminCsvImportModal = ({
   useEffect(() => {
     if (isOpen) {
       setEntityType(initialEntityType || "user");
-      setRole(initialRole || "estudiante");
+      setRole(initialRole || (userRole === "superadmin" ? "superadmin" : "estudiante"));
       setFile(null);
       setParsedData([]);
       setHeaders([]);
       setImportResult(null);
     }
-  }, [isOpen, initialEntityType, initialRole]);
+  }, [isOpen, initialEntityType, initialRole, userRole]);
 
   if (!isOpen) return null;
 
@@ -95,7 +95,10 @@ const AdminCsvImportModal = ({
     if (["programa", "carrera", "programa_academico", "programa_id"].includes(clean)) return "programa";
     if (["institucion", "institucion_id"].includes(clean)) return "institucion";
     if (["servicio", "nombreservicio", "nombre_servicio"].includes(clean)) return "nombreservicio";
-    if (["codigo", "codigoasignatura", "codigo_asignatura"].includes(clean)) return "codigoasignatura";
+    if (["codigoasignatura", "codigo_asignatura"].includes(clean)) return "codigoasignatura";
+    if (["codigo", "codigo_estudiante", "codigo_estudiantil", "cod_estudiante", "codigoestudiantil"].includes(clean)) {
+      return entityType === "asignatura" ? "codigoasignatura" : "codigo";
+    }
     if (["nombreasignatura", "nombre_asignatura"].includes(clean)) return "nombreasignatura";
     if (["nombreinstitucion", "nombre_institucion"].includes(clean)) return "nombreinstitucion";
     if (["nombreprograma", "nombre_programa"].includes(clean)) return "nombreprograma";
@@ -161,10 +164,10 @@ const AdminCsvImportModal = ({
 
     if (entityType === "user") {
       if (role === "estudiante") {
-        headersList = ["cedula", "nombre", "apellidos", "correo_institucional", "password", "programa"];
+        headersList = ["cedula", "codigo", "nombre", "apellidos", "correo_institucional", "password", "programa"];
         sampleRows = [
-          ["1002345678", "Carlos Andrés", "Pérez Gómez", "carlos.perez@uptc.edu.co", "123456", sampleProgram],
-          ["1003456789", "Laura Sofia", "Mendoza Vega", "laura.mendoza@uptc.edu.co", "123456", sampleProgram],
+          ["1002345678", "202110293", "Carlos Andrés", "Pérez Gómez", "carlos.perez@uptc.edu.co", "123456", sampleProgram],
+          ["1003456789", "202110294", "Laura Sofia", "Mendoza Vega", "laura.mendoza@uptc.edu.co", "123456", sampleProgram],
         ];
       } else if (role === "docente") {
         headersList = ["cedula", "nombre", "apellidos", "correo_institucional", "password", "programa"];
@@ -457,7 +460,7 @@ const AdminCsvImportModal = ({
                   <option value="user">Administradores y Superadmins</option>
                 ) : (
                   <>
-                    <option value="user">Usuarios (Docente, Estudiante, Auditor)</option>
+                    <option value="user">Usuarios (Administrador, Docente, Estudiante, Auditor)</option>
                     <option value="programa">Programas Académicos</option>
                     <option value="asignatura">Asignaturas</option>
                     <option value="institucion">Instituciones</option>
@@ -485,11 +488,15 @@ const AdminCsvImportModal = ({
                 >
                   {userRole === "superadmin" ? (
                     <>
-                      <option value="admin">Administrador</option>
                       <option value="superadmin">Super Admin</option>
+                      <option value="admin">Administrador</option>
+                      <option value="docente">Docente</option>
+                      <option value="estudiante">Estudiante</option>
+                      <option value="auditor">Auditor</option>
                     </>
                   ) : (
                     <>
+                      <option value="admin">Administrador</option>
                       <option value="docente">Docente</option>
                       <option value="estudiante">Estudiante</option>
                       <option value="auditor">Auditor</option>

@@ -27,7 +27,11 @@ window.fetch = async (input, init = {}) => {
   }
 
   // Obtener el token JWT guardado en la sesión
-  const token = localStorage.getItem("authToken");
+  const token =
+    localStorage.getItem("authToken") ||
+    sessionStorage.getItem("authToken") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token");
 
   // Solo inyectar el token si la petición va dirigida al backend institucional de confianza
   if (token && isTrustedBackend(url)) {

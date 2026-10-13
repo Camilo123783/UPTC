@@ -34,6 +34,7 @@ import {
 import { BACKEND_URL } from "../../config/api";
 import { useTheme } from "../../context/ThemeContext";
 import { Skeleton, SkeletonCardGrid } from "../Shared/Skeleton";
+import { PracticeScheduleViewer } from "../Shared/PracticeSchedule";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -538,6 +539,13 @@ const HistoryModule = ({ userRole }) => {
                     </div>
                   </div>
 
+                  {/* Horario visible en la tarjeta */}
+                  {practice.horario && (
+                    <div className="mb-3">
+                      <PracticeScheduleViewer horario={practice.horario} variant="card" />
+                    </div>
+                  )}
+
                   {/* Vista específica si el usuario es Estudiante */}
                   {userRole === "student" && practice.miDetalle && (
                     <div className={`p-3 rounded-2xl border mb-3 text-xs ${
@@ -740,17 +748,11 @@ const HistoryModule = ({ userRole }) => {
               </div>
 
               {selectedPractice.horario && (
-                <div className={`p-4 rounded-2xl border text-xs sm:text-sm leading-relaxed ${
-                  isDark ? "bg-blue-950/20 border-blue-900/40" : "bg-blue-50/70 border-blue-200/80"
-                }`}>
-                  <strong className="block font-bold text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    Horario de la Práctica (Días y Horas):
-                  </strong>
-                  <p className="text-gray-800 dark:text-zinc-200 font-semibold whitespace-pre-line">
-                    {selectedPractice.horario}
-                  </p>
-                </div>
+                <PracticeScheduleViewer
+                  horario={selectedPractice.horario}
+                  variant="detailed"
+                  title="Horario Oficial de la Práctica (Días y Horas)"
+                />
               )}
 
               {selectedPractice.descripcion && (
@@ -911,13 +913,6 @@ const HistoryModule = ({ userRole }) => {
         </div>,
         document.body
       )}
-
-      {/* Footer sutil institucional */}
-      <footer className="pt-8 pb-2 text-center select-none">
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-500 font-normal tracking-wide">
-          © 2026 Sistema de gestion de practicas · Camilo Sáenz R. · Fred Manrique A. · Tunja, Boyacá
-        </p>
-      </footer>
     </div>
   );
 };

@@ -800,13 +800,6 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
         </div>,
         document.body
       )}
-
-      {/* Footer sutil institucional */}
-      <footer className="pt-8 pb-2 text-center select-none">
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-500 font-normal tracking-wide">
-          © 2026 Sistema de gestion de practicas · Camilo Sáenz R. · Fred Manrique A. · Tunja, Boyacá
-        </p>
-      </footer>
     </div>
   );
 };

@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
+import { PracticeScheduleEditor, PracticeScheduleViewer } from "../Shared/PracticeSchedule";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
 import toast from "../../utils/toast";
@@ -1035,6 +1036,12 @@ const DocentPractices = () => {
                       </p>
                     </div>
 
+                    {practice.horario && (
+                      <div className="mb-2.5">
+                        <PracticeScheduleViewer horario={practice.horario} variant="card" />
+                      </div>
+                    )}
+
                     {/* Aviso oficial de 30 días para emitir certificados si la práctica está Finalizada */}
                     {practice.estado === "Finalizada" && (() => {
                       const remaining = getRemainingCertDays(practice.fecha_fin);
@@ -1232,14 +1239,8 @@ const DocentPractices = () => {
                   </div>
 
                   {selectedPractice.horario && (
-                    <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 rounded-xl text-xs text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-900/60">
-                      <div className="flex items-center gap-1.5 mb-1 text-blue-700 dark:text-blue-300 font-bold uppercase tracking-wide">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Horario de la Práctica (Días y Horas):</span>
-                      </div>
-                      <p className="font-semibold text-gray-800 dark:text-zinc-200 whitespace-pre-line text-xs">
-                        {selectedPractice.horario}
-                      </p>
+                    <div className="mt-1">
+                      <PracticeScheduleViewer horario={selectedPractice.horario} variant="detailed" />
                     </div>
                   )}
 
@@ -1594,109 +1595,14 @@ const DocentPractices = () => {
                     />
                   </div>
 
-                  {/* Horario de la Práctica */}
-                  <div className="md:col-span-2 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5 uppercase tracking-wide">
-                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        Horario de la Práctica (Días y Horas)
-                      </label>
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                        Visible para el docente, estudiantes vinculados y administración
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
-                        Seleccionar días frecuentes:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {DIAS_SEMANA.map((dia) => {
-                          const isSelected = !!scheduleDays[dia];
-                          return (
-                            <button
-                              key={dia}
-                              type="button"
-                              onClick={() => handleToggleScheduleDay(dia)}
-                              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition border cursor-pointer ${
-                                isSelected
-                                  ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                                  : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-blue-400"
-                              }`}
-                            >
-                              {dia}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Selector de reloj individual por cada día seleccionado */}
-                    {Object.keys(scheduleDays).length > 0 && (
-                      <div className="space-y-2 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
-                        <span className="block text-[11px] font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider">
-                          Asignar hora de inicio y fin para cada día (Reloj):
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {DIAS_SEMANA.filter((dia) => !!scheduleDays[dia]).map((dia) => (
-                            <div
-                              key={dia}
-                              className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-blue-200/70 dark:border-zinc-700 flex items-center justify-between gap-2 shadow-xs"
-                            >
-                              <span className="font-bold text-xs text-blue-700 dark:text-blue-300 shrink-0 w-20">
-                                {dia}:
-                              </span>
-                              <div className="flex items-center gap-1.5 text-xs">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-gray-400">Inicio:</span>
-                                  <input
-                                    type="time"
-                                    value={scheduleDays[dia]?.inicio || "07:00"}
-                                    onChange={(e) => handleScheduleTimeChange(dia, "inicio", e.target.value)}
-                                    className="px-2 py-1 rounded-lg border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs font-mono font-bold text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
-                                  />
-                                </div>
-                                <span className="text-gray-400 font-bold">-</span>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-gray-400">Fin:</span>
-                                  <input
-                                    type="time"
-                                    value={scheduleDays[dia]?.fin || "13:00"}
-                                    onChange={(e) => handleScheduleTimeChange(dia, "fin", e.target.value)}
-                                    className="px-2 py-1 rounded-lg border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs font-mono font-bold text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
-                                  />
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleScheduleDay(dia)}
-                                className="p-1 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                                title={`Quitar ${dia}`}
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                        Resumen del horario registrado:
-                      </label>
-                      <input
-                        type="text"
-                        name="horario"
-                        placeholder="Ej: Lunes (07:00 - 13:00), Jueves (08:00 - 14:00)"
-                        value={practiceFormData.horario || ""}
-                        onChange={handlePracticeInputChange}
-                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-medium"
-                      />
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                        Especifica los días y horas exactos en que se llevará a cabo la práctica.
-                      </p>
-                    </div>
+                  {/* Horario de la Práctica (Organizador por Días y Reloj) */}
+                  <div className="md:col-span-2">
+                    <PracticeScheduleEditor
+                      value={practiceFormData.horario || ""}
+                      onChange={(nuevoHorario) =>
+                        setPracticeFormData((f) => ({ ...f, horario: nuevoHorario }))
+                      }
+                    />
                   </div>
                 </div>
               </div>

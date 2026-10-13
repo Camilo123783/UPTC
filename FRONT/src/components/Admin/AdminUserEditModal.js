@@ -37,7 +37,7 @@ const AdminUserEditModal = ({
     programa_id: user?.programa_id != null ? String(user.programa_id) : "",
     institucion_id: user?.institucion_id != null ? String(user.institucion_id) : "",
     biografia: user?.biografia || "",
-    codigo: user?.codigo || "",
+    codigo: user?.codigo || user?.Codigo || "",
     direccion: user?.direccion || "",
     telefono: user?.telefono || "",
     correo_personal: user?.correo_personal || "",
@@ -61,7 +61,11 @@ const AdminUserEditModal = ({
     const fetchFullDetails = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem("authToken");
+        const token =
+          localStorage.getItem("authToken") ||
+          sessionStorage.getItem("authToken") ||
+          localStorage.getItem("token") ||
+          sessionStorage.getItem("token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const roleHint = encodeURIComponent((user?.Rol || user?.rol || "").toLowerCase());
         const res = await fetch(
@@ -92,7 +96,7 @@ const AdminUserEditModal = ({
                   ? String(data.user.institucion_id)
                   : prev.institucion_id,
               biografia: data.user.biografia || prev.biografia,
-              codigo: data.user.codigo || prev.codigo,
+              codigo: data.user.codigo != null ? String(data.user.codigo) : prev.codigo,
               direccion: data.user.direccion || prev.direccion,
               telefono: data.user.telefono || prev.telefono,
               correo_personal: data.user.correo_personal || prev.correo_personal,

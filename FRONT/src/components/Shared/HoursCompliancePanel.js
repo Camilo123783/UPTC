@@ -34,6 +34,7 @@ import {
   MousePointerClick
 } from "lucide-react";
 import { SkeletonCardGrid } from "./Skeleton";
+import { PracticeScheduleViewer } from "./PracticeSchedule";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -803,6 +804,13 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
                         </span>
                       </div>
                     </div>
+
+                    {/* Horario visible de la práctica */}
+                    {p.horario && (
+                      <div className="mb-4">
+                        <PracticeScheduleViewer horario={p.horario} variant="card" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Footer de la tarjeta */}
@@ -888,6 +896,12 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
                   <span className="flex items-center gap-1"><UserCheck className="w-3.5 h-3.5 text-gray-400" /> <strong>Docente:</strong> {currentPractice.docente_nombre || "Tutor Clínico"}</span>
                   <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-gray-400" /> <strong>Meta Base:</strong> {currentPractice.horas_totales || 120} hrs</span>
                 </p>
+
+                {currentPractice.horario && (
+                  <div className="mt-3 max-w-xl">
+                    <PracticeScheduleViewer horario={currentPractice.horario} variant="card" />
+                  </div>
+                )}
               </div>
 
               {/* Indicadores Rápidos y Descarga CSV de la Práctica Seleccionada */}
