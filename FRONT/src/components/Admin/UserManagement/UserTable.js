@@ -51,10 +51,27 @@ const RoleSection = ({
   handleToggleStatusUser,
   togglingCedula,
   currentUserRole,
+  currentUserCedula,
   getProgramaName,
   getInstitucionName,
   ITEMS_PER_PAGE = 10,
 }) => {
+  const effectiveCurrentCedula = String(
+    currentUserCedula ||
+    (typeof window !== "undefined"
+      ? (() => {
+          try {
+            const raw = sessionStorage.getItem("userData") || localStorage.getItem("userData");
+            if (raw) {
+              const p = typeof raw === "string" ? JSON.parse(raw) : raw;
+              if (p && (p.cedula || p.Cédula)) return String(p.cedula || p.Cédula).trim();
+            }
+          } catch (e) {}
+          return "";
+        })()
+      : "")
+  ).trim();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProg, setSelectedProg] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -348,6 +365,16 @@ const RoleSection = ({
                       const isCurrentAdmin =
                         currentRoleNorm === "admin" || currentRoleNorm === "administrador";
 
+                      const canDeleteTarget = isTargetSuperadmin
+                        ? isCurrentSuperadmin
+                        : (isCurrentAdmin || isCurrentSuperadmin);
+
+                      const isSelf = Boolean(
+                        effectiveCurrentCedula &&
+                        user?.Cédula &&
+                        effectiveCurrentCedula === String(user.Cédula).trim()
+                      );
+
                       // Regla de negocio estricta:
                       // - Superadmin nunca se desactiva.
                       // - Si el usuario objetivo es Administrador, SOLO el Superadmin puede activarlo o desactivarlo.
@@ -477,12 +504,20 @@ const RoleSection = ({
                               >
                                 <Edit3 className="w-3.5 h-3.5" /> Editar
                               </button>
-                              {(!isTargetAdmin || isCurrentSuperadmin) && (
+                              {canDeleteTarget && (
                                 <button
                                   type="button"
                                   onClick={() => requestDeleteUser(user)}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
-                                  title="Eliminar usuario"
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                                    isSelf
+                                      ? "text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                                      : "text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800"
+                                  }`}
+                                  title={
+                                    isSelf
+                                      ? "No puedes eliminar tu propia cuenta mientras tu sesión esté activa"
+                                      : "Eliminar usuario"
+                                  }
                                 >
                                   <Trash2 className="w-3.5 h-3.5" /> Eliminar
                                 </button>
@@ -548,8 +583,25 @@ export const UserTable = ({
   getInstitucionName,
   getRoleInfo,
   userRole,
+  currentUserCedula,
 }) => {
-  const isSuperadmin = userRole === "superadmin";
+  const isSuperadmin = String(userRole || "").toLowerCase().trim() === "superadmin";
+
+  const saCurrentCedula = String(
+    currentUserCedula ||
+    (typeof window !== "undefined"
+      ? (() => {
+          try {
+            const raw = sessionStorage.getItem("userData") || localStorage.getItem("userData");
+            if (raw) {
+              const p = typeof raw === "string" ? JSON.parse(raw) : raw;
+              if (p && (p.cedula || p.Cédula)) return String(p.cedula || p.Cédula).trim();
+            }
+          } catch (e) {}
+          return "";
+        })()
+      : "")
+  ).trim();
 
   // Para superadmin: estado de búsqueda y ordenamiento exclusivo
   const [saSearchTerm, setSaSearchTerm] = useState("");
@@ -693,6 +745,11 @@ export const UserTable = ({
                     : user.activo !== undefined
                     ? !!user.activo
                     : true;
+                const isSelf = Boolean(
+                  saCurrentCedula &&
+                  user?.Cédula &&
+                  saCurrentCedula === String(user.Cédula).trim()
+                );
                 return (
                   <tr
                     key={`sa-${user.Cédula || idx}`}
@@ -774,7 +831,16 @@ export const UserTable = ({
                         <button
                           type="button"
                           onClick={() => requestDeleteUser(user)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                            isSelf
+                              ? "text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                              : "text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800"
+                          }`}
+                          title={
+                            isSelf
+                              ? "No puedes eliminar tu propia cuenta mientras tu sesión esté activa"
+                              : "Eliminar usuario"
+                          }
                         >
                           <Trash2 className="w-3.5 h-3.5" /> Eliminar
                         </button>
@@ -886,6 +952,7 @@ export const UserTable = ({
         handleToggleStatusUser={handleToggleStatusUser}
         togglingCedula={togglingCedula}
         currentUserRole={userRole}
+        currentUserCedula={saCurrentCedula}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />
@@ -929,6 +996,7 @@ export const UserTable = ({
         handleToggleStatusUser={handleToggleStatusUser}
         togglingCedula={togglingCedula}
         currentUserRole={userRole}
+        currentUserCedula={saCurrentCedula}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />
@@ -971,6 +1039,7 @@ export const UserTable = ({
         handleToggleStatusUser={handleToggleStatusUser}
         togglingCedula={togglingCedula}
         currentUserRole={userRole}
+        currentUserCedula={saCurrentCedula}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />
@@ -1005,6 +1074,7 @@ export const UserTable = ({
         handleToggleStatusUser={handleToggleStatusUser}
         togglingCedula={togglingCedula}
         currentUserRole={userRole}
+        currentUserCedula={saCurrentCedula}
         getProgramaName={getProgramaName}
         getInstitucionName={getInstitucionName}
       />

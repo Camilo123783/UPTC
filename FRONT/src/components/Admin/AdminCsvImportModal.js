@@ -51,10 +51,25 @@ const AdminCsvImportModal = ({
   programas = [],
   instituciones = [],
   onSuccess,
-  userRole,
+  userRole: propUserRole,
 }) => {
-  const [entityType, setEntityType] = useState(initialEntityType);
-  const [role, setRole] = useState(initialRole || (userRole === "superadmin" ? "admin" : "estudiante"));
+  const effectiveUserRole = String(
+    propUserRole ||
+    (typeof window !== "undefined" ? localStorage.getItem("userRole") : "") ||
+    (typeof window !== "undefined" ? sessionStorage.getItem("userRole") : "") ||
+    ""
+  ).toLowerCase().trim();
+  const isSuper = effectiveUserRole === "superadmin";
+
+  const getValidDefaultRole = (r) => {
+    if (isSuper) {
+      return ["superadmin", "admin"].includes(r) ? r : "admin";
+    }
+    return ["admin", "docente", "estudiante", "auditor"].includes(r) ? r : "admin";
+  };
+
+  const [entityType, setEntityType] = useState(isSuper ? "user" : (initialEntityType || "user"));
+  const [role, setRole] = useState(getValidDefaultRole(initialRole));
   const [file, setFile] = useState(null);
   const [parsedData, setParsedData] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -66,14 +81,14 @@ const AdminCsvImportModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      setEntityType(initialEntityType || "user");
-      setRole(initialRole || (userRole === "superadmin" ? "superadmin" : "estudiante"));
+      setEntityType(isSuper ? "user" : (initialEntityType || "user"));
+      setRole(getValidDefaultRole(initialRole));
       setFile(null);
       setParsedData([]);
       setHeaders([]);
       setImportResult(null);
     }
-  }, [isOpen, initialEntityType, initialRole, userRole]);
+  }, [isOpen, initialEntityType, initialRole, isSuper]);
 
   if (!isOpen) return null;
 
@@ -456,10 +471,10 @@ const AdminCsvImportModal = ({
                   setFile(null);
                   setImportResult(null);
                 }}
-                disabled={userRole === "superadmin"}
+                disabled={isSuper}
                 className="w-full border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                {userRole === "superadmin" ? (
+                {isSuper ? (
                   <option value="user">Administradores y Superadmins</option>
                 ) : (
                   <>
@@ -489,16 +504,14 @@ const AdminCsvImportModal = ({
                   }}
                   className="w-full border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                 >
-                  {userRole === "superadmin" ? (
+                  {isSuper ? (
                     <>
                       <option value="superadmin">Super Admin</option>
                       <option value="admin">Administrador</option>
-                      <option value="docente">Docente</option>
-                      <option value="estudiante">Estudiante</option>
-                      <option value="auditor">Auditor</option>
                     </>
                   ) : (
                     <>
+                      <option value="admin">Administrador</option>
                       <option value="docente">Docente</option>
                       <option value="estudiante">Estudiante</option>
                       <option value="auditor">Auditor</option>

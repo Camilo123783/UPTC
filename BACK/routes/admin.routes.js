@@ -296,6 +296,13 @@ router.get("/servicios", async (req, res, next) => {
 // ──────────────────────────────────────────────
 router.post("/docente", async (req, res, next) => {
   try {
+    if (req.user?.role === "superadmin") {
+      return res.status(403).json({
+        success: false,
+        message: "El superadministrador solo puede crear cuentas de Superadministrador y Administrador.",
+      });
+    }
+
     const { rol_id, cedula, password, nombre, apellidos, correo_institucional, programa_id } = req.body;
 
     if (!rol_id || !cedula || !password || !nombre || !apellidos || !programa_id) {
@@ -327,6 +334,13 @@ router.post("/docente", async (req, res, next) => {
 // ──────────────────────────────────────────────
 router.post("/auditor", async (req, res, next) => {
   try {
+    if (req.user?.role === "superadmin") {
+      return res.status(403).json({
+        success: false,
+        message: "El superadministrador solo puede crear cuentas de Superadministrador y Administrador.",
+      });
+    }
+
     const { rol_id, cedula, password, nombre, apellidos, correo_institucional, institucion_id } = req.body;
 
     if (!rol_id || !cedula || !password || !nombre || !apellidos || !institucion_id) {
@@ -426,6 +440,13 @@ router.post("/superadmin", requireRole("superadmin"), async (req, res, next) => 
 // ──────────────────────────────────────────────
 router.post("/estudiante", async (req, res, next) => {
   try {
+    if (req.user?.role === "superadmin") {
+      return res.status(403).json({
+        success: false,
+        message: "El superadministrador solo puede crear cuentas de Superadministrador y Administrador.",
+      });
+    }
+
     const { rol_id, cedula, password, nombre, apellidos, correo_institucional, programa_id, codigo } = req.body;
 
     if (!rol_id || !cedula || !password || !nombre || !apellidos || !programa_id) {
@@ -555,10 +576,17 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
       });
     }
 
-    if (["superadmin", "admin"].includes(defaultRole) && req.user?.role !== "superadmin") {
+    if (defaultRole === "superadmin" && req.user?.role !== "superadmin") {
       return res.status(403).json({
         success: false,
-        message: "Acceso denegado: solo un superadministrador puede crear o importar cuentas de administrador o superadministrador.",
+        message: "Acceso denegado: solo un superadministrador puede crear o importar cuentas de superadministrador.",
+      });
+    }
+
+    if (req.user?.role === "superadmin" && entityType === "user" && defaultRole && !["superadmin", "admin"].includes(defaultRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "El superadministrador solo puede crear o importar cuentas de Superadministrador y Administrador.",
       });
     }
 
@@ -669,8 +697,12 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
             throw new Error(`Rol no válido o no especificado: '${rawRole}'`);
           }
 
-          if (["superadmin", "admin"].includes(rawRole) && req.user?.role !== "superadmin") {
-            throw new Error("Acceso denegado: solo un superadministrador puede crear o importar cuentas de administrador o superadministrador.");
+          if (rawRole === "superadmin" && req.user?.role !== "superadmin") {
+            throw new Error("Acceso denegado: solo un superadministrador puede crear o importar cuentas de superadministrador.");
+          }
+
+          if (req.user?.role === "superadmin" && !["superadmin", "admin"].includes(rawRole)) {
+            throw new Error("El superadministrador solo puede crear o importar cuentas de Superadministrador y Administrador.");
           }
 
           const cedula = String(rec.cedula || rec.Cédula || rec.Cedula || "").trim();
@@ -1056,17 +1088,19 @@ router.delete(["/users/:id", "/user/:id"], async (req, res, next) => {
         const userId = userRow.id;
         userName = `${userRow.nombre || ""} ${userRow.apellidos || ""}`.trim() || `Usuario #${userCedula || userId}`;
 
-        if (role.roleName === "superadmin" && req.user?.role !== "superadmin") {
+        // 1. Condición estricta: No se puede eliminar a él mismo si la sesión está activa
+        if (req.user?.cedula && userCedula && String(req.user.cedula).trim() === String(userCedula).trim()) {
           return res.status(403).json({
             success: false,
-            message: "Solo un superadministrador puede eliminar cuentas con rol superadministrador.",
+            message: "No puedes eliminar tu propia cuenta mientras tu sesión esté activa.",
           });
         }
 
-        if (role.roleName === "admin" && req.user?.role !== "superadmin") {
+        // 2. Solo un superadministrador puede eliminar cuentas de superadministrador
+        if (role.roleName === "superadmin" && req.user?.role !== "superadmin") {
           return res.status(403).json({
             success: false,
-            message: "Solo un superadministrador puede eliminar cuentas de administradores.",
+            message: "Solo un superadministrador puede eliminar cuentas de superadministrador.",
           });
         }
 

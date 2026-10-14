@@ -140,12 +140,43 @@ export const getRoleInfo = (rol) => {
 // COMPONENTE PRINCIPAL
 // --------------------------------------------------
 const AdminUserManagement = ({ userRole: propUserRole }) => {
-  const userRole =
+  const userRole = String(
     propUserRole ||
-    localStorage.getItem("userRole") ||
-    sessionStorage.getItem("userRole") ||
-    "";
+    (typeof window !== "undefined" ? localStorage.getItem("userRole") : "") ||
+    (typeof window !== "undefined" ? sessionStorage.getItem("userRole") : "") ||
+    ""
+  ).toLowerCase().trim();
   const isSuperadmin = userRole === "superadmin";
+
+  const getCurrentUserCedula = () => {
+    try {
+      const raw =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("userData") || localStorage.getItem("userData")
+          : null;
+      if (raw) {
+        const p = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (p && (p.cedula || p.Cédula)) return String(p.cedula || p.Cédula).trim();
+      }
+    } catch (e) {}
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("authToken") ||
+            sessionStorage.getItem("authToken") ||
+            localStorage.getItem("token") ||
+            sessionStorage.getItem("token")
+          : null;
+      if (token) {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload && payload.cedula) return String(payload.cedula).trim();
+        }
+      }
+    } catch (e) {}
+    return "";
+  };
 
   // --- ESTADOS PRINCIPALES DE LA UI Y FORMULARIO ---
   const [newEntity, setNewEntity] = useState({
@@ -552,18 +583,33 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
       .toLowerCase()
       .trim();
     const currentRoleNorm = String(userRole || "").toLowerCase().trim();
-    if (
-      (targetRole === "admin" || targetRole === "administrador") &&
-      currentRoleNorm !== "superadmin"
-    ) {
-      toast.warning(
-        "Solo el superadministrador tiene permisos para eliminar cuentas de administradores."
-      );
+    const currentCedula = getCurrentUserCedula();
+    const targetCedula = String(user?.Cédula || user?.cedula || "").trim();
+
+    // 1. Condición estricta: No se puede eliminar a él mismo si la sesión está activa
+    if (currentCedula && targetCedula && currentCedula === targetCedula) {
+      toast.warning("No puedes eliminar tu propia cuenta mientras tu sesión esté activa.");
       return;
     }
+
+    // 2. Un superadmin solo puede ser eliminado por otro superadmin
     if (targetRole === "superadmin") {
-      toast.warning("El superadministrador no se puede eliminar.");
-      return;
+      if (currentRoleNorm !== "superadmin") {
+        toast.warning(
+          "Solo un superadministrador tiene permisos para eliminar cuentas de superadministrador."
+        );
+        return;
+      }
+    }
+
+    // 3. Un administrador puede ser eliminado por superadmin o por otro administrador
+    if (targetRole === "admin" || targetRole === "administrador") {
+      if (currentRoleNorm !== "superadmin" && currentRoleNorm !== "admin" && currentRoleNorm !== "administrador") {
+        toast.warning(
+          "Solo un administrador o superadministrador puede eliminar cuentas de administradores."
+        );
+        return;
+      }
     }
 
     const fullName =
@@ -964,6 +1010,9 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
   const validateForm = (entity) => {
     if (entity.type === "user") {
       if (!entity.role) return "Debe seleccionar un rol.";
+      if (isSuperadmin && !["superadmin", "admin", "administrador"].includes(entity.role)) {
+        return "El superadministrador solo puede crear cuentas de Superadministrador y Administrador.";
+      }
       if (
         !entity.cedula ||
         !entity.nombre ||
@@ -1176,6 +1225,7 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
         getRoleInfo={getRoleInfo}
         USER_SORT_FIELDS={USER_SORT_FIELDS}
         userRole={userRole}
+        currentUserCedula={getCurrentUserCedula()}
       />
 
       {/* ─── Catálogos solo visibles para Administradores de Facultad ─── */}
@@ -1323,7 +1373,11 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
             ? newEntity.subType || "institucion"
             : newEntity.type || "user"
         }
-        initialRole={newEntity.role || (isSuperadmin ? "admin" : "estudiante")}
+        initialRole={
+          ["superadmin", "admin"].includes(newEntity.role)
+            ? newEntity.role
+            : (isSuperadmin ? "admin" : (newEntity.role || "estudiante"))
+        }
         programas={programas}
         instituciones={instituciones}
         userRole={userRole}

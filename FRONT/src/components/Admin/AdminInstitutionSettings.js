@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Palette,
   Landmark,
@@ -11,6 +12,8 @@ import {
   Eye,
   Trash2,
   Image as ImageIcon,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
@@ -227,6 +230,7 @@ const AdminInstitutionSettings = () => {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteFacultyLogoModal, setShowDeleteFacultyLogoModal] = useState(false);
 
   const fetchSettings = async () => {
     const token =
@@ -612,9 +616,12 @@ const AdminInstitutionSettings = () => {
     }
   };
 
-  const handleRemoveFacultyLogo = async () => {
-    if (!window.confirm("¿Deseas quitar el logo de la facultad? Los reportes y certificados se generarán sin este logo.")) return;
+  const handleRemoveFacultyLogo = () => {
+    setShowDeleteFacultyLogoModal(true);
+  };
 
+  const confirmRemoveFacultyLogo = async () => {
+    setShowDeleteFacultyLogoModal(false);
     setIsSaving(true);
     setMessage("Eliminando logo de la facultad...");
     setMessageType("info");
@@ -653,6 +660,7 @@ const AdminInstitutionSettings = () => {
       setMessage("Logo de la facultad eliminado exitosamente.");
       setMessageType("success");
     } catch (err) {
+      console.error("Error al eliminar logo de facultad:", err);
       setMessage("Error al eliminar el logo de la facultad.");
       setMessageType("error");
     } finally {
@@ -1312,6 +1320,80 @@ const AdminInstitutionSettings = () => {
           )}
         </button>
       </div>
+      {/* Modal de confirmación para eliminar logo de facultad con estilos del programa */}
+      {showDeleteFacultyLogoModal && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSaving) {
+              setShowDeleteFacultyLogoModal(false);
+            }
+          }}
+        >
+          <div className="relative bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md border border-gray-100 dark:border-zinc-800 transform transition-all text-center animate-in zoom-in-95 duration-200">
+            {/* Botón cerrar X */}
+            <button
+              type="button"
+              onClick={() => setShowDeleteFacultyLogoModal(false)}
+              disabled={isSaving}
+              className="absolute top-4 right-4 p-2 rounded-full text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50"
+              title="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icono de Cabecera */}
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/60">
+              <Trash2 className="w-8 h-8" />
+            </div>
+
+            {/* Título y Mensaje */}
+            <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2">
+              ¿Quitar Logo de la Facultad?
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-zinc-400 mb-4 leading-relaxed">
+              ¿Deseas quitar el logo de la facultad? Los reportes oficiales y certificados de prácticas se generarán sin este logo.
+            </p>
+
+            {/* Vista previa miniatura del logo actual */}
+            {institutionData.logo_facultad && (
+              <div className="bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-2xl p-3.5 mb-4 flex items-center justify-center">
+                <img
+                  src={institutionData.logo_facultad}
+                  alt="Logo Facultad Actual"
+                  className="max-h-14 max-w-[160px] object-contain rounded-lg shadow-2xs"
+                />
+              </div>
+            )}
+
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-6 flex items-center justify-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>Podrás volver a cargar un nuevo logo en cualquier momento.</span>
+            </p>
+
+            {/* Acciones */}
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => setShowDeleteFacultyLogoModal(false)}
+                className="bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 px-6 py-2.5 rounded-xl font-bold text-sm transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={confirmRemoveFacultyLogo}
+                className="bg-rose-600 hover:bg-rose-700 text-white px-7 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isSaving ? "Eliminando..." : "Sí, Quitar Logo"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
