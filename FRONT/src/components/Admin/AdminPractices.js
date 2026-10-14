@@ -1681,6 +1681,7 @@ const AdminPractices = () => {
               {/* 6. Rúbrica de Evaluación Formativa UPTC (10 de 25 Criterios) */}
               <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
                 <RubricCriteriaSelector
+                  selectedCriteria={formData.rubrica_criterios || []}
                   selectedCriteriaIds={formData.rubrica_criterios || []}
                   onChange={(criterios) =>
                     setFormData((prev) => ({ ...prev, rubrica_criterios: criterios }))

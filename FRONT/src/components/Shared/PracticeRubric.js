@@ -48,7 +48,8 @@ const CATEGORY_ICONS = {
 // 1. SELECTOR DE CRITERIOS (Para Crear / Editar Práctica)
 // ────────────────────────────────────────────────────────────
 export const RubricCriteriaSelector = ({
-  selectedCriteria = [],
+  selectedCriteria,
+  selectedCriteriaIds,
   onChange,
   isLocked = false,
   lockReason = "La práctica ya se encuentra iniciada o finalizada; los 10 criterios de evaluación no pueden modificarse.",
@@ -62,8 +63,24 @@ export const RubricCriteriaSelector = ({
     6: true,
   });
 
-  const selectedSet = useMemo(() => new Set(selectedCriteria), [selectedCriteria]);
-  const count = selectedCriteria.length;
+  // Aceptar tanto selectedCriteriaIds como selectedCriteria para máxima robustez
+  const rawList = selectedCriteriaIds !== undefined ? selectedCriteriaIds : selectedCriteria;
+  const currentList = useMemo(() => {
+    if (!rawList) return [];
+    if (Array.isArray(rawList)) return rawList.filter(Boolean);
+    if (typeof rawList === "string") {
+      try {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch (e) {
+        return rawList.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  }, [rawList]);
+
+  const selectedSet = useMemo(() => new Set(currentList), [currentList]);
+  const count = currentList.length;
   const isExact10 = count === 10;
 
   const toggleCategory = (catId) => {
@@ -74,23 +91,27 @@ export const RubricCriteriaSelector = ({
     if (isLocked) return;
 
     if (selectedSet.has(criterionId)) {
-      const next = selectedCriteria.filter((id) => id !== criterionId);
+      const next = currentList.filter((id) => id !== criterionId);
       onChange?.(next);
     } else {
       if (count >= 10) {
         alert("Ya has seleccionado los 10 criterios máximos permitidos. Si deseas agregar este criterio, primero desmarca uno de los seleccionados.");
         return;
       }
-      onChange?.([...selectedCriteria, criterionId]);
+      onChange?.([...currentList, criterionId]);
     }
   };
 
-  const handleLoadDefaults = () => {
+  const handleLoadDefaults = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (isLocked) return;
     onChange?.([...DEFAULT_RUBRIC_CRITERIA_IDS]);
   };
 
-  const handleClear = () => {
+  const handleClear = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (isLocked) return;
     onChange?.([]);
   };
@@ -251,9 +272,15 @@ export const RubricCriteriaSelector = ({
                     const disabled = isLocked || (!isChecked && count >= 10);
 
                     return (
-                      <label
+                      <div
                         key={c.id}
-                        className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (!disabled) {
+                            handleToggleCriterion(c.id);
+                          }
+                        }}
+                        className={`flex items-start gap-3 p-3 rounded-xl border transition-all select-none cursor-pointer ${
                           isChecked
                             ? "bg-blue-50/70 dark:bg-blue-950/40 border-blue-400 dark:border-blue-700 shadow-2xs"
                             : disabled
@@ -265,8 +292,9 @@ export const RubricCriteriaSelector = ({
                           type="checkbox"
                           checked={isChecked}
                           disabled={disabled}
-                          onChange={() => handleToggleCriterion(c.id)}
-                          className="mt-0.5 h-4 w-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
+                          readOnly
+                          tabIndex={-1}
+                          className="mt-0.5 h-4 w-4 rounded text-blue-600 focus:ring-blue-500 pointer-events-none disabled:cursor-not-allowed"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
@@ -283,7 +311,7 @@ export const RubricCriteriaSelector = ({
                             {c.descripcion}
                           </p>
                         </div>
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
@@ -311,7 +339,7 @@ export const RubricCriteriaSelector = ({
           </p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
-            {selectedCriteria.map((id, idx) => {
+            {currentList.map((id, idx) => {
               const crit = RUBRIC_CRITERIA_MAP[id];
               if (!crit) return null;
               return (
@@ -326,7 +354,10 @@ export const RubricCriteriaSelector = ({
                   {!isLocked && (
                     <button
                       type="button"
-                      onClick={() => handleToggleCriterion(id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleCriterion(id);
+                      }}
                       className="text-gray-400 hover:text-rose-600 cursor-pointer ml-0.5"
                       title="Quitar"
                     >
@@ -348,10 +379,13 @@ export const RubricCriteriaSelector = ({
 // ────────────────────────────────────────────────────────────
 export const RubricCriteriaViewer = ({
   rubricaCriterios,
+  criteriaIds,
   variant = "detailed", // "detailed" | "card" | "modal"
   title = "Rúbrica de Evaluación de la Práctica (10 Criterios Oficiales)",
+  subtitle = null,
 }) => {
-  const activeIds = useMemo(() => parseRubricCriteriaIds(rubricaCriterios), [rubricaCriterios]);
+  const input = criteriaIds !== undefined ? criteriaIds : rubricaCriterios;
+  const activeIds = useMemo(() => parseRubricCriteriaIds(input), [input]);
   const criteriaList = useMemo(() => activeIds.map((id) => RUBRIC_CRITERIA_MAP[id]).filter(Boolean), [activeIds]);
 
   if (criteriaList.length === 0) return null;

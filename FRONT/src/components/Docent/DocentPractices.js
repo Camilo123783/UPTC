@@ -1979,6 +1979,7 @@ const DocentPractices = () => {
               {/* Sección 5: Rúbrica de Evaluación Formativa UPTC (10 de 25 Criterios) */}
               <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
                 <RubricCriteriaSelector
+                  selectedCriteria={practiceFormData.rubrica_criterios || []}
                   selectedCriteriaIds={practiceFormData.rubrica_criterios || []}
                   onChange={(criterios) =>
                     setPracticeFormData((prev) => ({ ...prev, rubrica_criterios: criterios }))
