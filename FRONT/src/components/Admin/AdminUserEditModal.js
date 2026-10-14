@@ -78,6 +78,7 @@ const AdminUserEditModal = ({
             setFormData((prev) => ({
               ...prev,
               ...data.user,
+              rol: (data.user.rol || data.user.Rol || prev.rol || "").toLowerCase(),
               cedula: data.user.cedula || prev.cedula,
               nombre: data.user.nombre || prev.nombre,
               apellidos: data.user.apellidos || prev.apellidos,

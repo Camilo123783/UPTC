@@ -655,6 +655,10 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
   // --------------------------------------------------
   const handleSaveEditedUser = async (updatedUser) => {
     const cedula = updatedUser.cedula || updatedUser.Cédula || updatedUser.id_user_table;
+    if (!cedula) {
+      toast.error("Error: No se pudo identificar la cédula del usuario.");
+      return;
+    }
     try {
       const token =
         localStorage.getItem("authToken") ||

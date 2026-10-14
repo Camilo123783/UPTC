@@ -80,29 +80,32 @@ const AdminCsvImportModal = ({
   const currentKey = entityType === "user" ? `user_${role}` : entityType;
   const defaultHeaders = EXPECTED_HEADERS_BY_TYPE[currentKey] || ["cedula", "nombre", "apellidos"];
 
-  // ──────────────────────────────────────────────
-  // Normalizador de llaves y desempaquetador inteligente
-  // ──────────────────────────────────────────────
   const normalizeKey = (k) => {
     if (!k) return "";
     let clean = String(k).trim().toLowerCase();
     clean = clean.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quitar tildes
-    if (["cedula", "identificacion", "documento"].includes(clean)) return "cedula";
-    if (clean === "nombre") return "nombre";
-    if (["apellidos", "apellido"].includes(clean)) return "apellidos";
-    if (["correo", "correo_institucional", "email", "correo electronico"].includes(clean)) return "correo_institucional";
-    if (["password", "contrasena", "clave"].includes(clean)) return "password";
-    if (["programa", "carrera", "programa_academico", "programa_id"].includes(clean)) return "programa";
-    if (["institucion", "institucion_id"].includes(clean)) return "institucion";
-    if (["servicio", "nombreservicio", "nombre_servicio"].includes(clean)) return "nombreservicio";
-    if (["codigoasignatura", "codigo_asignatura"].includes(clean)) return "codigoasignatura";
-    if (["codigo", "codigo_estudiante", "codigo_estudiantil", "cod_estudiante", "codigoestudiantil"].includes(clean)) {
+    const cleanUnder = clean.replace(/[\s\-_]+/g, "_");
+    const cleanNoSpace = clean.replace(/[\s\-_]+/g, "");
+
+    if (["cedula", "identificacion", "documento", "num_documento", "no_documento"].includes(cleanUnder)) return "cedula";
+    if (["nombre", "nombres"].includes(cleanUnder)) return "nombre";
+    if (["apellidos", "apellido"].includes(cleanUnder)) return "apellidos";
+    if (["correo", "correo_institucional", "email", "correo_electronico"].includes(cleanUnder)) return "correo_institucional";
+    if (["password", "contrasena", "clave"].includes(cleanUnder)) return "password";
+    if (["programa", "carrera", "programa_academico", "programa_id"].includes(cleanUnder)) return "programa";
+    if (["institucion", "institucion_id", "hospital", "clinica"].includes(cleanUnder)) return "institucion";
+    if (["servicio", "nombreservicio", "nombre_servicio"].includes(cleanUnder)) return "nombreservicio";
+    if (["codigoasignatura", "codigo_asignatura", "cod_asignatura"].includes(cleanUnder)) return "codigoasignatura";
+    if (
+      ["codigo", "codigo_estudiante", "codigo_estudiantil", "cod_estudiante", "cod_estudiantil", "codigoestudiantil", "codigoestudiante", "cod", "codigo_del_estudiante"].includes(cleanUnder) ||
+      ["codigo", "codigoestudiante", "codigoestudiantil", "codestudiante", "codestudiantil"].includes(cleanNoSpace)
+    ) {
       return entityType === "asignatura" ? "codigoasignatura" : "codigo";
     }
-    if (["nombreasignatura", "nombre_asignatura"].includes(clean)) return "nombreasignatura";
-    if (["nombreinstitucion", "nombre_institucion"].includes(clean)) return "nombreinstitucion";
-    if (["nombreprograma", "nombre_programa"].includes(clean)) return "nombreprograma";
-    return clean;
+    if (["nombreasignatura", "nombre_asignatura"].includes(cleanUnder)) return "nombreasignatura";
+    if (["nombreinstitucion", "nombre_institucion"].includes(cleanUnder)) return "nombreinstitucion";
+    if (["nombreprograma", "nombre_programa"].includes(cleanUnder)) return "nombreprograma";
+    return cleanUnder;
   };
 
   const unpackRowIfNeeded = (rawRow, targetHeaders) => {
@@ -496,7 +499,6 @@ const AdminCsvImportModal = ({
                     </>
                   ) : (
                     <>
-                      <option value="admin">Administrador</option>
                       <option value="docente">Docente</option>
                       <option value="estudiante">Estudiante</option>
                       <option value="auditor">Auditor</option>

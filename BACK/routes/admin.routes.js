@@ -555,10 +555,10 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
       });
     }
 
-    if (defaultRole === "superadmin" && req.user?.role !== "superadmin") {
+    if (["superadmin", "admin"].includes(defaultRole) && req.user?.role !== "superadmin") {
       return res.status(403).json({
         success: false,
-        message: "Acceso denegado: solo un superadministrador puede crear o importar cuentas de superadministrador.",
+        message: "Acceso denegado: solo un superadministrador puede crear o importar cuentas de administrador o superadministrador.",
       });
     }
 
@@ -669,8 +669,8 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
             throw new Error(`Rol no válido o no especificado: '${rawRole}'`);
           }
 
-          if (rawRole === "superadmin" && req.user?.role !== "superadmin") {
-            throw new Error("Acceso denegado: solo un superadministrador puede crear o importar cuentas de superadministrador.");
+          if (["superadmin", "admin"].includes(rawRole) && req.user?.role !== "superadmin") {
+            throw new Error("Acceso denegado: solo un superadministrador puede crear o importar cuentas de administrador o superadministrador.");
           }
 
           const cedula = String(rec.cedula || rec.Cédula || rec.Cedula || "").trim();
@@ -702,7 +702,25 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
             if (!progId) {
               throw new Error(`Programa académico no encontrado: '${progVal || "vacío"}'`);
             }
-            const codigo = String(rec.codigo || rec.Codigo || rec.código || rec.Código || "").trim() || null;
+            const codigo = String(
+              rec.codigo ||
+              rec.Codigo ||
+              rec.código ||
+              rec.Código ||
+              rec.codigo_estudiantil ||
+              rec.codigo_estudiante ||
+              rec["Código Estudiantil"] ||
+              rec["Codigo Estudiantil"] ||
+              rec["código estudiantil"] ||
+              rec["codigo estudiantil"] ||
+              rec["Código de Estudiante"] ||
+              rec["Codigo de Estudiante"] ||
+              rec.codigoestudiantil ||
+              rec.codigoestudiante ||
+              rec.cod ||
+              rec.Cod ||
+              ""
+            ).trim() || null;
             await queryDB(
               `INSERT INTO estudiante (rol_id, cedula, codigo, password, nombre, apellidos, correo_institucional, programa_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               [rolId, cedula, codigo, passwordHash, nombre, apellidos, correo || null, progId]
@@ -1252,15 +1270,19 @@ router.put("/users/:cedula", async (req, res, next) => {
     if (target.table === "estudiante") {
       const targetCedula = target.cedula;
       const statusParam = activo !== undefined ? (activo ? 1 : 0) : null;
+      const progParam = (programa_id !== undefined && programa_id !== null && String(programa_id).trim() !== "" && !isNaN(programa_id) && Number(programa_id) > 0)
+        ? Number(programa_id)
+        : null;
+
       if (statusParam !== null) {
         await queryDB(
-          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = ?, activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, programa_id || null, statusParam, targetCedula]
+          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id), activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, progParam, statusParam, targetCedula]
         );
       } else {
         await queryDB(
-          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = ? WHERE cedula = ?`,
-          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, programa_id || null, targetCedula]
+          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id) WHERE cedula = ?`,
+          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, progParam, targetCedula]
         );
       }
 
@@ -1286,15 +1308,19 @@ router.put("/users/:cedula", async (req, res, next) => {
     if (target.table === "docente") {
       const targetCedula = target.cedula;
       const statusParam = activo !== undefined ? (activo ? 1 : 0) : null;
+      const progParam = (programa_id !== undefined && programa_id !== null && String(programa_id).trim() !== "" && !isNaN(programa_id) && Number(programa_id) > 0)
+        ? Number(programa_id)
+        : null;
+
       if (statusParam !== null) {
         await queryDB(
-          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = ?, activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, programa_id || null, statusParam, targetCedula]
+          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id), activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, progParam, statusParam, targetCedula]
         );
       } else {
         await queryDB(
-          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, programa_id || null, targetCedula]
+          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id) WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, progParam, targetCedula]
         );
       }
       console.log(`✅ Docente ${targetCedula} actualizado.`);
@@ -1305,15 +1331,19 @@ router.put("/users/:cedula", async (req, res, next) => {
     if (target.table === "auditor") {
       const targetCedula = target.cedula;
       const statusParam = activo !== undefined ? (activo ? 1 : 0) : null;
+      const instParam = (institucion_id !== undefined && institucion_id !== null && String(institucion_id).trim() !== "" && !isNaN(institucion_id) && Number(institucion_id) > 0)
+        ? Number(institucion_id)
+        : null;
+
       if (statusParam !== null) {
         await queryDB(
-          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = ?, activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, institucion_id || null, statusParam, targetCedula]
+          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = COALESCE(?, institucion_id), activo = ? WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, instParam, statusParam, targetCedula]
         );
       } else {
         await queryDB(
-          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, institucion_id || null, targetCedula]
+          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = COALESCE(?, institucion_id) WHERE cedula = ?`,
+          [nombre, apellidos, correo_institucional || null, instParam, targetCedula]
         );
       }
       console.log(`✅ Auditor ${targetCedula} actualizado.`);
