@@ -40,8 +40,6 @@ import {
   Stethoscope,
   Star
 } from "lucide-react";
-import uptcLogo from "../../assets/images/uptc.png";
-import facultyLogo from "../../assets/images/logooo.png";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 import DocentAvatar from "../Shared/DocentAvatar";
 

@@ -4,7 +4,8 @@
 "use strict";
 
 // ── 1. Variables de entorno (siempre primero) ───────────────
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express    = require("express");
 const cors       = require("cors");
@@ -99,7 +100,6 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ── 7.1 Archivos estáticos (uploads) ───────────────────────
-const path = require("path");
 const fs   = require("fs");
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {

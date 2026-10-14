@@ -42,8 +42,6 @@ import {
 } from "../../utils/certificateGenerator";
 import { generateConstanciaPracticaVigente, generatePdf } from "../../utils/reportGenerator";
 import toast from "../../utils/toast";
-import uptcLogo from "../../assets/images/uptc.png";
-import facultySeal from "../../assets/images/logooo.png";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 
 const API_BASE_URL = BACKEND_URL;
