@@ -806,6 +806,8 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
       (tipo_certificado && tipo_certificado.toLowerCase().includes("reporte")) ||
       (tipo_certificado && tipo_certificado.toLowerCase().includes("constancia"));
 
+    const finalCategoria = categoria_solicitud || (isReport ? "reporte" : "certificado");
+
     // Validar estado y fecha de la práctica formativa
     const prCheck = await queryDB("SELECT estado, fecha_fin, docente_cedula FROM practica WHERE id = ? LIMIT 1", [practica_id]);
     if (prCheck.length === 0) {

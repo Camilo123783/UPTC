@@ -30,8 +30,13 @@ import {
   Trash2,
   Mail,
   Building2,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  FileCheck,
 } from "lucide-react";
 import { Skeleton, SkeletonChat } from "../Shared/Skeleton";
+import { RUBRIC_SCALE, RUBRIC_CRITERIA_MAP } from "../../utils/evaluationRubric";
 
 const DocentCommunication = () => {
   const [practices, setPractices] = useState([]);
@@ -42,6 +47,9 @@ const DocentCommunication = () => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
   const [feedbackSuccess, setFeedbackSuccess] = useState(null);
+  const [expandedReportIds, setExpandedReportIds] = useState({});
+  const [dynamicReports, setDynamicReports] = useState({});
+  const [loadingReportIds, setLoadingReportIds] = useState({});
 
   // Filtros
   const [searchPractice, setSearchPractice] = useState("");
@@ -170,6 +178,46 @@ const DocentCommunication = () => {
     fetchPractices();
     if (selectedPracticeId) fetchMessages(selectedPracticeId);
   });
+
+  // Toggle y carga de reporte del auditor para ver qué ítems calificó
+  const handleToggleReportDetails = async (message) => {
+    const msgId = message.id;
+    if (expandedReportIds[msgId]) {
+      setExpandedReportIds((prev) => ({ ...prev, [msgId]: false }));
+      return;
+    }
+
+    if (message.auditor_report || dynamicReports[msgId]) {
+      setExpandedReportIds((prev) => ({ ...prev, [msgId]: true }));
+      return;
+    }
+
+    if (!message.estudiante_cedula || !message.practica_id) {
+      setExpandedReportIds((prev) => ({ ...prev, [msgId]: true }));
+      return;
+    }
+
+    setLoadingReportIds((prev) => ({ ...prev, [msgId]: true }));
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(
+        `${BACKEND_URL}/api/docent/practices/${message.practica_id}/students/${message.estudiante_cedula}/auditor-report`,
+        { headers }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.report) {
+          setDynamicReports((prev) => ({ ...prev, [msgId]: data.report }));
+        }
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el reporte del auditor:", e);
+    } finally {
+      setLoadingReportIds((prev) => ({ ...prev, [msgId]: false }));
+      setExpandedReportIds((prev) => ({ ...prev, [msgId]: true }));
+    }
+  };
 
   // Scroll automático al final cuando llegan mensajes
   useEffect(() => {
@@ -641,15 +689,165 @@ const DocentCommunication = () => {
                           )}
 
                           {/* Cuerpo del Mensaje */}
-                          <p
-                            className={`text-xs leading-relaxed whitespace-pre-wrap ${
-                              isFromAuditor
-                                ? "text-gray-700 dark:text-zinc-300 font-normal"
-                                : "text-white/95 font-normal"
-                            }`}
-                          >
-                            {m.mensaje}
-                          </p>
+                          {isClinicalReport ? (
+                            <div className="space-y-3 pt-1">
+                              {/* Tarjeta Destacada de Reporte Clínico */}
+                              <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-950 dark:text-amber-100 space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                                    <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                    <span>Calificación Sugerida por el Auditor en Sitio</span>
+                                  </span>
+                                  <span className="text-lg font-black text-amber-900 dark:text-amber-200">
+                                    {Number(m.auditor_report?.nota_sugerida || dynamicReports[m.id]?.nota_sugerida || 3.3).toFixed(1)} / 5.0
+                                  </span>
+                                </div>
+                                
+                                <p className="text-xs font-medium text-gray-700 dark:text-zinc-200">
+                                  <strong>Concepto:</strong> {m.auditor_report?.concepto || dynamicReports[m.id]?.concepto || "Favorable"}
+                                </p>
+                                
+                                {(m.auditor_report?.observaciones || dynamicReports[m.id]?.observaciones) && (
+                                  <p className="text-xs italic text-gray-600 dark:text-zinc-300 bg-white/40 dark:bg-zinc-800/40 p-2 rounded-xl">
+                                    "{m.auditor_report?.observaciones || dynamicReports[m.id]?.observaciones}"
+                                  </p>
+                                )}
+
+                                {/* Botón para ver exactamente qué ítems calificó el auditor */}
+                                <div className="pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleReportDetails(m)}
+                                    className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+                                  >
+                                    <ClipboardList className="w-3.5 h-3.5" />
+                                    <span>
+                                      {expandedReportIds[m.id]
+                                        ? "Ocultar desglose de ítems"
+                                        : "Ver qué ítems calificó el auditor y por qué"}
+                                    </span>
+                                    {expandedReportIds[m.id] ? (
+                                      <ChevronUp className="w-3.5 h-3.5 ml-1" />
+                                    ) : (
+                                      <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Desglose desplegable de los ítems de la rúbrica */}
+                              {expandedReportIds[m.id] && (
+                                <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-850 border border-amber-500/30 text-gray-900 dark:text-white space-y-3 animate-in fade-in duration-200">
+                                  <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-700">
+                                    <h5 className="text-xs font-black uppercase text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                      <FileCheck className="w-3.5 h-3.5" />
+                                      <span>Desglose Ítem por Ítem de la Rúbrica</span>
+                                    </h5>
+                                    <span className="text-[10px] text-gray-400">
+                                      {m.auditor_report?.criterios_rubrica || dynamicReports[m.id]?.criterios_rubrica
+                                        ? `${Object.keys(m.auditor_report?.criterios_rubrica || dynamicReports[m.id]?.criterios_rubrica).length} ítems evaluados`
+                                        : "Rúbrica oficial"}
+                                    </span>
+                                  </div>
+
+                                  {loadingReportIds[m.id] ? (
+                                    <div className="py-4 text-center text-xs text-gray-400">
+                                      Cargando desglose de la rúbrica...
+                                    </div>
+                                  ) : (m.auditor_report?.criterios_rubrica || dynamicReports[m.id]?.criterios_rubrica) ? (
+                                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                                      {Object.entries(m.auditor_report?.criterios_rubrica || dynamicReports[m.id]?.criterios_rubrica).map(([cId, val], idx) => {
+                                        const crit = RUBRIC_CRITERIA_MAP[cId] || { nombre: `Ítem ${cId}`, descripcion: "" };
+                                        const numVal = Number(val);
+                                        const scaleOpt = RUBRIC_SCALE.find((s) => Math.abs(s.value - numVal) < 0.05) || {
+                                          label: `${numVal}`,
+                                          short: `${numVal}`,
+                                          color: "bg-blue-500 text-white",
+                                        };
+
+                                        return (
+                                          <div
+                                            key={cId}
+                                            className="p-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800/80 border border-gray-100 dark:border-zinc-700 flex items-start justify-between gap-2.5"
+                                          >
+                                            <div className="min-w-0 flex-1">
+                                              <div className="flex items-center gap-1.5 mb-0.5">
+                                                <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-black flex items-center justify-center shrink-0">
+                                                  {idx + 1}
+                                                </span>
+                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                  {crit.nombre}
+                                                </p>
+                                              </div>
+                                              {crit.descripcion && (
+                                                <p className="text-[10px] text-gray-500 dark:text-zinc-400 line-clamp-2 pl-5.5">
+                                                  {crit.descripcion}
+                                                </p>
+                                              )}
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                              <span
+                                                className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-extrabold shadow-2xs ${
+                                                  scaleOpt.color || "bg-amber-500 text-white"
+                                                }`}
+                                              >
+                                                {scaleOpt.label} (+{scaleOpt.short})
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="p-3 text-center text-xs text-gray-500">
+                                      El auditor registró la sugerencia de nota global: {Number(m.auditor_report?.nota_sugerida || 3.3).toFixed(1)} / 5.0
+                                    </div>
+                                  )}
+
+                                  {/* Competencias Likert Transversales */}
+                                  {(m.auditor_report?.likert || dynamicReports[m.id]?.likert) && (
+                                    <div className="pt-2 border-t border-gray-100 dark:border-zinc-700">
+                                      <p className="text-[10px] font-bold uppercase text-gray-400 mb-1.5">
+                                        Desempeño Observado en Sitio (Escala 1 a 5):
+                                      </p>
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
+                                        <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">
+                                          <span className="font-semibold block text-[10px] text-gray-400">Teórico:</span>
+                                          <strong>{(m.auditor_report?.likert || dynamicReports[m.id]?.likert).knowledge} / 5.0</strong>
+                                        </div>
+                                        <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">
+                                          <span className="font-semibold block text-[10px] text-gray-400">Práctico:</span>
+                                          <strong>{(m.auditor_report?.likert || dynamicReports[m.id]?.likert).skills} / 5.0</strong>
+                                        </div>
+                                        <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">
+                                          <span className="font-semibold block text-[10px] text-gray-400">Ética:</span>
+                                          <strong>{(m.auditor_report?.likert || dynamicReports[m.id]?.likert).attitude} / 5.0</strong>
+                                        </div>
+                                        <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">
+                                          <span className="font-semibold block text-[10px] text-gray-400">Comunicación:</span>
+                                          <strong>{(m.auditor_report?.likert || dynamicReports[m.id]?.likert).communication} / 5.0</strong>
+                                        </div>
+                                        <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 col-span-2 sm:col-span-1">
+                                          <span className="font-semibold block text-[10px] text-gray-400">Puntualidad:</span>
+                                          <strong>{(m.auditor_report?.likert || dynamicReports[m.id]?.likert).attendance} / 5.0</strong>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p
+                              className={`text-xs leading-relaxed whitespace-pre-wrap ${
+                                isFromAuditor
+                                  ? "text-gray-700 dark:text-zinc-300 font-normal"
+                                  : "text-white/95 font-normal"
+                              }`}
+                            >
+                              {m.mensaje}
+                            </p>
+                          )}
 
                           {/* Pie del mensaje */}
                           <div

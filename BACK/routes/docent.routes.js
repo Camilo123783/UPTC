@@ -480,11 +480,23 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS docente_nombre,
         CONCAT(COALESCE(au.nombre, ''), ' ', COALESCE(au.apellidos, '')) AS auditor_nombre,
         au.correo_institucional AS auditor_correo,
-        CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, '')) AS estudiante_nombre
+        CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, '')) AS estudiante_nombre,
+        ra.id AS auditor_report_id,
+        ra.nota_sugerida AS auditor_nota_sugerida,
+        ra.concepto AS auditor_concepto,
+        ra.observaciones AS auditor_observaciones,
+        ra.criterios_rubrica AS auditor_criterios_rubrica,
+        ra.conocimiento_teorico AS auditor_conocimiento_teorico,
+        ra.habilidades_practicas AS auditor_habilidades_practicas,
+        ra.actitud_etica AS auditor_actitud_etica,
+        ra.comunicacion_equipo AS auditor_comunicacion_equipo,
+        ra.puntualidad_asistencia AS auditor_puntualidad_asistencia,
+        ra.fecha_reporte AS auditor_fecha_reporte
       FROM observacion_practica o
       LEFT JOIN docente d ON o.docente_cedula = d.cedula
       LEFT JOIN auditor au ON (o.auditor_cedula = au.cedula OR (o.autor_rol = 'auditor' AND o.autor_cedula = au.cedula))
       LEFT JOIN estudiante e ON o.estudiante_cedula = e.cedula
+      LEFT JOIN reporte_auditor ra ON (ra.practica_id = o.practica_id AND ra.estudiante_cedula = o.estudiante_cedula)
       WHERE o.practica_id IN (${placeholders})
       ORDER BY o.created_at DESC
     `, practiceIds);
@@ -494,6 +506,34 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
       if (!observationsMap[obs.practica_id]) {
         observationsMap[obs.practica_id] = [];
       }
+
+      let auditorCriterios = null;
+      if (obs.auditor_criterios_rubrica) {
+        try {
+          auditorCriterios = typeof obs.auditor_criterios_rubrica === "string"
+            ? JSON.parse(obs.auditor_criterios_rubrica)
+            : obs.auditor_criterios_rubrica;
+        } catch (e) {
+          auditorCriterios = null;
+        }
+      }
+
+      const auditorReport = obs.auditor_report_id ? {
+        id: obs.auditor_report_id,
+        nota_sugerida: obs.auditor_nota_sugerida !== null ? Number(obs.auditor_nota_sugerida) : null,
+        concepto: obs.auditor_concepto,
+        observaciones: obs.auditor_observaciones,
+        criterios_rubrica: auditorCriterios,
+        likert: {
+          knowledge: Number(obs.auditor_conocimiento_teorico || 4),
+          skills: Number(obs.auditor_habilidades_practicas || 4),
+          attitude: Number(obs.auditor_actitud_etica || 5),
+          communication: Number(obs.auditor_comunicacion_equipo || 4),
+          attendance: Number(obs.auditor_puntualidad_asistencia || 5),
+        },
+        fecha: obs.auditor_fecha_reporte,
+      } : null;
+
       observationsMap[obs.practica_id].push({
         id: obs.id,
         practica_id: obs.practica_id,
@@ -512,6 +552,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
         observacion: obs.observacion,
         tipo: obs.tipo || "General",
         created_at: obs.created_at,
+        auditor_report: auditorReport,
       });
     });
 
@@ -542,6 +583,69 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
 
     console.log(`✅ Prácticas consultadas para docente ${docentId}: ${result.length} encontrada(s).`);
     res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/docent/practices/:practiceId/students/:cedula/auditor-report
+// Permite al docente consultar el informe clínico detallado y los ítems de la rúbrica evaluados por el auditor
+// ──────────────────────────────────────────────
+router.get("/practices/:practiceId/students/:cedula/auditor-report", async (req, res, next) => {
+  try {
+    const { practiceId, cedula } = req.params;
+
+    const rows = await queryDB(`
+      SELECT 
+        ra.*,
+        CONCAT(COALESCE(au.nombre, ''), ' ', COALESCE(au.apellidos, '')) AS auditor_nombre,
+        au.correo_institucional AS auditor_correo,
+        CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, '')) AS estudiante_nombre
+      FROM reporte_auditor ra
+      LEFT JOIN auditor au ON ra.auditor_cedula = au.cedula
+      LEFT JOIN estudiante e ON ra.estudiante_cedula = e.cedula
+      WHERE ra.practica_id = ? AND ra.estudiante_cedula = ?
+      LIMIT 1
+    `, [practiceId, cedula]);
+
+    if (rows.length === 0) {
+      return res.status(200).json({ success: true, report: null });
+    }
+
+    const r = rows[0];
+    let criteriosParsed = null;
+    if (r.criterios_rubrica) {
+      try {
+        criteriosParsed = typeof r.criterios_rubrica === "string" ? JSON.parse(r.criterios_rubrica) : r.criterios_rubrica;
+      } catch (e) {
+        criteriosParsed = null;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      report: {
+        id: r.id,
+        practica_id: r.practica_id,
+        estudiante_cedula: r.estudiante_cedula,
+        estudiante_nombre: r.estudiante_nombre,
+        auditor_nombre: r.auditor_nombre || "Auditor Clínico",
+        auditor_correo: r.auditor_correo,
+        nota_sugerida: r.nota_sugerida !== null ? Number(r.nota_sugerida) : null,
+        concepto: r.concepto,
+        observaciones: r.observaciones,
+        criterios_rubrica: criteriosParsed,
+        fecha_reporte: r.fecha_reporte,
+        likert: {
+          knowledge: Number(r.conocimiento_teorico || 4),
+          skills: Number(r.habilidades_practicas || 4),
+          attitude: Number(r.actitud_etica || 5),
+          communication: Number(r.comunicacion_equipo || 4),
+          attendance: Number(r.puntualidad_asistencia || 5),
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -2225,11 +2329,23 @@ router.get("/practices/:practiceId/messages", async (req, res, next) => {
           IF(op.autor_rol = 'auditor', 'Auditor Clínico', 'Docente')
         ) AS autor_display_nombre,
         CONCAT(COALESCE(au.nombre, ''), ' ', COALESCE(au.apellidos, '')) AS auditor_nombre,
-        au.correo_institucional AS auditor_correo
+        au.correo_institucional AS auditor_correo,
+        ra.id AS auditor_report_id,
+        ra.nota_sugerida AS auditor_nota_sugerida,
+        ra.concepto AS auditor_concepto,
+        ra.observaciones AS auditor_observaciones,
+        ra.criterios_rubrica AS auditor_criterios_rubrica,
+        ra.conocimiento_teorico AS auditor_conocimiento_teorico,
+        ra.habilidades_practicas AS auditor_habilidades_practicas,
+        ra.actitud_etica AS auditor_actitud_etica,
+        ra.comunicacion_equipo AS auditor_comunicacion_equipo,
+        ra.puntualidad_asistencia AS auditor_puntualidad_asistencia,
+        ra.fecha_reporte AS auditor_fecha_reporte
       FROM observacion_practica op
       LEFT JOIN estudiante e ON op.estudiante_cedula = e.cedula
       LEFT JOIN auditor au ON (op.auditor_cedula = au.cedula OR (op.autor_rol = 'auditor' AND op.autor_cedula = au.cedula))
       LEFT JOIN docente d ON op.docente_cedula = d.cedula
+      LEFT JOIN reporte_auditor ra ON (ra.practica_id = op.practica_id AND ra.estudiante_cedula = op.estudiante_cedula)
       WHERE op.practica_id = ?
       ORDER BY op.created_at ASC, op.id ASC
     `, [practiceId]);
@@ -2247,7 +2363,41 @@ router.get("/practices/:practiceId/messages", async (req, res, next) => {
       console.warn("No se pudo marcar mensajes como leídos:", e.message);
     }
 
-    res.status(200).json(rows);
+    const enrichedRows = rows.map((r) => {
+      let auditorCriterios = null;
+      if (r.auditor_criterios_rubrica) {
+        try {
+          auditorCriterios = typeof r.auditor_criterios_rubrica === "string"
+            ? JSON.parse(r.auditor_criterios_rubrica)
+            : r.auditor_criterios_rubrica;
+        } catch (e) {
+          auditorCriterios = null;
+        }
+      }
+
+      const auditorReport = r.auditor_report_id ? {
+        id: r.auditor_report_id,
+        nota_sugerida: r.auditor_nota_sugerida !== null ? Number(r.auditor_nota_sugerida) : null,
+        concepto: r.auditor_concepto,
+        observaciones: r.auditor_observaciones,
+        criterios_rubrica: auditorCriterios,
+        likert: {
+          knowledge: Number(r.auditor_conocimiento_teorico || 4),
+          skills: Number(r.auditor_habilidades_practicas || 4),
+          attitude: Number(r.auditor_actitud_etica || 5),
+          communication: Number(r.auditor_comunicacion_equipo || 4),
+          attendance: Number(r.auditor_puntualidad_asistencia || 5),
+        },
+        fecha: r.auditor_fecha_reporte,
+      } : null;
+
+      return {
+        ...r,
+        auditor_report: auditorReport,
+      };
+    });
+
+    res.status(200).json(enrichedRows);
   } catch (err) {
     next(err);
   }

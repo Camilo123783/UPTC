@@ -23,6 +23,7 @@ import {
   Info,
   Check,
   Zap,
+  ShieldCheck,
 } from "lucide-react";
 import {
   RUBRIC_SCALE,
@@ -580,6 +581,12 @@ export const RubricEvaluationInput = ({
       <div className="space-y-3">
         {criteriaList.map((c, index) => {
           const currentVal = scores[c.id] !== undefined && scores[c.id] !== null ? Number(scores[c.id]) : null;
+          const auditorVal = !isAuditor && auditorReport?.criterios_rubrica?.[c.id] !== undefined && auditorReport?.criterios_rubrica?.[c.id] !== null
+            ? Number(auditorReport.criterios_rubrica[c.id])
+            : null;
+          const auditorOpt = auditorVal !== null
+            ? RUBRIC_SCALE.find((s) => Math.abs(s.value - auditorVal) < 0.05)
+            : null;
 
           return (
             <div
@@ -598,6 +605,12 @@ export const RubricEvaluationInput = ({
                     <p className="text-[11px] sm:text-xs text-gray-500 dark:text-zinc-400">
                       {c.descripcion}
                     </p>
+                    {auditorOpt && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-[11px] font-bold">
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span>Auditor clínico calificó: <strong>{auditorOpt.label} (+{auditorOpt.short})</strong></span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -612,6 +625,7 @@ export const RubricEvaluationInput = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 sm:gap-2 pt-1">
                 {RUBRIC_SCALE.map((opt, optIdx) => {
                   const isSelected = currentVal !== null && Math.abs(currentVal - opt.value) < 0.05;
+                  const isAuditorPick = auditorOpt && opt.key === auditorOpt.key;
                   const isLastOdd = optIdx === 4;
 
                   return (
@@ -620,16 +634,23 @@ export const RubricEvaluationInput = ({
                       type="button"
                       disabled={readOnly}
                       onClick={() => handleSelectScore(c.id, opt.value)}
-                      className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
+                      className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer min-h-[44px] flex flex-col items-center justify-center relative ${
                         isLastOdd ? "col-span-2 sm:col-span-1" : ""
                       } ${
                         isSelected
                           ? opt.activeClass
+                          : isAuditorPick
+                          ? "bg-amber-50/80 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-600 ring-2 ring-amber-400/20"
                           : "bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:border-gray-400"
                       }`}
                     >
                       <span className="block leading-tight text-[11px] sm:text-xs">{opt.label}</span>
                       <span className="text-[10px] opacity-80 font-mono mt-0.5">+{opt.short}</span>
+                      {isAuditorPick && !isSelected && (
+                        <span className="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-tighter mt-0.5">
+                          ★ Auditor
+                        </span>
+                      )}
                     </button>
                   );
                 })}

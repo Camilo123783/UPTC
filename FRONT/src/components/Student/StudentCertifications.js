@@ -316,9 +316,9 @@ const StudentCertifications = () => {
     setRequestFormData({
       tipo_certificado:
         category === "reporte"
-          ? "Constancia de Práctica Formativa Vigente / En Curso"
-          : "Certificado Oficial de Aprobación de Práctica Clínica",
-      motivo: category === "reporte" ? "Trámite Institucional / EPS" : "Trámite de Grado",
+          ? "Reporte de Práctica Formativa"
+          : "Certificado Oficial de Aprobación",
+      motivo: category === "reporte" ? "Trámite de Reporte Institucional" : "Trámite de Certificación Oficial",
       observaciones: "",
     });
     setIsRequestModalOpen(true);
@@ -371,8 +371,8 @@ const StudentCertifications = () => {
       docente_cedula: selectedPracticeForRequest.docente_cedula || null,
       practica_id: selectedPracticeForRequest.id,
       categoria_solicitud: requestCategory,
-      tipo_certificado: requestFormData.tipo_certificado,
-      motivo: requestFormData.motivo,
+      tipo_certificado: requestCategory === "reporte" ? "Reporte de Práctica Formativa" : "Certificado Oficial de Aprobación",
+      motivo: requestFormData.motivo || (isReport ? "Solicitud de Reporte de Práctica" : "Solicitud de Certificado Oficial"),
       observaciones: requestFormData.observaciones,
       practica_titulo: selectedPracticeForRequest.titulo,
       practica_periodo: selectedPracticeForRequest.periodo || "2026-1",
@@ -1327,32 +1327,17 @@ const StudentCertifications = () => {
               </button>
             </div>
 
-            {/* Selector de Práctica dentro del modal */}
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                Práctica Asignada *
-              </label>
-              <select
-                value={selectedPracticeForRequest.id}
-                onChange={(e) => {
-                  const found = practices.find((p) => String(p.id) === String(e.target.value));
-                  if (found) setSelectedPracticeForRequest(found);
-                }}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                {practices.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.titulo} — {p.institucion_nombre || "Sede"} ({p.periodo || "Periodo"})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ficha de la práctica seleccionada */}
-            <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 mb-4 space-y-2">
-              <h4 className="font-bold text-sm text-blue-950 dark:text-blue-100">
-                {selectedPracticeForRequest.titulo}
-              </h4>
+            {/* Ficha de la práctica seleccionada directamente */}
+            <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 mb-5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-bold text-sm text-blue-950 dark:text-blue-100 flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>{selectedPracticeForRequest.titulo}</span>
+                </h4>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                  {selectedPracticeForRequest.periodo || "2026-2"}
+                </span>
+              </div>
               <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
                 <p>
                   <strong>Docente:</strong> {selectedPracticeForRequest.docente_nombre || "Docente UPTC"}
@@ -1362,7 +1347,7 @@ const StudentCertifications = () => {
                   <strong>Sede / IPS:</strong> {selectedPracticeForRequest.institucion_nombre || "Hospital Universitario"} — {selectedPracticeForRequest.servicio_nombre || "Servicio"}
                 </p>
                 <p>
-                  <strong>Horas:</strong> {selectedPracticeForRequest.horas_cumplidas || 0} realizadas / {selectedPracticeForRequest.horas_totales || selectedPracticeForRequest.horas_asignadas || 120} programadas • <strong>Periodo:</strong> {selectedPracticeForRequest.periodo || "2026-2"}
+                  <strong>Horas:</strong> {selectedPracticeForRequest.horas_cumplidas || 0} realizadas / {selectedPracticeForRequest.horas_totales || selectedPracticeForRequest.horas_asignadas || 120} programadas
                 </p>
               </div>
             </div>
@@ -1384,8 +1369,8 @@ const StudentCertifications = () => {
                       setRequestCategory("reporte");
                       setRequestFormData((prev) => ({
                         ...prev,
-                        tipo_certificado: "Reporte de Práctica Formativa Vigente",
-                        motivo: "Trámite Institucional / EPS",
+                        tipo_certificado: "Reporte de Práctica Formativa",
+                        motivo: "Trámite de Reporte Institucional",
                       }));
                     }}
                     className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
@@ -1398,76 +1383,6 @@ const StudentCertifications = () => {
 
             {/* Formulario */}
             <form onSubmit={handleSubmitCertificateRequest} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                  {requestCategory === "reporte" ? "Tipo de Reporte a Solicitar *" : "Tipo de Certificado a Solicitar *"}
-                </label>
-                <select
-                  value={requestFormData.tipo_certificado}
-                  onChange={(e) => setRequestFormData({ ...requestFormData, tipo_certificado: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                >
-                  {requestCategory === "reporte" ? (
-                    <>
-                      <option value="Reporte de Práctica Formativa Vigente">
-                        Reporte de Práctica Formativa Vigente
-                      </option>
-                      <option value="Reporte de Cumplimiento de Horas y Asistencia">
-                        Reporte de Cumplimiento de Horas y Asistencia
-                      </option>
-                      <option value="Informe Parcial de Rotación Clínica Supervisada">
-                        Informe Parcial de Rotación Clínica Supervisada
-                      </option>
-                      <option value="Certificado de Turnos Asistenciales Realizados">
-                        Certificado de Turnos Asistenciales Realizados
-                      </option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Certificado de Aprobación de Práctica Clínica">
-                        Certificado de Aprobación de Práctica Clínica
-                      </option>
-                      <option value="Certificación de Intensidad Horaria y Desempeño Asistencial">
-                        Certificación de Intensidad Horaria y Desempeño Asistencial
-                      </option>
-                      <option value="Acreditación de Rotación por Servicio Especializado">
-                        Acreditación de Rotación por Servicio Especializado
-                      </option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                  Motivo o Destino del Documento *
-                </label>
-                <select
-                  value={requestFormData.motivo}
-                  onChange={(e) => setRequestFormData({ ...requestFormData, motivo: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                >
-                  {requestCategory === "reporte" ? (
-                    <>
-                      <option value="Trámite Institucional / EPS">Trámite Institucional / EPS</option>
-                      <option value="Presentación ante IPS o Centro de Práctica">Presentación ante IPS o Centro de Práctica</option>
-                      <option value="Seguimiento Académico / Hoja de Vida">Seguimiento Académico / Hoja de Vida</option>
-                      <option value="Solicitud de Beca o Apoyo Universitario">Solicitud de Beca o Apoyo Universitario</option>
-                      <option value="Otro requerimiento institucional">Otro requerimiento institucional</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Trámite de Grado">Trámite de Grado Académico</option>
-                      <option value="Hoja de Vida / Postulación Asistencial">Hoja de Vida / Postulación Asistencial</option>
-                      <option value="Requisito de Posgrado / Especialización">Requisito de Posgrado / Especialización</option>
-                      <option value="Convalidación Institucional">Convalidación Institucional</option>
-                      <option value="Otro requerimiento administrativo">Otro requerimiento administrativo</option>
-                    </>
-                  )}
-                </select>
-              </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
