@@ -30,6 +30,7 @@ async function archivePractice(practiceId, overrideMotivoCancelacion = null) {
       pr.motivo_cancelacion,
       pr.descripcion,
       pr.horario,
+      pr.rubrica_criterios,
       pr.programa_id,
       p.nombreprograma AS programa_nombre,
       pr.asignatura_id,
@@ -212,6 +213,7 @@ async function archivePractice(practiceId, overrideMotivoCancelacion = null) {
       motivo_cancelacion,
       descripcion,
       horario,
+      rubrica_criterios,
       programa_id,
       programa_nombre,
       asignatura_id,
@@ -233,7 +235,7 @@ async function archivePractice(practiceId, overrideMotivoCancelacion = null) {
       asistencias_resumen,
       total_estudiantes,
       fecha_archivo
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ON DUPLICATE KEY UPDATE
       titulo = VALUES(titulo),
       periodo = VALUES(periodo),
@@ -245,6 +247,7 @@ async function archivePractice(practiceId, overrideMotivoCancelacion = null) {
       motivo_cancelacion = VALUES(motivo_cancelacion),
       descripcion = VALUES(descripcion),
       horario = VALUES(horario),
+      rubrica_criterios = VALUES(rubrica_criterios),
       programa_id = VALUES(programa_id),
       programa_nombre = VALUES(programa_nombre),
       asignatura_id = VALUES(asignatura_id),
@@ -281,6 +284,7 @@ async function archivePractice(practiceId, overrideMotivoCancelacion = null) {
       finalMotivo,
       practice.descripcion,
       practice.horario || null,
+      practice.rubrica_criterios || null,
       practice.programa_id,
       practice.programa_nombre,
       practice.asignatura_id,

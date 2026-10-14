@@ -569,6 +569,7 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
         pr.estado,
         pr.descripcion,
         pr.horario,
+        pr.rubrica_criterios,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,
@@ -669,6 +670,7 @@ router.get(["/evaluations", "/evaluations/:studentId"], verifyToken, async (req,
         pe.estado_evaluacion AS status,
         pe.criterios,
         pr.titulo AS practice,
+        pr.rubrica_criterios,
         s.nombreservicio AS service,
         i.nombreinstitucion AS institution,
         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS docent,
@@ -705,6 +707,7 @@ router.get(["/evaluations", "/evaluations/:studentId"], verifyToken, async (req,
         feedback: r.feedback || null,
         date: r.date ? new Date(r.date).toISOString().substring(0, 10) : null,
         likertScores: criteriosParsed,
+        rubrica_criterios: r.rubrica_criterios || null,
       };
     });
 

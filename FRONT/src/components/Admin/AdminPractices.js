@@ -27,6 +27,8 @@ import { BACKEND_URL } from "../../config/api";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
 import { SkeletonCardGrid } from "../Shared/Skeleton";
 import { PracticeScheduleEditor, PracticeScheduleViewer } from "../Shared/PracticeSchedule";
+import { RubricCriteriaSelector, RubricCriteriaViewer } from "../Shared/PracticeRubric";
+import { parseRubricCriteriaIds, DEFAULT_RUBRIC_CRITERIA_IDS } from "../../utils/evaluationRubric";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -123,6 +125,15 @@ const calculateLifecycleStatus = (currentStatus, fechaInicio, fechaFin) => {
   return currentStatus || "Planificada";
 };
 
+const isPracticeStarted = (practice) => {
+  if (!practice) return false;
+  const estado = practice.estado || "";
+  if (estado === "Activa" || estado === "Finalizada" || estado === "En Curso") return true;
+  const fIni = practice.fecha_inicio ? String(practice.fecha_inicio).substring(0, 10) : "";
+  const todayStr = getTodayIso();
+  if (fIni && todayStr >= fIni) return true;
+  return false;
+};
 
 const AdminPractices = () => {
   const todayIso = getTodayIso();
@@ -190,6 +201,7 @@ const AdminPractices = () => {
     motivo_cancelacion: "",
     descripcion: "",
     horario: "",
+    rubrica_criterios: [...DEFAULT_RUBRIC_CRITERIA_IDS],
     estudiantes: [], // Array de cédulas seleccionadas
   };
 
@@ -514,7 +526,10 @@ const AdminPractices = () => {
   // ─── Abrir Modal para Crear ───
   const handleOpenCreateModal = () => {
     setIsEditing(false);
-    setFormData(initialFormState);
+    setFormData({
+      ...initialFormState,
+      rubrica_criterios: [...DEFAULT_RUBRIC_CRITERIA_IDS],
+    });
     setScheduleDays({});
     setStudentSearch("");
     setIsModalOpen(true);
@@ -556,6 +571,7 @@ const AdminPractices = () => {
       motivo_cancelacion: practice.motivo_cancelacion || "",
       descripcion: practice.descripcion || "",
       horario: practice.horario || "",
+      rubrica_criterios: parseRubricCriteriaIds(practice.rubrica_criterios),
       creado_por_rol: practice.creado_por_rol || "admin",
       creado_por_cedula: practice.creado_por_cedula || null,
       creador_nombre: practice.creador_nombre || "",
@@ -579,13 +595,81 @@ const AdminPractices = () => {
   const handleSubmitPractice = async (e) => {
     e.preventDefault();
 
-    if (!formData.titulo.trim()) {
-      toast.error("El título de la práctica es obligatorio.");
+    if (!formData.titulo || !formData.titulo.trim()) {
+      toast.error("El título o nombre de la práctica formativa es obligatorio.");
       return;
     }
 
     if (!formData.programa_id) {
       toast.error("Debes seleccionar un programa académico para la práctica.");
+      return;
+    }
+
+    if (!formData.asignatura_id) {
+      toast.error("Debes seleccionar una asignatura vinculada a la práctica.");
+      return;
+    }
+
+    if (!formData.institucion_id) {
+      toast.error("Debes seleccionar la institución de salud para la práctica.");
+      return;
+    }
+
+    if (!formData.servicio_id) {
+      toast.error("Debes seleccionar el servicio hospitalario correspondiente.");
+      return;
+    }
+
+    if (!formData.docente_cedula) {
+      toast.error("Debes asignar un docente tutor responsable de la práctica.");
+      return;
+    }
+
+    if (!formData.auditor_cedula) {
+      toast.error("Debes asignar un auditor de salud responsable de la práctica.");
+      return;
+    }
+
+    if (!formData.periodo || !formData.periodo.trim()) {
+      toast.error("El periodo académico es obligatorio (ej. 2024-1).");
+      return;
+    }
+
+    if (!formData.fecha_inicio) {
+      toast.error("La fecha de inicio de la práctica es obligatoria.");
+      return;
+    }
+
+    if (!formData.fecha_fin) {
+      toast.error("La fecha de finalización de la práctica es obligatoria.");
+      return;
+    }
+
+    if (formData.fecha_fin < formData.fecha_inicio) {
+      toast.error("La fecha de finalización no puede ser anterior a la fecha de inicio.");
+      return;
+    }
+
+    if (!formData.horas_totales || Number(formData.horas_totales) <= 0) {
+      toast.error("Las horas formativas totales deben ser mayores a 0.");
+      return;
+    }
+
+    if (!formData.cupos || Number(formData.cupos) <= 0) {
+      toast.error("Los cupos máximos de la práctica deben ser mayores a 0.");
+      return;
+    }
+
+    if (!formData.horario || !formData.horario.trim()) {
+      toast.error("El horario de la práctica es obligatorio. Configura los días y horas de rotación.");
+      return;
+    }
+
+    const selectedRubric = formData.rubrica_criterios || [];
+    if (selectedRubric.length !== 10) {
+      toast.error(
+        `Debes seleccionar exactamente 10 criterios de evaluación en la rúbrica (actualmente tienes ${selectedRubric.length}/10).`
+      );
       return;
     }
 
@@ -618,7 +702,7 @@ const AdminPractices = () => {
       toast.error("Es obligatorio justificar y especificar el motivo por el cual se cancela la práctica formativa.");
       return;
     }
-    const payload = { ...formData, estado: finalEstado };
+    const payload = { ...formData, estado: finalEstado, rubrica_criterios: selectedRubric };
 
     setIsSaving(true);
     try {
@@ -1594,6 +1678,22 @@ const AdminPractices = () => {
                 )}
               </div>
 
+              {/* 6. Rúbrica de Evaluación Formativa UPTC (10 de 25 Criterios) */}
+              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                <RubricCriteriaSelector
+                  selectedCriteriaIds={formData.rubrica_criterios || []}
+                  onChange={(criterios) =>
+                    setFormData((prev) => ({ ...prev, rubrica_criterios: criterios }))
+                  }
+                  isLocked={isEditing && isPracticeStarted(formData)}
+                  lockedReason={
+                    isEditing && isPracticeStarted(formData)
+                      ? "La práctica ya ha comenzado o se encuentra activa/finalizada. La rúbrica de evaluación seleccionada no se puede modificar una vez iniciada la práctica."
+                      : ""
+                  }
+                />
+              </div>
+
               {/* Botones de Acción */}
               <div className="pt-4 border-t border-gray-200 dark:border-zinc-800 flex justify-end gap-3 flex-shrink-0">
                 <button
@@ -1791,6 +1891,16 @@ const AdminPractices = () => {
                     No hay estudiantes inscritos en esta práctica aún.
                   </p>
                 )}
+              </div>
+
+              {/* Rúbrica Oficial de Evaluación de la Práctica (10 Criterios) */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-zinc-800">
+                <RubricCriteriaViewer
+                  criteriaIds={viewingPractice.rubrica_criterios}
+                  variant="detailed"
+                  title="Rúbrica Oficial de Evaluación (10 Criterios Formativos UPTC)"
+                  subtitle="Configuración oficial de los criterios seleccionados para evaluar a los estudiantes en esta rotación."
+                />
               </div>
             </div>
 

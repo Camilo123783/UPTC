@@ -39,6 +39,8 @@ import {
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
 import { PracticeScheduleEditor, PracticeScheduleViewer } from "../Shared/PracticeSchedule";
+import { RubricCriteriaSelector, RubricCriteriaViewer } from "../Shared/PracticeRubric";
+import { parseRubricCriteriaIds, DEFAULT_RUBRIC_CRITERIA_IDS } from "../../utils/evaluationRubric";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
 import toast from "../../utils/toast";
@@ -168,6 +170,16 @@ const calculateLifecycleStatus = (currentStatus, fechaInicio, fechaFin) => {
   return currentStatus || "Planificada";
 };
 
+const isPracticeStarted = (practice) => {
+  if (!practice) return false;
+  const estado = practice.estado || "";
+  if (estado === "Activa" || estado === "Finalizada" || estado === "En Curso") return true;
+  const fIni = practice.fecha_inicio ? String(practice.fecha_inicio).substring(0, 10) : "";
+  const todayStr = getTodayIso();
+  if (fIni && todayStr >= fIni) return true;
+  return false;
+};
+
 
 const getDocentPracticeStateBadge = (estado) => {
   const est = (estado || "Activa").toLowerCase();
@@ -285,6 +297,7 @@ const DocentPractices = () => {
     motivo_cancelacion: "",
     horario: "",
     auditor_cedula: "",
+    rubrica_criterios: [...DEFAULT_RUBRIC_CRITERIA_IDS],
     estudiantes: [],
   };
   const [practiceFormData, setPracticeFormData] = useState(initialPracticeForm);
@@ -542,6 +555,7 @@ const DocentPractices = () => {
     setPracticeFormData({
       ...initialPracticeForm,
       programa_id: catalogs.docent_programa_id ? String(catalogs.docent_programa_id) : "",
+      rubrica_criterios: [...DEFAULT_RUBRIC_CRITERIA_IDS],
     });
     setScheduleDays({});
     setPracticeFormError("");
@@ -591,6 +605,7 @@ const DocentPractices = () => {
       motivo_cancelacion: practice.motivo_cancelacion || "",
       horario: practice.horario || "",
       auditor_cedula: practice.auditor_cedula ? String(practice.auditor_cedula) : "",
+      rubrica_criterios: parseRubricCriteriaIds(practice.rubrica_criterios),
       estudiantes: (practice.estudiantes || []).map((e) => String(e.cedula || e.Cédula || e)),
     });
 
@@ -649,10 +664,80 @@ const DocentPractices = () => {
     setPracticeFormError("");
     setPracticeFormSuccess("");
 
-    if (!practiceFormData.titulo.trim()) {
-      setPracticeFormError("El título de la práctica es obligatorio.");
+    if (!practiceFormData.titulo || !practiceFormData.titulo.trim()) {
+      setPracticeFormError("El título o nombre de la práctica formativa es obligatorio.");
       return;
     }
+
+    const progId = practiceFormData.programa_id || catalogs.docent_programa_id;
+    if (!progId) {
+      setPracticeFormError("Debes seleccionar un programa académico para la práctica.");
+      return;
+    }
+
+    if (!practiceFormData.asignatura_id) {
+      setPracticeFormError("Debes seleccionar una asignatura para la práctica.");
+      return;
+    }
+
+    if (!practiceFormData.institucion_id) {
+      setPracticeFormError("Debes seleccionar una institución o centro de salud asistencial.");
+      return;
+    }
+
+    if (!practiceFormData.servicio_id) {
+      setPracticeFormError("Debes seleccionar el servicio hospitalario correspondiente.");
+      return;
+    }
+
+    if (!practiceFormData.auditor_cedula) {
+      setPracticeFormError("Debes asignar un auditor de salud responsable de la rotación.");
+      return;
+    }
+
+    if (!practiceFormData.periodo || !practiceFormData.periodo.trim()) {
+      setPracticeFormError("El periodo académico es obligatorio (ej. 2024-1).");
+      return;
+    }
+
+    if (!practiceFormData.fecha_inicio) {
+      setPracticeFormError("La fecha de inicio de la práctica es obligatoria.");
+      return;
+    }
+
+    if (!practiceFormData.fecha_fin) {
+      setPracticeFormError("La fecha de finalización de la práctica es obligatoria.");
+      return;
+    }
+
+    if (practiceFormData.fecha_fin < practiceFormData.fecha_inicio) {
+      setPracticeFormError("La fecha de finalización no puede ser anterior a la fecha de inicio.");
+      return;
+    }
+
+    if (!practiceFormData.horas_totales || Number(practiceFormData.horas_totales) <= 0) {
+      setPracticeFormError("Las horas formativas totales deben ser mayores a 0.");
+      return;
+    }
+
+    if (!practiceFormData.cupos || Number(practiceFormData.cupos) <= 0) {
+      setPracticeFormError("Los cupos máximos de la práctica deben ser mayores a 0.");
+      return;
+    }
+
+    if (!practiceFormData.horario || !practiceFormData.horario.trim()) {
+      setPracticeFormError("El horario de la práctica es obligatorio. Configura los días y horas de rotación.");
+      return;
+    }
+
+    const selectedRubric = practiceFormData.rubrica_criterios || [];
+    if (selectedRubric.length !== 10) {
+      setPracticeFormError(
+        `Debes seleccionar exactamente 10 criterios de evaluación en la rúbrica (actualmente tienes ${selectedRubric.length}/10).`
+      );
+      return;
+    }
+
     const docentCedula = getDocentCedula();
     if (!docentCedula) {
       setPracticeFormError("No se pudo identificar la cédula del docente actual.");
@@ -676,10 +761,12 @@ const DocentPractices = () => {
 
       const payload = {
         ...practiceFormData,
+        programa_id: progId,
         estado: finalEstado,
         docente_cedula: docentCedula,
         horas_totales: Number(practiceFormData.horas_totales) || 120,
         cupos: Number(practiceFormData.cupos) || 10,
+        rubrica_criterios: selectedRubric,
       };
 
       const endpoint = isEditingPractice
@@ -1250,6 +1337,16 @@ const DocentPractices = () => {
                       {selectedPractice.descripcion}
                     </div>
                   )}
+
+                  {/* Rúbrica Oficial de Evaluación (10 Criterios Configurados) */}
+                  <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+                    <RubricCriteriaViewer
+                      criteriaIds={selectedPractice.rubrica_criterios}
+                      variant="detailed"
+                      title="Rúbrica Oficial de Evaluación (10 Criterios Formativos UPTC)"
+                      subtitle="Criterios y escala formativa (0.1 a 0.5 por ítem) configurados para evaluar a los estudiantes."
+                    />
+                  </div>
                 </div>
 
                 {/* Estudiantes asignados a esta práctica */}
@@ -1877,6 +1974,22 @@ const DocentPractices = () => {
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Sección 5: Rúbrica de Evaluación Formativa UPTC (10 de 25 Criterios) */}
+              <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                <RubricCriteriaSelector
+                  selectedCriteriaIds={practiceFormData.rubrica_criterios || []}
+                  onChange={(criterios) =>
+                    setPracticeFormData((prev) => ({ ...prev, rubrica_criterios: criterios }))
+                  }
+                  isLocked={isEditingPractice && isPracticeStarted(practiceFormData)}
+                  lockedReason={
+                    isEditingPractice && isPracticeStarted(practiceFormData)
+                      ? "La práctica ya ha comenzado o se encuentra activa/finalizada. La rúbrica de evaluación seleccionada no se puede modificar una vez iniciada la práctica."
+                      : ""
+                  }
+                />
               </div>
 
               {/* Botones de acción del Modal */}

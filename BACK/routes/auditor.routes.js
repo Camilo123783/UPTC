@@ -9,6 +9,7 @@ const express = require("express");
 const router = express.Router();
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const { calculateScoreFromCriteriaMap } = require("../utils/evaluationRubric");
 
 // Todas las rutas de auditor requieren token JWT válido y rol 'auditor', 'admin' o 'superadmin'
 router.use(verifyToken);
@@ -166,6 +167,7 @@ router.get("/practices", async (req, res, next) => {
         pr.estado,
         pr.descripcion,
         pr.horario,
+        pr.rubrica_criterios,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,
@@ -261,6 +263,7 @@ router.get("/practices", async (req, res, next) => {
         ra.actitud_etica,
         ra.comunicacion_equipo,
         ra.puntualidad_asistencia,
+        ra.criterios_rubrica,
         ra.nota_sugerida,
         ra.concepto AS report_concepto,
         ra.observaciones AS report_observaciones,
@@ -320,12 +323,14 @@ router.get("/practices", async (req, res, next) => {
         actitud_etica: st.actitud_etica !== null ? Number(st.actitud_etica) : null,
         comunicacion_equipo: st.comunicacion_equipo !== null ? Number(st.comunicacion_equipo) : null,
         puntualidad_asistencia: st.puntualidad_asistencia !== null ? Number(st.puntualidad_asistencia) : null,
+        criterios_rubrica: st.criterios_rubrica,
         reporte_clinico: st.report_id ? {
           id: st.report_id,
           nota_sugerida: Number(st.nota_sugerida),
           concepto: st.report_concepto,
           observaciones: st.report_observaciones,
           fecha: st.fecha_reporte,
+          criterios_rubrica: st.criterios_rubrica,
           conocimiento_teorico: Number(st.conocimiento_teorico),
           habilidades_practicas: Number(st.habilidades_practicas),
           actitud_etica: Number(st.actitud_etica),
@@ -392,6 +397,7 @@ router.get("/students", async (req, res, next) => {
         pr.fecha_inicio,
         pr.fecha_fin,
         pr.horas_totales,
+        pr.rubrica_criterios,
         s.nombreservicio,
         i.id AS institucion_id,
         i.nombreinstitucion,
@@ -462,6 +468,7 @@ router.get("/students", async (req, res, next) => {
         practiceStartDate: r.fecha_inicio ? new Date(r.fecha_inicio).toISOString().substring(0, 10) : null,
         practiceEndDate: r.fecha_fin ? new Date(r.fecha_fin).toISOString().substring(0, 10) : null,
         practiceStatus: r.practica_estado || "Activa",
+        rubrica_criterios: r.rubrica_criterios || null,
         evaluationStatus: r.estado_evaluacion || (r.calificacion !== null ? "Completada" : "Pendiente"),
         score: r.calificacion !== null ? Number(r.calificacion) : null,
         horas_cumplidas: horasCumplidas,
@@ -705,6 +712,7 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
       actitud_etica,
       comunicacion_equipo,
       puntualidad_asistencia,
+      criterios_rubrica,
       nota_sugerida,
       concepto,
       observaciones,
@@ -717,10 +725,17 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
       });
     }
 
-    // Obtener docente a cargo de la práctica
-    const prDoc = await queryDB("SELECT docente_cedula, titulo FROM practica WHERE id = ?", [practiceId]);
+    // Obtener docente a cargo de la práctica y su rúbrica
+    const prDoc = await queryDB("SELECT docente_cedula, titulo, rubrica_criterios FROM practica WHERE id = ?", [practiceId]);
     const docCed = prDoc[0]?.docente_cedula || null;
     const prTitle = prDoc[0]?.titulo || "";
+
+    let activeRubricIds = null;
+    if (prDoc[0]?.rubrica_criterios) {
+      try {
+        activeRubricIds = JSON.parse(prDoc[0].rubrica_criterios);
+      } catch (e) {}
+    }
 
     const cTeorico = parseFloat(conocimiento_teorico) || 4.0;
     const hPracticas = parseFloat(habilidades_practicas) || 4.0;
@@ -728,9 +743,20 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
     const cEquipo = parseFloat(comunicacion_equipo) || 4.0;
     const pAsistencia = parseFloat(puntualidad_asistencia) || 5.0;
 
-    // Calcular nota sugerida ponderada si no viene dada
-    const calculatedNota = parseFloat(nota_sugerida) || parseFloat(((cTeorico + hPracticas + aEtica + cEquipo + pAsistencia) / 5).toFixed(1));
+    // Calcular nota sugerida si viene criterios_rubrica (suma de los 10 criterios de la escala)
+    let calculatedNota = parseFloat(nota_sugerida);
+    if (criterios_rubrica && typeof criterios_rubrica === "object") {
+      const rubricScore = calculateScoreFromCriteriaMap(criterios_rubrica, activeRubricIds);
+      if (!isNaN(rubricScore) && rubricScore > 0) {
+        calculatedNota = rubricScore;
+      }
+    }
+    if (isNaN(calculatedNota)) {
+      calculatedNota = parseFloat(((cTeorico + hPracticas + aEtica + cEquipo + pAsistencia) / 5).toFixed(1));
+    }
     const finalConcepto = concepto || (calculatedNota >= 4.5 ? "Excelente" : calculatedNota >= 3.8 ? "Favorable" : calculatedNota >= 3.0 ? "En Seguimiento" : "Requiere Refuerzo");
+
+    const criteriosRubricaJson = criterios_rubrica ? JSON.stringify(criterios_rubrica) : null;
 
     // Verificar si ya existe reporte para actualizar o insertar
     const existing = await queryDB(
@@ -744,16 +770,16 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
       await queryDB(`
         UPDATE reporte_auditor
         SET auditor_cedula = ?, docente_cedula = ?, conocimiento_teorico = ?, habilidades_practicas = ?,
-            actitud_etica = ?, comunicacion_equipo = ?, puntualidad_asistencia = ?, nota_sugerida = ?,
+            actitud_etica = ?, comunicacion_equipo = ?, puntualidad_asistencia = ?, criterios_rubrica = ?, nota_sugerida = ?,
             concepto = ?, observaciones = ?, fecha_reporte = NOW(), leido_por_docente = 0
         WHERE id = ?
-      `, [auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, calculatedNota, finalConcepto, observaciones.trim(), reportId]);
+      `, [auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, criteriosRubricaJson, calculatedNota, finalConcepto, observaciones.trim(), reportId]);
     } else {
       const ins = await queryDB(`
         INSERT INTO reporte_auditor
-          (practica_id, estudiante_cedula, auditor_cedula, docente_cedula, conocimiento_teorico, habilidades_practicas, actitud_etica, comunicacion_equipo, puntualidad_asistencia, nota_sugerida, concepto, observaciones, fecha_reporte)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-      `, [practiceId, cedula, auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, calculatedNota, finalConcepto, observaciones.trim()]);
+          (practica_id, estudiante_cedula, auditor_cedula, docente_cedula, conocimiento_teorico, habilidades_practicas, actitud_etica, comunicacion_equipo, puntualidad_asistencia, criterios_rubrica, nota_sugerida, concepto, observaciones, fecha_reporte)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      `, [practiceId, cedula, auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, criteriosRubricaJson, calculatedNota, finalConcepto, observaciones.trim()]);
       reportId = ins.insertId;
     }
 

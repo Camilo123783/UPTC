@@ -9,6 +9,7 @@ import { useDataSync } from "../../utils/dataSync";
 import { generateCsv, generateXls } from "../../utils/reportGenerator";
 import ClinicalReportModal from "./ClinicalReportModal";
 import { PracticeScheduleViewer } from "../Shared/PracticeSchedule";
+import { RubricCriteriaViewer } from "../Shared/PracticeRubric";
 import {
   FileText,
   Download,
@@ -434,6 +435,13 @@ const AuditorReports = () => {
                             <PracticeScheduleViewer horario={pr.horario} variant="card" />
                           </div>
                         )}
+                        <div className="w-full mt-2">
+                          <RubricCriteriaViewer
+                            criteriaIds={pr.rubrica_criterios}
+                            variant="card"
+                            title="Rúbrica de la Práctica (10 Criterios Configurados)"
+                          />
+                        </div>
                       </div>
                     </div>
 

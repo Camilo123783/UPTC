@@ -45,6 +45,8 @@ import {
   FileCheck,
   ExternalLink,
 } from 'lucide-react';
+import { RubricEvaluationInput } from '../Shared/PracticeRubric';
+import { calculateRubricTotal } from '../../utils/evaluationRubric';
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -71,12 +73,7 @@ const DocentStudentManagement = () => {
   // ─── Estados para Evaluaciones ───
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [evaluationFeedback, setEvaluationFeedback] = useState('');
-  const [likertScores, setLikertScores] = useState({
-    knowledge: 3,
-    skills: 3,
-    attitude: 3,
-    communication: 3,
-  });
+  const [rubricScores, setRubricScores] = useState({});
   const [viewingStudent, setViewingStudent] = useState(null);
   const [isEvaluatingModalOpen, setIsEvaluatingModalOpen] = useState(false);
   const [isSavingEvaluation, setIsSavingEvaluation] = useState(false);
@@ -271,14 +268,10 @@ const DocentStudentManagement = () => {
     return { totalStudents, totalEvaluated, totalPending, totalPractices };
   }, [assignedStudents, docentPractices]);
 
-  // ─── Cálculo Automático de Nota y Desempeño según los 4 Ítems ───
+  // ─── Cálculo Automático de Nota y Desempeño según los 10 Criterios ───
   const computedScore = useMemo(() => {
-    const k = Number(likertScores.knowledge) || 1;
-    const s = Number(likertScores.skills) || 1;
-    const a = Number(likertScores.attitude) || 1;
-    const c = Number(likertScores.communication) || 1;
-    return (k + s + a + c) / 4;
-  }, [likertScores]);
+    return calculateRubricTotal(rubricScores, selectedStudent?.rubrica_criterios);
+  }, [rubricScores, selectedStudent]);
 
   const getPerformanceBadge = (score) => {
     if (score >= 4.6) {
@@ -339,30 +332,11 @@ const DocentStudentManagement = () => {
   // ─── Acciones de Evaluación ───
   const handleOpenEvaluation = (student) => {
     setSelectedStudent(student);
-    setEvaluationFeedback(student.feedback || '');
-    if (student.likertScores && typeof student.likertScores === 'object') {
-      setLikertScores({
-        knowledge: Number(student.likertScores.knowledge) || 3,
-        skills: Number(student.likertScores.skills) || 3,
-        attitude: Number(student.likertScores.attitude) || 3,
-        communication: Number(student.likertScores.communication) || 3,
-      });
-    } else if (student.score !== null && student.score !== undefined) {
-      const base = Math.min(5, Math.max(1, Math.round(Number(student.score))));
-      setLikertScores({
-        knowledge: base,
-        skills: base,
-        attitude: base,
-        communication: base,
-      });
-    } else {
-      setLikertScores({
-        knowledge: 3,
-        skills: 3,
-        attitude: 3,
-        communication: 3,
-      });
-    }
+    setEvaluationFeedback(student.feedback || student.retroalimentacion || '');
+    const existingCriterios = student.criterios && typeof student.criterios === 'object' && Object.keys(student.criterios).length > 0
+      ? student.criterios
+      : (student.auditorReport?.criterios_rubrica || {});
+    setRubricScores(existingCriterios || {});
     setIsEvaluatingModalOpen(true);
   };
 
@@ -378,7 +352,7 @@ const DocentStudentManagement = () => {
         estudiante_cedula: selectedStudent.cedula,
         calificacion: numScore,
         retroalimentacion: evaluationFeedback.trim() || 'Desempeño clínico evaluado satisfactoriamente.',
-        criterios: likertScores,
+        criterios: rubricScores,
       };
 
       const res = await fetch(`${API_BASE_URL}/api/docent/evaluations`, {
@@ -404,7 +378,7 @@ const DocentStudentManagement = () => {
                 evaluationStatus: 'Completada',
                 score: numScore,
                 feedback: payload.retroalimentacion,
-                likertScores: likertScores,
+                criterios: rubricScores,
                 evaluationDate: new Date().toISOString().substring(0, 10),
               }
             : s
@@ -1442,109 +1416,26 @@ const DocentStudentManagement = () => {
               <p><strong>Servicio:</strong> {selectedStudent.service} · {selectedStudent.hospital}</p>
             </div>
 
-            {/* Desempeño del Estudiante calculado en tiempo real por los 4 ítems */}
-            <div className="p-4 bg-gradient-to-r from-gray-50 to-blue-50/50 dark:from-zinc-800/70 dark:to-blue-950/30 border border-gray-200 dark:border-zinc-700 rounded-2xl mb-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 block mb-0.5">
-                  Desempeño del Estudiante
-                </span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-gray-900 dark:text-white">
-                    {computedScore.toFixed(1)}
-                  </span>
-                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    / 5.0 (Promedio ponderado)
-                  </span>
-                </div>
-              </div>
-              <div>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm border transition-all duration-150 ${getPerformanceBadge(computedScore).className}`}
-                >
-                  {getPerformanceBadge(computedScore).label}
-                </span>
-              </div>
-            </div>
-
             <div className="space-y-4">
-              {/* Desglose por Criterios de Evaluación (Los 4 ítems) */}
-              <div>
-                <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-                  <span>Criterios de Evaluación (1 a 5) *</span>
-                  <span className="text-[11px] font-normal text-gray-500 dark:text-gray-400">
-                    Actualizan el desempeño
-                  </span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-200 dark:border-zinc-700/80">
-                    <span className="text-gray-700 dark:text-gray-300 font-semibold block mb-1.5">
-                      Conocimiento Teórico:
-                    </span>
-                    <select
-                      value={likertScores.knowledge}
-                      onChange={(e) => setLikertScores({ ...likertScores, knowledge: parseInt(e.target.value, 10) })}
-                      className="w-full px-2.5 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="1">1 - Deficiente</option>
-                      <option value="2">2 - Regular</option>
-                      <option value="3">3 - Bueno</option>
-                      <option value="4">4 - Muy Bueno</option>
-                      <option value="5">5 - Excelente</option>
-                    </select>
-                  </div>
-
-                  <div className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-200 dark:border-zinc-700/80">
-                    <span className="text-gray-700 dark:text-gray-300 font-semibold block mb-1.5">
-                      Habilidades Prácticas:
-                    </span>
-                    <select
-                      value={likertScores.skills}
-                      onChange={(e) => setLikertScores({ ...likertScores, skills: parseInt(e.target.value, 10) })}
-                      className="w-full px-2.5 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="1">1 - Deficiente</option>
-                      <option value="2">2 - Regular</option>
-                      <option value="3">3 - Bueno</option>
-                      <option value="4">4 - Muy Bueno</option>
-                      <option value="5">5 - Excelente</option>
-                    </select>
-                  </div>
-
-                  <div className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-200 dark:border-zinc-700/80">
-                    <span className="text-gray-700 dark:text-gray-300 font-semibold block mb-1.5">
-                      Actitud y Ética:
-                    </span>
-                    <select
-                      value={likertScores.attitude}
-                      onChange={(e) => setLikertScores({ ...likertScores, attitude: parseInt(e.target.value, 10) })}
-                      className="w-full px-2.5 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="1">1 - Deficiente</option>
-                      <option value="2">2 - Regular</option>
-                      <option value="3">3 - Bueno</option>
-                      <option value="4">4 - Muy Bueno</option>
-                      <option value="5">5 - Excelente</option>
-                    </select>
-                  </div>
-
-                  <div className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-200 dark:border-zinc-700/80">
-                    <span className="text-gray-700 dark:text-gray-300 font-semibold block mb-1.5">
-                      Comunicación Clínica:
-                    </span>
-                    <select
-                      value={likertScores.communication}
-                      onChange={(e) => setLikertScores({ ...likertScores, communication: parseInt(e.target.value, 10) })}
-                      className="w-full px-2.5 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="1">1 - Deficiente</option>
-                      <option value="2">2 - Regular</option>
-                      <option value="3">3 - Bueno</option>
-                      <option value="4">4 - Muy Bueno</option>
-                      <option value="5">5 - Excelente</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+              <RubricEvaluationInput
+                rubricaCriterios={selectedStudent.rubrica_criterios}
+                scores={rubricScores}
+                onChange={setRubricScores}
+                auditorReport={selectedStudent.auditorReport}
+                onApplyAuditorReport={() => {
+                  if (selectedStudent.auditorReport?.criterios_rubrica) {
+                    setRubricScores(selectedStudent.auditorReport.criterios_rubrica);
+                    toast.info("Se han cargado las calificaciones sugeridas por el auditor clínico.");
+                  }
+                  if (selectedStudent.auditorReport?.observaciones) {
+                    setEvaluationFeedback(
+                      (prev) =>
+                        prev ||
+                        `[Concepto Auditor: ${selectedStudent.auditorReport.concepto || "Favorable"}] ${selectedStudent.auditorReport.observaciones}`
+                    );
+                  }
+                }}
+              />
 
               {/* Retroalimentación Textual */}
               <div>

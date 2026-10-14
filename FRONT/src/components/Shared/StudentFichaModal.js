@@ -548,11 +548,18 @@ const StudentFichaModal = ({
               </div>
             )}
 
-            {notaSugerida !== null && (
-              <div className="pt-2 border-t border-gray-200 dark:border-zinc-700 flex items-center justify-between">
-                <span className="text-gray-500 dark:text-zinc-400">Concepto Sugerido por Auditor:</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">
-                  {notaSugerida.toFixed(1)} {conceptoAuditor ? `(${conceptoAuditor})` : ""}
+            {role === "docent" && notaSugerida !== null && (
+              <div className="pt-2 border-t border-gray-200 dark:border-zinc-700 flex items-center justify-between bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                <div>
+                  <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 block">
+                    Nota Sugerida por Auditor (Privada para el Docente):
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-zinc-400">
+                    Guía de evaluación en sitio para el tutor
+                  </span>
+                </div>
+                <span className="font-black text-sm text-amber-600 dark:text-amber-400 font-mono">
+                  {notaSugerida.toFixed(1)} / 5.0 {conceptoAuditor ? `(${conceptoAuditor})` : ""}
                 </span>
               </div>
             )}

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { PracticeScheduleViewer } from "../Shared/PracticeSchedule";
+import { RubricCriteriaViewer } from "../Shared/PracticeRubric";
 import { useAuth } from "../../utils/useAuth";
 import { useDataSync } from "../../utils/dataSync";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
@@ -820,6 +821,13 @@ const StudentPractices = () => {
               {selectedPractice.horario && (
                 <PracticeScheduleViewer horario={selectedPractice.horario} variant="detailed" />
               )}
+
+              {/* Rúbrica de Evaluación Formativa Oficial (10 Criterios Configurados) */}
+              <RubricCriteriaViewer
+                criteriaIds={selectedPractice.rubrica_criterios}
+                title="Rúbrica de Evaluación de la Práctica (10 Criterios Oficiales)"
+                variant="detailed"
+              />
 
               {/* Sección 5: Descripción u Observaciones Generales */}
               {selectedPractice.descripcion && (

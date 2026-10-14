@@ -8,6 +8,7 @@ const router = express.Router();
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
+const { validateRubricCriteriaSelection, calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
 
 // Todas las rutas de docente requieren autenticación con token JWT y rol 'docent', 'admin' o 'superadmin'
 router.use(verifyToken);
@@ -215,6 +216,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
         pr.motivo_cancelacion,
         pr.descripcion,
         pr.horario,
+        pr.rubrica_criterios,
         pr.created_at,
         pr.programa_id,
         p.nombreprograma AS programa_nombre,
@@ -821,12 +823,13 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       estado,
       descripcion,
       horario,
+      rubrica_criterios,
       estudiantes,
     } = req.body;
 
     const docentCedula = req.body.docente_cedula || req.user?.cedula;
 
-    const existing = await queryDB(`SELECT id, estado, docente_cedula, programa_id FROM practica WHERE id = ?`, [id]);
+    const existing = await queryDB(`SELECT id, estado, docente_cedula, programa_id, fecha_inicio, rubrica_criterios FROM practica WHERE id = ?`, [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: "Práctica formativa no encontrada." });
     }
@@ -836,6 +839,76 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "Esta práctica ya se encuentra finalizada o cancelada y no admite modificaciones. Toda su información ha sido archivada de forma inmutable en el Historial.",
+      });
+    }
+
+    // ── Validaciones estrictas: Todos los campos son obligatorios salvo estudiantes ──
+    if (!titulo || !titulo.trim()) {
+      return res.status(400).json({ success: false, message: "El título o nombre de la práctica es obligatorio." });
+    }
+    if (!asignatura_id) {
+      return res.status(400).json({ success: false, message: "Debes seleccionar la asignatura académica de la práctica." });
+    }
+    if (!institucion_id) {
+      return res.status(400).json({ success: false, message: "Debes seleccionar la institución o sede hospitalaria." });
+    }
+    if (!servicio_id) {
+      return res.status(400).json({ success: false, message: "Debes seleccionar el servicio asistencial de la práctica." });
+    }
+    if (!auditor_cedula) {
+      return res.status(400).json({ success: false, message: "Debes asignar un auditor clínico institucional a la práctica." });
+    }
+    if (!periodo || !periodo.trim()) {
+      return res.status(400).json({ success: false, message: "El periodo académico es obligatorio." });
+    }
+    if (!fecha_inicio) {
+      return res.status(400).json({ success: false, message: "La fecha de inicio de la práctica es obligatoria." });
+    }
+    if (!fecha_fin) {
+      return res.status(400).json({ success: false, message: "La fecha de finalización de la práctica es obligatoria." });
+    }
+    if (new Date(fecha_fin) < new Date(fecha_inicio)) {
+      return res.status(400).json({ success: false, message: "La fecha de finalización debe ser igual o posterior a la fecha de inicio." });
+    }
+    if (!horas_totales || parseInt(horas_totales, 10) <= 0) {
+      return res.status(400).json({ success: false, message: "Las horas formativas totales deben ser mayores a 0." });
+    }
+    if (!cupos || parseInt(cupos, 10) <= 0) {
+      return res.status(400).json({ success: false, message: "Los cupos máximos de la práctica deben ser mayores a 0." });
+    }
+    if (!horario || !horario.trim()) {
+      return res.status(400).json({ success: false, message: "Debes configurar el horario de la práctica (días y horas de rotación)." });
+    }
+
+    // ── Validación de inmutabilidad de la rúbrica una vez iniciada la práctica ──
+    const todayStr = getColombiaToday();
+    const fIniExisting = existing[0].fecha_inicio ? String(existing[0].fecha_inicio).substring(0, 10) : "";
+    const isPracticeStarted = existing[0].estado === "Activa" || existing[0].estado === "En Curso" || (fIniExisting && todayStr >= fIniExisting);
+
+    let finalRubricaJson = existing[0].rubrica_criterios;
+    if (rubrica_criterios) {
+      const rubricVal = validateRubricCriteriaSelection(rubrica_criterios);
+      if (!rubricVal.valid) {
+        return res.status(400).json({ success: false, message: rubricVal.message });
+      }
+
+      if (isPracticeStarted && existing[0].rubrica_criterios) {
+        let oldParsed = [];
+        try { oldParsed = JSON.parse(existing[0].rubrica_criterios); } catch (e) { oldParsed = []; }
+        const oldSorted = [...oldParsed].sort().join(",");
+        const newSorted = [...rubricVal.criteria].sort().join(",");
+        if (oldSorted !== newSorted) {
+          return res.status(400).json({
+            success: false,
+            message: "No es posible modificar los 10 criterios de evaluación porque la práctica formativa ya se encuentra iniciada.",
+          });
+        }
+      }
+      finalRubricaJson = JSON.stringify(rubricVal.criteria);
+    } else if (!finalRubricaJson) {
+      return res.status(400).json({
+        success: false,
+        message: "Debes seleccionar los 10 criterios de evaluación de la rúbrica para la práctica formativa.",
       });
     }
 
@@ -905,7 +978,6 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
     }
 
     // Determinar ciclo de vida del estado según fechas (hora Colombia):
-    const todayStr = getColombiaToday();
     const fFin = fecha_fin ? (typeof fecha_fin === "string" ? fecha_fin.substring(0, 10) : "") : "";
     const fIni = fecha_inicio ? (typeof fecha_inicio === "string" ? fecha_inicio.substring(0, 10) : "") : "";
 
@@ -946,7 +1018,8 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
         estado = COALESCE(?, estado),
         motivo_cancelacion = ?,
         descripcion = ?,
-        horario = ?
+        horario = ?,
+        rubrica_criterios = ?
       WHERE id = ?
     `, [
       titulo || null,
@@ -964,6 +1037,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       finalMotivo || null,
       descripcion || null,
       horario !== undefined ? (horario || null) : null,
+      finalRubricaJson || null,
       id,
     ]);
 
@@ -1027,6 +1101,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       estado,
       descripcion,
       horario,
+      rubrica_criterios,
       estudiantes,
     } = req.body;
 
@@ -1039,12 +1114,50 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       });
     }
 
+    // ── Validaciones estrictas: Todos los campos son obligatorios salvo estudiantes ──
     if (!titulo || !titulo.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "El título de la práctica es obligatorio.",
-      });
+      return res.status(400).json({ success: false, message: "El título de la práctica es obligatorio." });
     }
+    if (!asignatura_id) {
+      return res.status(400).json({ success: false, message: "Debes seleccionar la asignatura académica de la práctica." });
+    }
+    if (!institucion_id) {
+      return res.status(400).json({ success: false, message: "Debes seleccionar la institución o sede hospitalaria." });
+    }
+    if (!servicio_id) {
+      return res.status(400).json({ success: false, message: "Debes seleccionar el servicio asistencial de la práctica." });
+    }
+    if (!auditor_cedula) {
+      return res.status(400).json({ success: false, message: "Debes asignar un auditor clínico institucional a la práctica." });
+    }
+    if (!periodo || !periodo.trim()) {
+      return res.status(400).json({ success: false, message: "El periodo académico es obligatorio (ej. 2026-2)." });
+    }
+    if (!fecha_inicio) {
+      return res.status(400).json({ success: false, message: "La fecha de inicio de la práctica es obligatoria." });
+    }
+    if (!fecha_fin) {
+      return res.status(400).json({ success: false, message: "La fecha de finalización de la práctica es obligatoria." });
+    }
+    if (new Date(fecha_fin) < new Date(fecha_inicio)) {
+      return res.status(400).json({ success: false, message: "La fecha de finalización debe ser igual o posterior a la fecha de inicio." });
+    }
+    if (!horas_totales || parseInt(horas_totales, 10) <= 0) {
+      return res.status(400).json({ success: false, message: "Las horas formativas totales deben ser mayores a 0." });
+    }
+    if (!cupos || parseInt(cupos, 10) <= 0) {
+      return res.status(400).json({ success: false, message: "Los cupos máximos de la práctica deben ser mayores a 0." });
+    }
+    if (!horario || !horario.trim()) {
+      return res.status(400).json({ success: false, message: "Debes configurar el horario de la práctica (días y horas de rotación)." });
+    }
+
+    // Validación de la rúbrica institucional (exactamente 10 criterios)
+    const rubricValidation = validateRubricCriteriaSelection(rubrica_criterios);
+    if (!rubricValidation.valid) {
+      return res.status(400).json({ success: false, message: rubricValidation.message });
+    }
+    const finalRubricaJson = JSON.stringify(rubricValidation.criteria);
 
     // Obtener información académica del docente
     const docRows = await queryDB(
@@ -1147,10 +1260,11 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
         estado,
         descripcion,
         horario,
+        rubrica_criterios,
         creado_por_rol,
         creado_por_cedula,
         creador_nombre
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'docent', ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'docent', ?, ?)
     `, [
       titulo.trim(),
       effectiveProgramaId || null,
@@ -1167,6 +1281,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       finalEstado,
       descripcion || null,
       horario || null,
+      finalRubricaJson,
       docentCedula,
       docentName,
     ]);
@@ -1254,6 +1369,7 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         pr.fecha_inicio,
         pr.fecha_fin,
         pr.horas_totales,
+        pr.rubrica_criterios,
         s.nombreservicio,
         i.nombreinstitucion,
         ra.id AS report_id,
@@ -1261,6 +1377,7 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         ra.concepto AS report_concepto,
         ra.observaciones AS report_observaciones,
         ra.fecha_reporte,
+        ra.criterios_rubrica,
         ra.conocimiento_teorico,
         ra.habilidades_practicas,
         ra.actitud_etica,
@@ -1291,6 +1408,15 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         }
       }
 
+      let auditorCriteriosParsed = null;
+      if (r.criterios_rubrica) {
+        try {
+          auditorCriteriosParsed = typeof r.criterios_rubrica === "string" ? JSON.parse(r.criterios_rubrica) : r.criterios_rubrica;
+        } catch (e) {
+          auditorCriteriosParsed = null;
+        }
+      }
+
       const totalAsignadas = r.horas_asignadas !== null && r.horas_asignadas !== undefined
         ? Number(r.horas_asignadas)
         : (r.horas_totales ? Number(r.horas_totales) : 120);
@@ -1302,6 +1428,7 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         observaciones: r.report_observaciones,
         fecha: r.fecha_reporte,
         auditor_nombre: r.auditor_nombre || "Auditor Clínico",
+        criterios_rubrica: auditorCriteriosParsed,
         likert: {
           knowledge: Number(r.conocimiento_teorico || 4),
           skills: Number(r.habilidades_practicas || 4),
@@ -1337,6 +1464,7 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         hospital: r.nombreinstitucion || "Institución Hospitalaria",
         practiceName: r.practica_titulo,
         practiceId: r.practica_id,
+        rubrica_criterios: r.rubrica_criterios || null,
         subject: r.nombreservicio || "Práctica Formativa",
         rotation: r.nombreservicio || "Rotación Clínica",
         evaluationStatus: r.estado_evaluacion || (r.calificacion !== null ? "Completada" : "Pendiente"),
@@ -1347,6 +1475,7 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         practiceEndDate: r.fecha_fin ? new Date(r.fecha_fin).toISOString().substring(0, 10) : "2024-06-30",
         practiceStatus: r.practica_estado || "Activa",
         likertScores: criteriosParsed || (auditorReport ? auditorReport.likert : null),
+        auditorReport: auditorReport,
         auditorReport,
         horas_cumplidas: Number(r.horas_cumplidas || 0),
         horas_asignadas: totalAsignadas,
@@ -1483,7 +1612,7 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
       });
     }
 
-    const prCheck = await queryDB("SELECT estado FROM practica WHERE id = ? LIMIT 1", [practica_id]);
+    const prCheck = await queryDB("SELECT estado, rubrica_criterios FROM practica WHERE id = ? LIMIT 1", [practica_id]);
     if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
       return res.status(400).json({
         success: false,
@@ -1491,13 +1620,19 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
       });
     }
 
+    let activeRubricIds = null;
+    if (prCheck[0]?.rubrica_criterios) {
+      try {
+        activeRubricIds = JSON.parse(prCheck[0].rubrica_criterios);
+      } catch (e) {}
+    }
+
     let numScore = parseFloat(calificacion);
-    if (isNaN(numScore) && criterios && typeof criterios === "object") {
-      const vals = [criterios.knowledge, criterios.skills, criterios.attitude, criterios.communication]
-        .map(Number)
-        .filter((n) => !isNaN(n));
-      if (vals.length > 0) {
-        numScore = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (criterios && typeof criterios === "object") {
+      // Calcular a partir de los 10 criterios de la rúbrica
+      const calculatedFromRubric = calculateScoreFromCriteriaMap(criterios, activeRubricIds);
+      if (!isNaN(calculatedFromRubric) && calculatedFromRubric > 0) {
+        numScore = calculatedFromRubric;
       }
     }
 
