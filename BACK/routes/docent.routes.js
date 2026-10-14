@@ -10,7 +10,107 @@ const { verifyToken, requireRole } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
 const { validateRubricCriteriaSelection, calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
 
-// Todas las rutas de docente requieren autenticación con token JWT y rol 'docent', 'admin' o 'superadmin'
+// Caché ultrarrápida en memoria RAM para fotos de perfil de docentes (< 1ms)
+const docentPhotoMemoryCache = new Map();
+
+// ──────────────────────────────────────────────
+// GET /api/docent/photo/:docentId
+// Servir la foto del docente para TODOS los participantes de una práctica
+// (estudiantes, auditores, docentes y administradores)
+// Disponible públicamente para etiquetas <img> sin problemas de CORS ni tokens
+// ──────────────────────────────────────────────
+router.get("/photo/:docentId", async (req, res, next) => {
+  try {
+    const { docentId } = req.params;
+    const docentKey = String(docentId).trim();
+
+    // Encabezados universales CORS para imágenes
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+    const ifNoneMatch = req.headers["if-none-match"];
+
+    // 1. Verificación en memoria RAM
+    const inMem = docentPhotoMemoryCache.get(docentKey);
+    if (inMem && inMem.buffer) {
+      if (ifNoneMatch && ifNoneMatch === inMem.etag) {
+        return res.status(304).end();
+      }
+      res.setHeader("Content-Type", inMem.mimeType);
+      res.setHeader("ETag", inMem.etag);
+      res.setHeader("Content-Length", inMem.buffer.length);
+      res.setHeader("Cache-Control", "public, max-age=86400, must-revalidate");
+      return res.end(inMem.buffer);
+    }
+
+    // 2. Consulta en base de datos
+    const rows = await queryDB(
+      "SELECT foto_perfil FROM docente WHERE cedula = ? LIMIT 1",
+      [docentKey]
+    );
+
+    if (rows.length === 0 || !rows[0].foto_perfil) {
+      return res.status(404).json({ success: false, message: "Foto no encontrada." });
+    }
+
+    const rawFoto = rows[0].foto_perfil;
+    let fileBuffer = null;
+    let mimeType = "image/jpeg";
+
+    if (typeof rawFoto === "string") {
+      if (rawFoto.startsWith("data:")) {
+        const matches = rawFoto.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (matches) {
+          mimeType = matches[1];
+          fileBuffer = Buffer.from(matches[2], "base64");
+        } else {
+          fileBuffer = Buffer.from(rawFoto, "base64");
+        }
+      } else {
+        fileBuffer = Buffer.from(rawFoto, "base64");
+      }
+    } else if (Buffer.isBuffer(rawFoto)) {
+      fileBuffer = rawFoto;
+      if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x4e && fileBuffer[3] === 0x47) {
+        mimeType = "image/png";
+      } else if (fileBuffer[0] === 0xff && fileBuffer[1] === 0xd8) {
+        mimeType = "image/jpeg";
+      } else if (fileBuffer[0] === 0x52 && fileBuffer[1] === 0x49 && fileBuffer[2] === 0x46 && fileBuffer[3] === 0x46) {
+        mimeType = "image/webp";
+      }
+    }
+
+    if (!fileBuffer || fileBuffer.length === 0) {
+      return res.status(404).json({ success: false, message: "Foto vacía o ilegible." });
+    }
+
+    const etag = `W/"docent-photo-${docentKey}-${fileBuffer.length}"`;
+
+    if (docentPhotoMemoryCache.size > 80) {
+      const first = docentPhotoMemoryCache.keys().next().value;
+      docentPhotoMemoryCache.delete(first);
+    }
+    docentPhotoMemoryCache.set(docentKey, {
+      buffer: fileBuffer,
+      mimeType,
+      etag,
+    });
+
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      return res.status(304).end();
+    }
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("ETag", etag);
+    res.setHeader("Content-Length", fileBuffer.length);
+    res.setHeader("Cache-Control", "public, max-age=86400, must-revalidate");
+    return res.end(fileBuffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// El resto de rutas de gestión docente requieren autenticación con JWT y rol específico
 router.use(verifyToken);
 router.use(requireRole("docent", "admin", "superadmin"));
 
@@ -101,6 +201,9 @@ router.put("/profile", async (req, res, next) => {
 
     values.push(docentId);
     await queryDB(`UPDATE docente SET ${updates.join(", ")} WHERE cedula = ?`, values);
+
+    // Invalidar caché de foto en memoria RAM
+    docentPhotoMemoryCache.delete(String(docentId).trim());
 
     return res.status(200).json({
       success: true,

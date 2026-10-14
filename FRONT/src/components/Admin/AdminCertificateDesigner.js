@@ -30,6 +30,7 @@ import toast from "../../utils/toast";
 import uptcLogo from "../../assets/images/uptc.png";
 import facultyLogo from "../../assets/images/logooo.png";
 import { SkeletonCardGrid } from "../Shared/Skeleton";
+import DocentAvatar from "../Shared/DocentAvatar";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -735,7 +736,11 @@ const AdminCertificateDesigner = () => {
 
                       {/* Docente */}
                       <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <DocentAvatar
+                          cedula={pr.docente_cedula}
+                          name={pr.docente_nombre}
+                          size="xs"
+                        />
                         <span>Docente:</span>
                         <span className="font-semibold text-gray-700 dark:text-zinc-200">
                           {pr.docente_nombre || "Docente UPTC"}
@@ -771,8 +776,7 @@ const AdminCertificateDesigner = () => {
                           <span>{totalStudents} Estudiantes</span>
                         </span>
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 text-amber-500" />
-                          <span>{evaluatedCount} con notas</span>
+                          <span>{evaluatedCount} calificado{evaluatedCount === 1 ? "" : "s"}</span>
                         </span>
                       </div>
 
@@ -836,7 +840,11 @@ const AdminCertificateDesigner = () => {
                     <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                     <span>{selectedPractice.institucion_nombre}</span>
                     <span>·</span>
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <DocentAvatar
+                      cedula={selectedPractice.docente_cedula}
+                      name={selectedPractice.docente_nombre}
+                      size="xs"
+                    />
                     <span>Tutor: {selectedPractice.docente_nombre || "Docente UPTC"}</span>
                     <span>·</span>
                     <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />

@@ -32,6 +32,7 @@ import {
   FileText,
 } from "lucide-react";
 import StudentAvatar from "../Shared/StudentAvatar";
+import DocentAvatar from "../Shared/DocentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
 import ClinicalReportModal from "./ClinicalReportModal";
 import { generateCsv } from "../../utils/reportGenerator";
@@ -620,9 +621,12 @@ const AuditorUserViewer = () => {
 
                         <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-purple-300 flex items-center justify-center font-black text-sm">
-                              {pr.docente_nombre ? pr.docente_nombre.charAt(0) : "D"}
-                            </div>
+                            <DocentAvatar
+                              cedula={pr.docente_cedula}
+                              name={pr.docente_nombre}
+                              size="w-11 h-11"
+                              className="rounded-2xl"
+                            />
                             <div>
                               <p className="font-bold text-sm text-gray-900 dark:text-white">
                                 {pr.docente_nombre || "Docente no asignado"}

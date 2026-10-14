@@ -31,6 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Skeleton, SkeletonChat } from "../Shared/Skeleton";
+import DocentAvatar from "../Shared/DocentAvatar";
 
 const StudentDocentCommunication = () => {
   const { user } = useAuth();
@@ -446,9 +447,11 @@ const StudentDocentCommunication = () => {
 
                   {/* Tarjeta pequeña del Docente */}
                   <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700">
-                    <div className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black text-sm flex items-center justify-center flex-shrink-0 border border-emerald-500/30">
-                      <Stethoscope className="w-5 h-5" />
-                    </div>
+                    <DocentAvatar
+                      cedula={currentPractice.docente_cedula}
+                      name={currentPractice.docente_nombre}
+                      size="sm"
+                    />
                     <div className="text-left min-w-0">
                       <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
                         {currentPractice.docente_nombre || "Docente"}

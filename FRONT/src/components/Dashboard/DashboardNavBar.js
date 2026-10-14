@@ -128,8 +128,32 @@ const DashboardLayout = ({
           (userRole === "student" || userData.role === "student") &&
           cedula
         ) {
-          const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-          setPhotoUrl(`${BACKEND_URL}/api/student/photo/${cedula}?v=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ""}`);
+          const token =
+            localStorage.getItem("authToken") ||
+            sessionStorage.getItem("authToken") ||
+            localStorage.getItem("token") ||
+            sessionStorage.getItem("token");
+          setPhotoUrl(
+            `${BACKEND_URL}/api/student/photo/${cedula}?v=${Date.now()}${
+              token ? `&token=${encodeURIComponent(token)}` : ""
+            }`
+          );
+          setPhotoError(false);
+          setPhotoLoading(true);
+        } else if (
+          (userRole === "docent" || userData.role === "docent") &&
+          cedula
+        ) {
+          const token =
+            localStorage.getItem("authToken") ||
+            sessionStorage.getItem("authToken") ||
+            localStorage.getItem("token") ||
+            sessionStorage.getItem("token");
+          setPhotoUrl(
+            `${BACKEND_URL}/api/docent/photo/${cedula}?v=${Date.now()}${
+              token ? `&token=${encodeURIComponent(token)}` : ""
+            }`
+          );
           setPhotoError(false);
           setPhotoLoading(true);
         } else {
@@ -1190,6 +1214,17 @@ const DashboardLayout = ({
                 : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-300"
             }`}
           >
+            {photoUrl && !photoError ? (
+              <img
+                src={photoUrl}
+                alt={fullName}
+                className="w-6 h-6 rounded-full object-cover shrink-0 border border-amber-500/40 dark:border-blue-500/40"
+              />
+            ) : (
+              <span className="w-6 h-6 rounded-full bg-amber-500/15 dark:bg-blue-500/20 text-amber-700 dark:text-blue-300 text-[10px] font-black flex items-center justify-center shrink-0">
+                {getInitials(fullName).substring(0, 2)}
+              </span>
+            )}
             <span className="truncate max-w-[170px] sm:max-w-[240px] font-semibold">
               {fullName}
             </span>

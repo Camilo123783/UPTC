@@ -28,6 +28,7 @@ import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
 import { SkeletonCardGrid } from "../Shared/Skeleton";
 import { PracticeScheduleEditor, PracticeScheduleViewer } from "../Shared/PracticeSchedule";
 import { RubricCriteriaSelector, RubricCriteriaViewer } from "../Shared/PracticeRubric";
+import DocentAvatar from "../Shared/DocentAvatar";
 import { parseRubricCriteriaIds, DEFAULT_RUBRIC_CRITERIA_IDS } from "../../utils/evaluationRubric";
 
 const API_BASE_URL = BACKEND_URL;
@@ -1050,7 +1051,11 @@ const AdminPractices = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-gray-500 shrink-0" />
+                    <DocentAvatar
+                      cedula={p.docente_cedula}
+                      name={p.docente_nombre}
+                      size="xs"
+                    />
                     <span className="truncate">
                       <strong>Docente:</strong> {p.docente_nombre?.trim() || "Sin docente"}
                     </span>
@@ -1820,12 +1825,19 @@ const AdminPractices = () => {
                   <p><strong>Asignatura:</strong> {viewingPractice.asignatura_nombre || "N/A"}</p>
                 </div>
 
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
-                  <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
-                    Docente Asistencial
-                  </strong>
-                  <p className="font-semibold text-gray-900 dark:text-white">{viewingPractice.docente_nombre || "Sin asignar"}</p>
-                  <p className="text-xs text-gray-500">{viewingPractice.docente_correo || `Cédula: ${viewingPractice.docente_cedula || "N/A"}`}</p>
+                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl flex items-center gap-3">
+                  <DocentAvatar
+                    cedula={viewingPractice.docente_cedula}
+                    name={viewingPractice.docente_nombre}
+                    size="md"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-0.5">
+                      Docente Asistencial
+                    </strong>
+                    <p className="font-semibold text-gray-900 dark:text-white truncate">{viewingPractice.docente_nombre || "Sin asignar"}</p>
+                    <p className="text-xs text-gray-500 truncate">{viewingPractice.docente_correo || `Cédula: ${viewingPractice.docente_cedula || "N/A"}`}</p>
+                  </div>
                 </div>
 
                 <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">

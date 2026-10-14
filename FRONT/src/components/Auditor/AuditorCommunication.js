@@ -28,6 +28,7 @@ import {
   Mail,
 } from "lucide-react";
 import { Skeleton, SkeletonChat } from "../Shared/Skeleton";
+import DocentAvatar from "../Shared/DocentAvatar";
 
 const getAuthToken = () => {
   return (
@@ -396,8 +397,12 @@ const AuditorCommunication = () => {
 
                       {/* Info Docente */}
                       <div className="mt-3 pt-2.5 border-t border-gray-200 dark:border-zinc-700/60 flex items-center justify-between text-[11px]">
-                        <span className="text-gray-700 dark:text-zinc-300 font-medium truncate flex items-center gap-1">
-                          <User className="w-3 h-3 text-amber-500" />
+                        <span className="text-gray-700 dark:text-zinc-300 font-medium truncate flex items-center gap-1.5">
+                          <DocentAvatar
+                            cedula={pr.docente_cedula}
+                            name={pr.docente_nombre}
+                            size="xs"
+                          />
                           <span>{pr.docente_nombre || "Docente no asignado"}</span>
                         </span>
                         <div className="flex items-center gap-2">
@@ -433,10 +438,14 @@ const AuditorCommunication = () => {
                       </span>
                     </h3>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-zinc-400 mt-1">
-                      <span className="flex items-center gap-1 font-semibold text-gray-900 dark:text-zinc-200">
-                        <GraduationCap className="w-3.5 h-3.5 text-blue-500" />
+                      <div className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-zinc-200">
+                        <DocentAvatar
+                          cedula={currentPractice.docente_cedula}
+                          name={currentPractice.docente_nombre}
+                          size="xs"
+                        />
                         <span>Docente: {currentPractice.docente_nombre || "Sin asignar"}</span>
-                      </span>
+                      </div>
                       {currentPractice.docente_correo && (
                         <span className="text-[11px] text-gray-500 dark:text-zinc-400">
                           ({currentPractice.docente_correo})

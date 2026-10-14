@@ -18,28 +18,75 @@ const KEYS = {
 };
 
 /**
- * Guarda o actualiza la sesión activa en el almacenamiento local.
+ * Guarda o actualiza la sesión activa en el almacenamiento local con protección contra QuotaExceededError.
  */
 export const saveActiveSession = (userRole, currentPage, userData, token) => {
-  if (userRole) {
-    localStorage.setItem(KEYS.USER_ROLE, userRole);
-    sessionStorage.setItem(KEYS.USER_ROLE, userRole);
+  try {
+    if (userRole) {
+      try {
+        localStorage.setItem(KEYS.USER_ROLE, userRole);
+        sessionStorage.setItem(KEYS.USER_ROLE, userRole);
+      } catch (e) {}
+    }
+    if (currentPage) {
+      try {
+        localStorage.setItem(KEYS.CURRENT_PAGE, currentPage);
+      } catch (e) {}
+    }
+    if (userData) {
+      let cleanData = userData;
+      if (typeof userData === "object" && userData !== null) {
+        cleanData = { ...userData };
+        // Evitar saturar la cuota de 5MB de localStorage con imágenes base64 gigantes
+        if (typeof cleanData.foto_perfil === "string" && cleanData.foto_perfil.length > 2000) {
+          cleanData.foto_perfil = cleanData.foto_url || null;
+        }
+        if (typeof cleanData.foto_firma === "string" && cleanData.foto_firma.length > 2000) {
+          delete cleanData.foto_firma;
+        }
+      }
+
+      const strData = typeof cleanData === "string" ? cleanData : JSON.stringify(cleanData);
+
+      try {
+        localStorage.setItem(KEYS.USER_DATA, strData);
+      } catch (quotaErr) {
+        console.warn("⚠️ localStorage quota excedida al guardar userData. Guardando versión compacta:", quotaErr);
+        try {
+          const minimalData = {
+            id: userData.id || userData.cedula,
+            cedula: userData.cedula || userData.id,
+            nombre: userData.nombre,
+            apellidos: userData.apellidos,
+            role: userRole || userData.role,
+            correo_institucional: userData.correo_institucional || userData.email,
+            foto_url: userData.foto_url || null,
+            has_photo: Boolean(userData.has_photo || userData.foto_perfil),
+          };
+          localStorage.setItem(KEYS.USER_DATA, JSON.stringify(minimalData));
+        } catch (minErr) {
+          console.error("No se pudo guardar datos mínimos en localStorage:", minErr);
+        }
+      }
+
+      try {
+        sessionStorage.setItem(KEYS.USER_DATA, strData);
+      } catch (e) {}
+    }
+    if (token) {
+      try {
+        localStorage.setItem(KEYS.AUTH_TOKEN, token);
+        localStorage.setItem("token", token);
+        sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
+        sessionStorage.setItem("token", token);
+      } catch (e) {}
+    }
+    try {
+      localStorage.setItem(KEYS.LAST_ACTIVITY, String(Date.now()));
+    } catch (e) {}
+  } catch (err) {
+    console.error("Error general en saveActiveSession:", err);
   }
-  if (currentPage) {
-    localStorage.setItem(KEYS.CURRENT_PAGE, currentPage);
-  }
-  if (userData) {
-    const strData = typeof userData === "string" ? userData : JSON.stringify(userData);
-    localStorage.setItem(KEYS.USER_DATA, strData);
-    sessionStorage.setItem(KEYS.USER_DATA, strData);
-  }
-  if (token) {
-    localStorage.setItem(KEYS.AUTH_TOKEN, token);
-    localStorage.setItem("token", token);
-    sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
-    sessionStorage.setItem("token", token);
-  }
-  localStorage.setItem(KEYS.LAST_ACTIVITY, String(Date.now()));
 };
 
 let lastTouchTime = 0;

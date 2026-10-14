@@ -170,11 +170,13 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
 
         // Breve pausa para que el usuario aprecie el 100% completado
         setTimeout(() => {
-          // Guardar sesión activa persistente
-          saveActiveSession(userRole, targetPage, userData, data.token);
-          clearSavedProgress();
-
-          // Llamamos al callback para redirigir
+          try {
+            saveActiveSession(userRole, targetPage, userData, data.token);
+            clearSavedProgress();
+          } catch (storageErr) {
+            console.warn("Aviso al guardar sesión activa:", storageErr);
+          }
+          // Siempre invocar onLoginSuccess para garantizar la redirección
           onLoginSuccess(userRole, targetPage, userData, data.token);
         }, 320);
       } else if (response.status === 403 || data.isDeactivated) {

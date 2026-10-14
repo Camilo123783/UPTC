@@ -167,14 +167,19 @@ const DocentProfile = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error al actualizar los datos.");
 
-      // Actualizar localStorage y sessionStorage para reflejar foto en Navbar inmediatamente
+      // Actualizar localStorage y sessionStorage para reflejar foto en Navbar inmediatamente de forma ligera
+      const cedulaDoc = getDocentCedula();
+      const photoEndpointUrl = photoPreview ? `/api/docent/photo/${cedulaDoc}?v=${Date.now()}` : null;
+
       ["userData", "user"].forEach((key) => {
         try {
           const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
           if (raw) {
             const parsed = JSON.parse(raw);
-            parsed.foto_perfil = photoPreview;
-            parsed.foto_firma = signaturePreview;
+            parsed.has_photo = Boolean(photoPreview);
+            parsed.foto_url = photoEndpointUrl;
+            delete parsed.foto_perfil;
+            delete parsed.foto_firma;
             localStorage.setItem(key, JSON.stringify(parsed));
             sessionStorage.setItem(key, JSON.stringify(parsed));
           }

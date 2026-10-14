@@ -33,6 +33,7 @@ import { RubricCriteriaViewer } from "../Shared/PracticeRubric";
 import { useAuth } from "../../utils/useAuth";
 import { useDataSync } from "../../utils/dataSync";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
+import DocentAvatar from "../Shared/DocentAvatar";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -466,14 +467,21 @@ const StudentPractices = () => {
                     </span>
                   </div>
 
-                  <div className="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Docente Asesor</span>
+                  <div className="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800 flex items-center gap-3">
+                    <DocentAvatar
+                      cedula={practice.docente_cedula}
+                      name={practice.docente_nombre}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span>Docente Asesor</span>
+                      </div>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200 truncate text-xs sm:text-sm">
+                        {practice.docente_nombre || "Por asignar"}
+                      </p>
                     </div>
-                    <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">
-                      {practice.docente_nombre || "Por asignar"}
-                    </p>
                   </div>
                 </div>
 
@@ -706,22 +714,29 @@ const StudentPractices = () => {
                   Docente y Auditoría
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Docente Supervisor</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm block">
-                      {selectedPractice.docente_nombre || "Por asignar"}
-                    </span>
-                    {selectedPractice.docente_correo && (
-                      <div className="mt-1">
-                        <a
-                          href={`mailto:${selectedPractice.docente_correo}`}
-                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>{selectedPractice.docente_correo}</span>
-                        </a>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <DocentAvatar
+                      cedula={selectedPractice.docente_cedula}
+                      name={selectedPractice.docente_nombre}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Docente Supervisor</span>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm block truncate">
+                        {selectedPractice.docente_nombre || "Por asignar"}
+                      </span>
+                      {selectedPractice.docente_correo && (
+                        <div className="mt-1">
+                          <a
+                            href={`mailto:${selectedPractice.docente_correo}`}
+                            className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{selectedPractice.docente_correo}</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Auditor Clínico</span>

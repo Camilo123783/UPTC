@@ -43,6 +43,7 @@ import {
 import uptcLogo from "../../assets/images/uptc.png";
 import facultyLogo from "../../assets/images/logooo.png";
 import { SkeletonCardGrid, SkeletonStatsRow } from "../Shared/Skeleton";
+import DocentAvatar from "../Shared/DocentAvatar";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -1105,10 +1106,12 @@ const AdminReports = () => {
 
                           {/* Docente */}
                           <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1">
-                              <UserCheck className="w-3.5 h-3.5 text-gray-500" />
-                              Tutor:
-                            </span>
+                            <DocentAvatar
+                              cedula={pr.docente_cedula}
+                              name={pr.docente_nombre}
+                              size="xs"
+                            />
+                            <span>Tutor:</span>
                             <span className="font-semibold text-gray-700 dark:text-zinc-200">
                               {pr.docente_nombre || "Docente UPTC"}
                             </span>
@@ -1145,8 +1148,7 @@ const AdminReports = () => {
                               {totalStudents} Estudiantes
                             </span>
                             <span className="text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1">
-                              <Star className="w-3.5 h-3.5" />
-                              {evaluatedCount} con notas
+                              {evaluatedCount} calificado{evaluatedCount === 1 ? "" : "s"}
                             </span>
                           </div>
 

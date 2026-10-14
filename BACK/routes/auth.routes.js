@@ -133,6 +133,25 @@ async function authenticateUser(tableName, cedula, password, roleName) {
 
   // Nunca devolver el hash de la contraseña
   delete user.password;
+
+  // Optimización crítica de payload para login ultrarrápido y evitar QuotaExceededError en el frontend:
+  // Si el usuario tiene foto_perfil o foto_firma en base64 de varios megabytes,
+  // se reemplaza por la URL del endpoint y un indicador booleano.
+  if (user.foto_perfil) {
+    user.has_photo = true;
+    user.foto_url =
+      roleName === "docent"
+        ? `/api/docent/photo/${user.cedula}`
+        : roleName === "student"
+        ? `/api/student/photo/${user.cedula}`
+        : null;
+    delete user.foto_perfil;
+  }
+  if (user.foto_firma) {
+    user.has_signature = true;
+    delete user.foto_firma;
+  }
+
   return { ...user, role: roleName };
 }
 
