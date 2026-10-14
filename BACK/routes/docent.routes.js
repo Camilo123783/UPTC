@@ -1474,9 +1474,9 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         practiceStartDate: r.fecha_inicio ? new Date(r.fecha_inicio).toISOString().substring(0, 10) : "2024-02-01",
         practiceEndDate: r.fecha_fin ? new Date(r.fecha_fin).toISOString().substring(0, 10) : "2024-06-30",
         practiceStatus: r.practica_estado || "Activa",
+        criterios: criteriosParsed,
         likertScores: criteriosParsed || (auditorReport ? auditorReport.likert : null),
         auditorReport: auditorReport,
-        auditorReport,
         horas_cumplidas: Number(r.horas_cumplidas || 0),
         horas_asignadas: totalAsignadas,
         horas_totales: totalAsignadas,
@@ -1627,9 +1627,31 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
       } catch (e) {}
     }
 
+    const requiredRubricIds = (Array.isArray(activeRubricIds) && activeRubricIds.length > 0)
+      ? activeRubricIds
+      : DEFAULT_RUBRIC_CRITERIA_IDS;
+
+    if (!criterios || typeof criterios !== "object" || Object.keys(criterios).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Debes calificar todos los ítems de la rúbrica formativa antes de guardar la nota de la evaluación.",
+      });
+    }
+
+    const missingCriteria = requiredRubricIds.filter(
+      (cId) => criterios[cId] === undefined || criterios[cId] === null || isNaN(Number(criterios[cId]))
+    );
+
+    if (missingCriteria.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `No se puede guardar la evaluación: faltan ${missingCriteria.length} ítem(s) por calificar en la rúbrica (${requiredRubricIds.length - missingCriteria.length}/${requiredRubricIds.length} completados).`,
+      });
+    }
+
     let numScore = parseFloat(calificacion);
     if (criterios && typeof criterios === "object") {
-      // Calcular a partir de los 10 criterios de la rúbrica
+      // Calcular a partir de los criterios de la rúbrica
       const calculatedFromRubric = calculateScoreFromCriteriaMap(criterios, activeRubricIds);
       if (!isNaN(calculatedFromRubric) && calculatedFromRubric > 0) {
         numScore = calculatedFromRubric;
@@ -2780,6 +2802,39 @@ router.post("/practices/:practiceId/students/:cedula/validate", async (req, res,
     const { estado } = req.body;
 
     const validState = estado === "Activo" ? "Activo" : "Pendiente";
+
+    // Si se intenta dar el aval ('Activo'), verificar obligatoriamente que el estudiante haya cargado sus 6 documentos
+    if (validState === "Activo") {
+      const docRows = await queryDB(`
+        SELECT 
+          (hoja_vida_digital IS NOT NULL) AS has_cv,
+          (seguridad_social_eps IS NOT NULL) AS has_eps,
+          (riesgos_profesionales_arl IS NOT NULL) AS has_arl,
+          (copia_documento_identidad IS NOT NULL) AS has_id,
+          (copia_carnet_estudiantil IS NOT NULL) AS has_carnet,
+          (carnet_vacunas IS NOT NULL) AS has_vaccines
+        FROM datos_estudiante
+        WHERE cedula_estudiante = ?
+        LIMIT 1
+      `, [cedula]);
+
+      const docInfo = docRows[0] || {};
+      const uploadedCount = [
+        docInfo.has_cv,
+        docInfo.has_eps,
+        docInfo.has_arl,
+        docInfo.has_id,
+        docInfo.has_carnet,
+        docInfo.has_vaccines,
+      ].filter(Boolean).length;
+
+      if (uploadedCount < 6) {
+        return res.status(400).json({
+          success: false,
+          message: `No se puede otorgar el aval al estudiante. Solo tiene ${uploadedCount} de 6 documentos cargados. Debe cargar la totalidad de los 6 documentos para poder recibir el aval docente.`,
+        });
+      }
+    }
 
     // Verificar permisos del docente en la práctica
     if (req.user?.role === "docent") {

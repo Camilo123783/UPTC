@@ -1089,7 +1089,16 @@ router.delete(["/users/:id", "/user/:id"], async (req, res, next) => {
         userName = `${userRow.nombre || ""} ${userRow.apellidos || ""}`.trim() || `Usuario #${userCedula || userId}`;
 
         // 1. Condición estricta: No se puede eliminar a él mismo si la sesión está activa
-        if (req.user?.cedula && userCedula && String(req.user.cedula).trim() === String(userCedula).trim()) {
+        const activeCedula = req.user?.cedula !== undefined && req.user?.cedula !== null
+          ? String(req.user.cedula).trim()
+          : "";
+        const targetCedulaStr = userCedula !== undefined && userCedula !== null
+          ? String(userCedula).trim()
+          : "";
+        const isSameCedula = activeCedula !== "" && targetCedulaStr !== "" && activeCedula === targetCedulaStr;
+        const isSameIdAndRole = req.user?.id != null && Number(req.user.id) === Number(userId) && req.user?.role === role.roleName;
+
+        if (isSameCedula || isSameIdAndRole) {
           return res.status(403).json({
             success: false,
             message: "No puedes eliminar tu propia cuenta mientras tu sesión esté activa.",

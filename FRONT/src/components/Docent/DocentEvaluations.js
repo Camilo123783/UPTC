@@ -12,6 +12,8 @@ import {
   Stethoscope,
   Zap,
   Save,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { generateCsv, generatePdf } from '../../utils/reportGenerator';
 import { BACKEND_URL } from '../../config/api';
@@ -86,17 +88,51 @@ const DocentEvaluations = () => {
   const [rubricScores, setRubricScores] = useState({});
   const [overallFeedback, setOverallFeedback] = useState('');
 
+  const activeCriteriaIds = useMemo(() => {
+    return parseRubricCriteriaIds(selectedEvaluation?.rubrica_criterios);
+  }, [selectedEvaluation]);
+
+  const scoredCriteriaCount = useMemo(() => {
+    return activeCriteriaIds.filter(
+      (id) => rubricScores[id] !== undefined && rubricScores[id] !== null && !isNaN(Number(rubricScores[id]))
+    ).length;
+  }, [activeCriteriaIds, rubricScores]);
+
+  const isAllCriteriaScored = useMemo(() => {
+    return activeCriteriaIds.length > 0 && scoredCriteriaCount === activeCriteriaIds.length;
+  }, [activeCriteriaIds, scoredCriteriaCount]);
+
   const handleEvaluateClick = (evaluation) => {
     setSelectedEvaluation(evaluation);
-    const existingCriterios = evaluation.criterios && typeof evaluation.criterios === "object" && Object.keys(evaluation.criterios).length > 0
-      ? evaluation.criterios
-      : (evaluation.auditorReport?.criterios_rubrica || {});
-    setRubricScores(existingCriterios || {});
+    let saved = null;
+    if (evaluation.criterios && typeof evaluation.criterios === "object" && Object.keys(evaluation.criterios).length > 0) {
+      saved = evaluation.criterios;
+    } else if (typeof evaluation.criterios === "string") {
+      try {
+        const p = JSON.parse(evaluation.criterios);
+        if (p && Object.keys(p).length > 0) saved = p;
+      } catch (e) {}
+    } else if (evaluation.likertScores && typeof evaluation.likertScores === "object" && Object.keys(evaluation.likertScores).length > 0) {
+      saved = evaluation.likertScores;
+    }
+
+    if (saved && Object.keys(saved).length > 0) {
+      setRubricScores({ ...saved });
+    } else {
+      setRubricScores({});
+    }
     setOverallFeedback(evaluation.feedback || '');
   };
 
   const handleSubmitEvaluation = async () => {
     if (!selectedEvaluation) return;
+
+    if (!isAllCriteriaScored) {
+      toast.error(
+        `Debes calificar todos los ítems de la rúbrica formativa (${scoredCriteriaCount}/${activeCriteriaIds.length} completados) antes de guardar la nota.`
+      );
+      return;
+    }
 
     const totalScore = calculateRubricTotal(rubricScores, selectedEvaluation.rubrica_criterios);
 
@@ -437,20 +473,43 @@ const DocentEvaluations = () => {
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              onClick={() => setSelectedEvaluation(null)}
-              className="py-2.5 px-4 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-            >
-              Cancelar
-            </button>
-            <button
-              disabled={isSaving}
-              onClick={handleSubmitEvaluation}
-              className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isSaving ? "Guardando..." : <><Save className="w-3.5 h-3.5" /> Guardar Calificación Oficial</>}
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-zinc-800">
+            <div>
+              {!isAllCriteriaScored ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>Faltan {activeCriteriaIds.length - scoredCriteriaCount} de {activeCriteriaIds.length} ítems por calificar</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Todos los {activeCriteriaIds.length} ítems calificados ({calculateRubricTotal(rubricScores, selectedEvaluation.rubrica_criterios).toFixed(1)} / 5.0)</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => setSelectedEvaluation(null)}
+                className="py-2.5 px-4 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isSaving || !isAllCriteriaScored}
+                onClick={handleSubmitEvaluation}
+                className={`py-2.5 px-5 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 ${
+                  isAllCriteriaScored
+                    ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                    : "bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 border border-gray-300 dark:border-zinc-700 cursor-not-allowed opacity-60"
+                }`}
+                title={!isAllCriteriaScored ? `Debes calificar los ${activeCriteriaIds.length} ítems antes de guardar` : "Guardar calificación oficial"}
+              >
+                {isSaving ? "Guardando..." : <><Save className="w-3.5 h-3.5" /> Guardar Calificación Oficial</>}
+              </button>
+            </div>
           </div>
         </div>
       )}

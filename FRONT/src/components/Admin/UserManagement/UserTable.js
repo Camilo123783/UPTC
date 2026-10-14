@@ -57,19 +57,43 @@ const RoleSection = ({
   ITEMS_PER_PAGE = 10,
 }) => {
   const effectiveCurrentCedula = String(
-    currentUserCedula ||
-    (typeof window !== "undefined"
-      ? (() => {
-          try {
-            const raw = sessionStorage.getItem("userData") || localStorage.getItem("userData");
-            if (raw) {
-              const p = typeof raw === "string" ? JSON.parse(raw) : raw;
-              if (p && (p.cedula || p.Cédula)) return String(p.cedula || p.Cédula).trim();
-            }
-          } catch (e) {}
-          return "";
-        })()
-      : "")
+    currentUserCedula !== undefined && currentUserCedula !== null && String(currentUserCedula).trim() !== ""
+      ? currentUserCedula
+      : (typeof window !== "undefined"
+          ? (() => {
+              try {
+                const raw = sessionStorage.getItem("userData") || localStorage.getItem("userData");
+                if (raw) {
+                  const p = typeof raw === "string" ? JSON.parse(raw) : raw;
+                  if (p) {
+                    if (p.cedula !== undefined && p.cedula !== null && String(p.cedula).trim() !== "") {
+                      return String(p.cedula).trim();
+                    }
+                    if (p.Cédula !== undefined && p.Cédula !== null && String(p.Cédula).trim() !== "") {
+                      return String(p.Cédula).trim();
+                    }
+                  }
+                }
+              } catch (e) {}
+              try {
+                const token =
+                  localStorage.getItem("authToken") ||
+                  sessionStorage.getItem("authToken") ||
+                  localStorage.getItem("token") ||
+                  sessionStorage.getItem("token");
+                if (token) {
+                  const parts = token.split(".");
+                  if (parts.length === 3) {
+                    const payload = JSON.parse(atob(parts[1]));
+                    if (payload && payload.cedula !== undefined && payload.cedula !== null) {
+                      return String(payload.cedula).trim();
+                    }
+                  }
+                }
+              } catch (e) {}
+              return "";
+            })()
+          : "")
   ).trim();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -369,10 +393,17 @@ const RoleSection = ({
                         ? isCurrentSuperadmin
                         : (isCurrentAdmin || isCurrentSuperadmin);
 
+                      const targetCedulaStr =
+                        user?.Cédula !== undefined && user?.Cédula !== null
+                          ? String(user.Cédula).trim()
+                          : user?.cedula !== undefined && user?.cedula !== null
+                          ? String(user.cedula).trim()
+                          : "";
+
                       const isSelf = Boolean(
-                        effectiveCurrentCedula &&
-                        user?.Cédula &&
-                        effectiveCurrentCedula === String(user.Cédula).trim()
+                        effectiveCurrentCedula !== "" &&
+                        targetCedulaStr !== "" &&
+                        effectiveCurrentCedula === targetCedulaStr
                       );
 
                       // Regla de negocio estricta:
@@ -504,23 +535,24 @@ const RoleSection = ({
                               >
                                 <Edit3 className="w-3.5 h-3.5" /> Editar
                               </button>
-                              {canDeleteTarget && (
-                                <button
-                                  type="button"
-                                  onClick={() => requestDeleteUser(user)}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                                    isSelf
-                                      ? "text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700"
-                                      : "text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800"
-                                  }`}
-                                  title={
-                                    isSelf
-                                      ? "No puedes eliminar tu propia cuenta mientras tu sesión esté activa"
-                                      : "Eliminar usuario"
-                                  }
+                              {isSelf ? (
+                                <span
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 cursor-not-allowed select-none"
+                                  title="Tu cuenta actual (sesión activa). No se puede eliminar a sí mismo."
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                                </button>
+                                  <Shield className="w-3.5 h-3.5 text-amber-500" /> Sesión Activa
+                                </span>
+                              ) : (
+                                canDeleteTarget && (
+                                  <button
+                                    type="button"
+                                    onClick={() => requestDeleteUser(user)}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                                    title="Eliminar usuario"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                                  </button>
+                                )
                               )}
                             </div>
                           </td>
@@ -588,19 +620,43 @@ export const UserTable = ({
   const isSuperadmin = String(userRole || "").toLowerCase().trim() === "superadmin";
 
   const saCurrentCedula = String(
-    currentUserCedula ||
-    (typeof window !== "undefined"
-      ? (() => {
-          try {
-            const raw = sessionStorage.getItem("userData") || localStorage.getItem("userData");
-            if (raw) {
-              const p = typeof raw === "string" ? JSON.parse(raw) : raw;
-              if (p && (p.cedula || p.Cédula)) return String(p.cedula || p.Cédula).trim();
-            }
-          } catch (e) {}
-          return "";
-        })()
-      : "")
+    currentUserCedula !== undefined && currentUserCedula !== null && String(currentUserCedula).trim() !== ""
+      ? currentUserCedula
+      : (typeof window !== "undefined"
+          ? (() => {
+              try {
+                const raw = sessionStorage.getItem("userData") || localStorage.getItem("userData");
+                if (raw) {
+                  const p = typeof raw === "string" ? JSON.parse(raw) : raw;
+                  if (p) {
+                    if (p.cedula !== undefined && p.cedula !== null && String(p.cedula).trim() !== "") {
+                      return String(p.cedula).trim();
+                    }
+                    if (p.Cédula !== undefined && p.Cédula !== null && String(p.Cédula).trim() !== "") {
+                      return String(p.Cédula).trim();
+                    }
+                  }
+                }
+              } catch (e) {}
+              try {
+                const token =
+                  localStorage.getItem("authToken") ||
+                  sessionStorage.getItem("authToken") ||
+                  localStorage.getItem("token") ||
+                  sessionStorage.getItem("token");
+                if (token) {
+                  const parts = token.split(".");
+                  if (parts.length === 3) {
+                    const payload = JSON.parse(atob(parts[1]));
+                    if (payload && payload.cedula !== undefined && payload.cedula !== null) {
+                      return String(payload.cedula).trim();
+                    }
+                  }
+                }
+              } catch (e) {}
+              return "";
+            })()
+          : "")
   ).trim();
 
   // Para superadmin: estado de búsqueda y ordenamiento exclusivo
@@ -745,10 +801,17 @@ export const UserTable = ({
                     : user.activo !== undefined
                     ? !!user.activo
                     : true;
+                const targetCedulaStr =
+                  user?.Cédula !== undefined && user?.Cédula !== null
+                    ? String(user.Cédula).trim()
+                    : user?.cedula !== undefined && user?.cedula !== null
+                    ? String(user.cedula).trim()
+                    : "";
+
                 const isSelf = Boolean(
-                  saCurrentCedula &&
-                  user?.Cédula &&
-                  saCurrentCedula === String(user.Cédula).trim()
+                  saCurrentCedula !== "" &&
+                  targetCedulaStr !== "" &&
+                  saCurrentCedula === targetCedulaStr
                 );
                 return (
                   <tr
@@ -828,22 +891,23 @@ export const UserTable = ({
                         >
                           <Edit3 className="w-3.5 h-3.5" /> Editar
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => requestDeleteUser(user)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                            isSelf
-                              ? "text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700"
-                              : "text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800"
-                          }`}
-                          title={
-                            isSelf
-                              ? "No puedes eliminar tu propia cuenta mientras tu sesión esté activa"
-                              : "Eliminar usuario"
-                          }
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                        </button>
+                        {isSelf ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 cursor-not-allowed select-none"
+                            title="Tu cuenta actual (sesión activa). No puedes eliminar tu propia cuenta."
+                          >
+                            <Shield className="w-3.5 h-3.5 text-amber-500" /> Sesión Activa
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => requestDeleteUser(user)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-700 dark:text-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

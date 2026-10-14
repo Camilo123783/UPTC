@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import StudentAvatar from "../Shared/StudentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
+import ClinicalReportModal from "./ClinicalReportModal";
 import { generateCsv } from "../../utils/reportGenerator";
 import toast from "../../utils/toast";
 import { SkeletonTable, SkeletonCardGrid } from "../Shared/Skeleton";
@@ -51,6 +52,13 @@ const AuditorUserViewer = () => {
 
   // Modal para ver ficha completa e integral de un estudiante
   const [selectedStudentForFicha, setSelectedStudentForFicha] = useState(null);
+
+  // Modal para emisión / edición de informe clínico con rúbrica por el auditor
+  const [clinicalReportModal, setClinicalReportModal] = useState({
+    isOpen: false,
+    student: null,
+    practice: null,
+  });
 
   // Datos del auditor actual desde la sesión
   const currentUser = useMemo(() => {
@@ -772,20 +780,46 @@ const AuditorUserViewer = () => {
 
                                       {/* Estado Informe */}
                                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        {hasReport ? (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                                            <CheckCircle2 className="w-3 h-3" />
-                                            <span>
-                                              {st.nota_sugerida !== null ? `${Number(st.nota_sugerida).toFixed(1)} - ` : ""}
-                                              {st.concepto || "Emitido"}
-                                            </span>
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                                            <Clock className="w-3 h-3" />
-                                            <span>Pendiente</span>
-                                          </span>
-                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setClinicalReportModal({
+                                              isOpen: true,
+                                              student: {
+                                                ...st,
+                                                fullName: st.nombre_completo || st.nombre,
+                                                criterios_rubrica: st.criterios_rubrica,
+                                                observaciones: st.observaciones || st.report_observaciones,
+                                              },
+                                              practice: pr,
+                                            })
+                                          }
+                                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm group ${
+                                            hasReport
+                                              ? "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                              : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                          }`}
+                                          title={
+                                            hasReport
+                                              ? `Calificación sugerida: ${st.nota_sugerida !== null ? Number(st.nota_sugerida).toFixed(1) : ""} (${st.concepto || "Emitido"}). Clic para ver o modificar la rúbrica formativa.`
+                                              : "Calificar al estudiante en sitio con la rúbrica oficial de la práctica (Guía confidencial para el docente)"
+                                          }
+                                        >
+                                          {hasReport ? (
+                                            <>
+                                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                              <span>
+                                                {st.nota_sugerida !== null ? `${Number(st.nota_sugerida).toFixed(1)} - ` : ""}
+                                                {st.concepto || "Emitido"}
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+                                              <span>Calificar Rúbrica (Pendiente)</span>
+                                            </>
+                                          )}
+                                        </button>
                                       </td>
 
                                       {/* Ver Documentos y Ficha Integral */}
@@ -825,6 +859,20 @@ const AuditorUserViewer = () => {
       student={selectedStudentForFicha}
       role="auditor"
     />
+
+    {/* Modal de Informe Clínico y Evaluación Formativa con Rúbrica */}
+    {clinicalReportModal.isOpen && (
+      <ClinicalReportModal
+        isOpen={clinicalReportModal.isOpen}
+        onClose={() => setClinicalReportModal({ isOpen: false, student: null, practice: null })}
+        student={clinicalReportModal.student}
+        practice={clinicalReportModal.practice}
+        onSuccess={() => {
+          fetchPracticesAndUsers();
+          setClinicalReportModal({ isOpen: false, student: null, practice: null });
+        }}
+      />
+    )}
   </div>
 );
 };

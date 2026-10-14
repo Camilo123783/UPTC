@@ -1288,7 +1288,7 @@ const DashboardLayout = ({
                   </span>{" "}
                   <span>{fullName}</span>
                 </h3>
-                {currentUserData?.cedula && (
+                {currentUserData?.cedula !== undefined && currentUserData?.cedula !== null && String(currentUserData.cedula).trim() !== "" && (
                   <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 font-mono">
                     C.C. {currentUserData.cedula}
                   </p>

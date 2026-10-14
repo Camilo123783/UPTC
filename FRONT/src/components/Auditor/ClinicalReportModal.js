@@ -30,18 +30,20 @@ const ClinicalReportModal = ({
     return ids.length === 10 ? ids : DEFAULT_RUBRIC_CRITERIA_IDS;
   }, [practice?.rubrica_criterios]);
 
-  const [criteriosRubrica, setCriteriosRubrica] = useState(() => {
-    const initial = {};
-    activeCriteriaIds.forEach((id) => {
-      initial[id] = 0.5; // Por defecto "Siempre" (0.5)
-    });
-    return initial;
-  });
-
+  const [criteriosRubrica, setCriteriosRubrica] = useState({});
   const [observaciones, setObservaciones] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+  // Conteo estricto de criterios evaluados
+  const scoredCriteriaCount = useMemo(() => {
+    return activeCriteriaIds.filter(
+      (id) => typeof criteriosRubrica[id] === "number" && !isNaN(criteriosRubrica[id])
+    ).length;
+  }, [criteriosRubrica, activeCriteriaIds]);
+
+  const isAllCriteriaScored = activeCriteriaIds.length > 0 && scoredCriteriaCount === activeCriteriaIds.length;
 
   // Calcular nota sugerida y concepto a partir de la rúbrica oficial
   const notaSugerida = useMemo(
@@ -61,6 +63,28 @@ const ClinicalReportModal = ({
     let isMounted = true;
     const loadReport = async () => {
       setIsLoadingExisting(true);
+      setFeedbackMsg(null);
+
+      // Si el estudiante ya trae criterios en el objeto props, usarlos de entrada
+      let initialCriteria = null;
+      if (student.criterios_rubrica) {
+        try {
+          initialCriteria =
+            typeof student.criterios_rubrica === "string"
+              ? JSON.parse(student.criterios_rubrica)
+              : student.criterios_rubrica;
+        } catch (e) {
+          console.warn("Error parsing student.criterios_rubrica:", e);
+        }
+      }
+
+      if (initialCriteria && Object.keys(initialCriteria).length > 0) {
+        setCriteriosRubrica(initialCriteria);
+        if (student.observaciones || student.report_observaciones) {
+          setObservaciones(student.observaciones || student.report_observaciones);
+        }
+      }
+
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       try {
         const res = await fetch(
@@ -84,23 +108,12 @@ const ClinicalReportModal = ({
 
             if (parsedCriteria && Object.keys(parsedCriteria).length > 0) {
               setCriteriosRubrica(parsedCriteria);
-            } else {
-              // Si no tiene criterios detallados aún, inicializar con 0.5
-              const fallback = {};
-              activeCriteriaIds.forEach((id) => {
-                fallback[id] = 0.5;
-              });
-              setCriteriosRubrica(fallback);
             }
 
             setObservaciones(data.report.observaciones || "");
-          } else if (isMounted) {
-            // Reporte nuevo: inicializar con 0.5
-            const fresh = {};
-            activeCriteriaIds.forEach((id) => {
-              fresh[id] = 0.5;
-            });
-            setCriteriosRubrica(fresh);
+          } else if (isMounted && (!initialCriteria || Object.keys(initialCriteria).length === 0)) {
+            // Reporte completamente nuevo: iniciar vacío
+            setCriteriosRubrica({});
             setObservaciones("");
           }
         }
@@ -121,6 +134,15 @@ const ClinicalReportModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isAllCriteriaScored) {
+      setFeedbackMsg({
+        type: "error",
+        text: `Debes calificar los ${activeCriteriaIds.length} ítems de la rúbrica antes de guardar (llevas ${scoredCriteriaCount}/${activeCriteriaIds.length}).`,
+      });
+      return;
+    }
+
     if (!observaciones.trim()) {
       setFeedbackMsg({
         type: "error",
@@ -193,16 +215,16 @@ const ClinicalReportModal = ({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-3xl my-6 overflow-hidden transform transition-all max-h-[92vh] flex flex-col">
-        {/* Cabecera */}
-        <div className="px-6 py-4 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between shrink-0">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-4xl my-auto max-h-[92vh] flex flex-col overflow-hidden transform transition-all">
+        {/* Cabecera Fija */}
+        <div className="px-5 sm:px-6 py-4 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shrink-0">
               <ClipboardList className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
                 Evaluación Formativa en Sitio del Auditor
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
                   Guía Docente
@@ -215,73 +237,74 @@ const ClinicalReportModal = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Contenido con scroll */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {/* Tarjeta de Información de Práctica y Confidencialidad */}
-          <div className="p-4 bg-gray-50 dark:bg-zinc-850 rounded-2xl border border-gray-200/80 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="text-gray-400 dark:text-zinc-500 block text-[11px]">Estudiante Evaluado:</span>
-              <span className="font-bold text-gray-900 dark:text-white text-sm">
-                {student.fullName || `${student.nombre} ${student.apellidos}`}
-              </span>
-              <span className="text-gray-500 dark:text-zinc-400 block mt-0.5">
-                C.C. {student.cedula} {student.codigo ? `· Cód: ${student.codigo}` : ""}
-              </span>
+        {/* Formulario envolvente para sticky footer */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          {/* Contenido con scroll interno */}
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+            {/* Tarjeta de Información de Práctica y Confidencialidad */}
+            <div className="p-4 bg-gray-50 dark:bg-zinc-850 rounded-2xl border border-gray-200/80 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="text-gray-400 dark:text-zinc-500 block text-[11px]">Estudiante Evaluado:</span>
+                <span className="font-bold text-gray-900 dark:text-white text-sm">
+                  {student.fullName || `${student.nombre} ${student.apellidos}`}
+                </span>
+                <span className="text-gray-500 dark:text-zinc-400 block mt-0.5">
+                  C.C. {student.cedula} {student.codigo ? `· Cód: ${student.codigo}` : ""}
+                </span>
+              </div>
+              <div className="sm:text-right">
+                <span className="text-gray-400 dark:text-zinc-500 block text-[11px]">Docente a Quien se Reporta:</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400 block">
+                  {practice.docente_nombre || "Docente a cargo"}
+                </span>
+                <span className="text-gray-500 dark:text-zinc-400 block mt-0.5">
+                  {practice.titulo} ({practice.servicio_nombre || "Servicio Clínico"})
+                </span>
+              </div>
             </div>
-            <div className="sm:text-right">
-              <span className="text-gray-400 dark:text-zinc-500 block text-[11px]">Docente a Quien se Reporta:</span>
-              <span className="font-bold text-amber-600 dark:text-amber-400 block">
-                {practice.docente_nombre || "Docente a cargo"}
-              </span>
-              <span className="text-gray-500 dark:text-zinc-400 block mt-0.5">
-                {practice.titulo} ({practice.servicio_nombre || "Servicio Clínico"})
-              </span>
-            </div>
-          </div>
 
-          {/* Aviso Institucional de Privacidad de la Nota del Auditor */}
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="leading-relaxed">
-              <strong>Aviso de Confidencialidad Asistencial:</strong> Esta evaluación emitida por auditoría{" "}
-              <strong>NO es la nota final del estudiante</strong>. Es un informe formativo en sitio que{" "}
-              <strong>solo el docente tutor puede ver</strong> para servirle de guía al calificar. El estudiante{" "}
-              <strong>no tiene acceso</strong> a esta nota sugerida.
+            {/* Aviso Institucional de Privacidad de la Nota del Auditor */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <strong>Aviso de Confidencialidad Asistencial:</strong> Esta evaluación emitida por auditoría{" "}
+                <strong>NO es la nota final del estudiante</strong>. Es un informe formativo en sitio que{" "}
+                <strong>solo el docente tutor puede ver</strong> para servirle de guía al calificar. El estudiante{" "}
+                <strong>no tiene acceso</strong> a esta nota sugerida.
+              </div>
             </div>
-          </div>
 
-          {feedbackMsg && (
-            <div
-              className={`p-3 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
-                feedbackMsg.type === "success"
-                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                  : "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
-              }`}
-            >
-              <span>{feedbackMsg.text}</span>
-            </div>
-          )}
+            {feedbackMsg && (
+              <div
+                className={`p-3 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                  feedbackMsg.type === "success"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20"
+                }`}
+              >
+                <span>{feedbackMsg.text}</span>
+              </div>
+            )}
 
-          {isLoadingExisting && (
-            <div className="p-3 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-2xl text-xs flex items-center gap-2">
-              <span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
-              <span>Cargando evaluación previa del estudiante...</span>
-            </div>
-          )}
+            {isLoadingExisting && (
+              <div className="p-3 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-2xl text-xs flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
+                <span>Cargando evaluación previa del estudiante...</span>
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Componente Oficial de los 10 Criterios de la Rúbrica */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                 <span className="text-xs font-black text-gray-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  Rúbrica Institucional (10 Criterios Configurados)
+                  Rúbrica Institucional ({activeCriteriaIds.length} Criterios Configurados)
                 </span>
                 <span className="text-[11px] text-gray-500 dark:text-zinc-400">
                   Escala de Siempre (+0.5) a No cumple (+0.1)
@@ -310,9 +333,25 @@ const ClinicalReportModal = ({
                 className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none transition resize-none leading-relaxed"
               />
             </div>
+          </div>
 
-            {/* Botones de Acción */}
-            <div className="pt-2 flex items-center justify-end gap-3">
+          {/* Pie Fijo con Progreso de Calificación y Acciones */}
+          <div className="px-5 sm:px-6 py-3.5 bg-gray-50/90 dark:bg-zinc-950/90 border-t border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+            <div>
+              {isAllCriteriaScored ? (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>{activeCriteriaIds.length} de {activeCriteriaIds.length} ítems calificados · Sugerida: {notaSugerida.toFixed(1)} ({conceptoAutomatico})</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Faltan {activeCriteriaIds.length - scoredCriteriaCount} ítems por calificar ({scoredCriteriaCount}/{activeCriteriaIds.length})</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
               <button
                 type="button"
                 onClick={onClose}
@@ -323,13 +362,22 @@ const ClinicalReportModal = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-600 text-gray-900 shadow-md shadow-amber-500/20 transition disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                disabled={!isAllCriteriaScored || isSubmitting}
+                className={`px-5 py-2.5 text-xs font-black rounded-xl transition flex items-center gap-2 cursor-pointer shadow-md ${
+                  isAllCriteriaScored && !isSubmitting
+                    ? "bg-amber-500 hover:bg-amber-600 text-gray-900 shadow-amber-500/20"
+                    : "bg-gray-300 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 cursor-not-allowed border border-gray-200 dark:border-zinc-700"
+                }`}
+                title={!isAllCriteriaScored ? `Debes calificar todos los ${activeCriteriaIds.length} criterios para guardar` : ""}
               >
                 {isSubmitting ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></span>
+                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                     <span>Enviando al Docente...</span>
+                  </>
+                ) : !isAllCriteriaScored ? (
+                  <>
+                    <span>Califica todos los ítems ({scoredCriteriaCount}/{activeCriteriaIds.length})</span>
                   </>
                 ) : (
                   <>
@@ -338,8 +386,8 @@ const ClinicalReportModal = ({
                 )}
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

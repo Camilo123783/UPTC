@@ -633,6 +633,7 @@ const AdminReports = () => {
         endDate: currentPractice.fecha_fin || "Final del Periodo",
         totalHours: currentPractice.horas_totales || 120,
         accumulatedHours: realStudentHours,
+        practiceStatus: currentPractice.estado || "Planificada",
         issueDate,
         directorName,
         directorRole,
@@ -722,6 +723,7 @@ const AdminReports = () => {
           endDate: currentPractice.fecha_fin || "Final del Periodo",
           totalHours: currentPractice.horas_totales || 120,
           accumulatedHours: studentRealHours,
+          practiceStatus: currentPractice.estado || "Planificada",
           issueDate,
           directorName,
           directorRole,
@@ -1544,15 +1546,32 @@ const AdminReports = () => {
                         </div>
                       </div>
 
-                      {/* Título Principal y Badge de Estado (Sin Radicado) */}
+                      {/* Título Principal y Badge de Estado Dinámico */}
                       <div className="space-y-1.5 my-1">
                         <div className="text-center">
                           <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase">
                             CONSTANCIA DE PRÁCTICA FORMATIVA VIGENTE
                           </h3>
-                          <span className="inline-block px-3 py-0.5 rounded-full text-[8.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 mt-1">
-                            ESTADO: VIGENTE / EN CURSO
-                          </span>
+                          {(() => {
+                            const rawStatus = String(currentPractice?.estado || "Planificada").trim().toLowerCase();
+                            let badgeLabel = "ESTADO: VIGENTE / EN CURSO";
+                            let badgeStyle = "bg-emerald-100 text-emerald-800 border-emerald-300";
+                            if (rawStatus === "planificada") {
+                              badgeLabel = "ESTADO: PLANIFICADA";
+                              badgeStyle = "bg-sky-100 text-sky-800 border-sky-300";
+                            } else if (rawStatus === "finalizada") {
+                              badgeLabel = "ESTADO: FINALIZADA";
+                              badgeStyle = "bg-purple-100 text-purple-800 border-purple-300";
+                            } else if (rawStatus === "cancelada") {
+                              badgeLabel = "ESTADO: CANCELADA";
+                              badgeStyle = "bg-rose-100 text-rose-800 border-rose-300";
+                            }
+                            return (
+                              <span className={`inline-block px-3 py-0.5 rounded-full text-[8.5px] font-black border mt-1 ${badgeStyle}`}>
+                                {badgeLabel}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -1622,9 +1641,23 @@ const AdminReports = () => {
                             </span>
                           </div>
                           <div className="grid grid-cols-12 p-1">
-                            <span className="col-span-5 font-semibold text-slate-600">Estado de Vigencia:</span>
-                            <span className="col-span-7 font-bold text-emerald-600">
-                              ACTIVA / EN CURSO
+                            <span className="col-span-5 font-semibold text-slate-600">Estado de la Práctica:</span>
+                            <span className={`col-span-7 font-bold ${
+                              (currentPractice?.estado || "").toLowerCase() === "planificada"
+                                ? "text-sky-700"
+                                : (currentPractice?.estado || "").toLowerCase() === "finalizada"
+                                ? "text-purple-700"
+                                : (currentPractice?.estado || "").toLowerCase() === "cancelada"
+                                ? "text-rose-700"
+                                : "text-emerald-600"
+                            }`}>
+                              {(currentPractice?.estado || "").toLowerCase() === "planificada"
+                                ? "PLANIFICADA"
+                                : (currentPractice?.estado || "").toLowerCase() === "finalizada"
+                                ? "FINALIZADA"
+                                : (currentPractice?.estado || "").toLowerCase() === "cancelada"
+                                ? "CANCELADA"
+                                : "ACTIVA / EN CURSO"}
                             </span>
                           </div>
                         </div>

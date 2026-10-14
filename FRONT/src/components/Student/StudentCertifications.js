@@ -479,6 +479,7 @@ const StudentCertifications = () => {
         totalHours: req.horas_totales || matchPr?.horas_totales || matchPr?.horas_asignadas || 120,
         accumulatedHours: matchPr?.horas_cumplidas || 0,
         period: req.practica_periodo || matchPr?.periodo || "2026-2",
+        practiceStatus: matchPr?.estado || req.practica_estado || "Activa",
         directorName: instSettings.director_nombre || instSettings.representante || DEFAULT_DIRECTOR,
         directorRole: DEFAULT_DIRECTOR_ROLE,
         issueDate: req.fecha_respuesta ? req.fecha_respuesta.substring(0, 10) : new Date().toISOString().substring(0, 10),

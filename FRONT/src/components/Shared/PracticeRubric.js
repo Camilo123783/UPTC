@@ -496,6 +496,12 @@ export const RubricEvaluationInput = ({
   const currentScore = useMemo(() => calculateRubricTotal(scores, activeIds), [scores, activeIds]);
   const concept = useMemo(() => getPerformanceConcept(currentScore), [currentScore]);
 
+  const scoredCount = useMemo(() => {
+    return activeIds.filter(
+      (id) => scores[id] !== undefined && scores[id] !== null && !isNaN(Number(scores[id]))
+    ).length;
+  }, [activeIds, scores]);
+
   const handleSelectScore = (criterionId, scaleValue) => {
     if (readOnly) return;
     const next = { ...scores, [criterionId]: scaleValue };
@@ -510,17 +516,26 @@ export const RubricEvaluationInput = ({
           <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 block">
             {isAuditor ? "Nota Sugerida del Auditor" : "Calificación Oficial del Docente"}
           </span>
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-3xl font-black text-gray-900 dark:text-white">
               {currentScore.toFixed(1)}
             </span>
-            <span className="text-sm font-semibold text-gray-500 dark:text-zinc-400">
-              / 5.0 (Suma de los 10 criterios)
+            <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-zinc-400">
+              / 5.0 · ({scoredCount} de {activeIds.length} ítems calificados)
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {scoredCount < activeIds.length ? (
+            <span className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+              Faltan {activeIds.length - scoredCount} por calificar
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              ✓ 100% Calificado
+            </span>
+          )}
           <span className={`px-3 py-1.5 rounded-xl text-xs font-black border ${concept.color}`}>
             {concept.label}
           </span>
@@ -564,7 +579,7 @@ export const RubricEvaluationInput = ({
       {/* Formulario Criterio por Criterio */}
       <div className="space-y-3">
         {criteriaList.map((c, index) => {
-          const currentVal = scores[c.id] !== undefined ? Number(scores[c.id]) : null;
+          const currentVal = scores[c.id] !== undefined && scores[c.id] !== null ? Number(scores[c.id]) : null;
 
           return (
             <div
@@ -577,10 +592,10 @@ export const RubricEvaluationInput = ({
                     {index + 1}
                   </span>
                   <div>
-                    <h5 className="text-xs font-bold text-gray-900 dark:text-white">
+                    <h5 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
                       {c.nombre}
                     </h5>
-                    <p className="text-[11px] text-gray-500 dark:text-zinc-400">
+                    <p className="text-[11px] sm:text-xs text-gray-500 dark:text-zinc-400">
                       {c.descripcion}
                     </p>
                   </div>
@@ -593,10 +608,11 @@ export const RubricEvaluationInput = ({
                 )}
               </div>
 
-              {/* Opciones de la Escala (Botones estilo Segmented Control) */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-1">
-                {RUBRIC_SCALE.map((opt) => {
-                  const isSelected = currentVal === opt.value;
+              {/* Opciones de la Escala (Botones estilo Segmented Control adaptativos) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 sm:gap-2 pt-1">
+                {RUBRIC_SCALE.map((opt, optIdx) => {
+                  const isSelected = currentVal !== null && Math.abs(currentVal - opt.value) < 0.05;
+                  const isLastOdd = optIdx === 4;
 
                   return (
                     <button
@@ -604,14 +620,16 @@ export const RubricEvaluationInput = ({
                       type="button"
                       disabled={readOnly}
                       onClick={() => handleSelectScore(c.id, opt.value)}
-                      className={`p-2 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
+                      className={`p-2 sm:p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer min-h-[44px] flex flex-col items-center justify-center ${
+                        isLastOdd ? "col-span-2 sm:col-span-1" : ""
+                      } ${
                         isSelected
                           ? opt.activeClass
                           : "bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:border-gray-400"
                       }`}
                     >
-                      <span className="block">{opt.label}</span>
-                      <span className="text-[10px] opacity-80 font-mono">+{opt.short}</span>
+                      <span className="block leading-tight text-[11px] sm:text-xs">{opt.label}</span>
+                      <span className="text-[10px] opacity-80 font-mono mt-0.5">+{opt.short}</span>
                     </button>
                   );
                 })}

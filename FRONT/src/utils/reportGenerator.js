@@ -398,22 +398,55 @@ export const generateConstanciaPracticaVigente = (constancia = {}) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(15, 23, 42);
+
+  const rawStatus = String(constancia.practiceStatus || constancia.estado || "Activa").trim().toLowerCase();
+  let statusBadgeLabel = "ESTADO: VIGENTE / EN CURSO";
+  let statusRowLabel = "ACTIVA / EN CURSO";
+  let statusBadgeBg = [209, 250, 229]; // emerald-100 (#d1fae5)
+  let statusBadgeBorder = [110, 231, 183]; // emerald-300 (#6ee7b7)
+  let statusBadgeText = [6, 95, 70]; // emerald-800 (#065f46)
+  let statusColorType = "green";
+
+  if (rawStatus === "planificada") {
+    statusBadgeLabel = "ESTADO: PLANIFICADA";
+    statusRowLabel = "PLANIFICADA";
+    statusBadgeBg = [224, 242, 254]; // sky-100 (#e0f2fe)
+    statusBadgeBorder = [125, 211, 252]; // sky-300 (#7dd3fc)
+    statusBadgeText = [7, 89, 133]; // sky-800 (#075985)
+    statusColorType = "blue";
+  } else if (rawStatus === "finalizada") {
+    statusBadgeLabel = "ESTADO: FINALIZADA";
+    statusRowLabel = "FINALIZADA";
+    statusBadgeBg = [243, 232, 255]; // purple-100 (#f3e8ff)
+    statusBadgeBorder = [216, 180, 254]; // purple-300 (#d8b4fe)
+    statusBadgeText = [107, 33, 168]; // purple-800 (#6b21a8)
+    statusColorType = "purple";
+  } else if (rawStatus === "cancelada") {
+    statusBadgeLabel = "ESTADO: CANCELADA";
+    statusRowLabel = "CANCELADA";
+    statusBadgeBg = [255, 228, 230]; // rose-100 (#ffe4e6)
+    statusBadgeBorder = [253, 164, 175]; // rose-300 (#fda4af)
+    statusBadgeText = [159, 18, 57]; // rose-800 (#9f1239)
+    statusColorType = "rose";
+  }
+
   doc.text("CONSTANCIA DE PRÁCTICA FORMATIVA VIGENTE", pageWidth / 2, curY, { align: "center" });
 
-  // 7. Badge Centrado: ESTADO: VIGENTE / EN CURSO
+  // 7. Badge Centrado con el estado real de la práctica
   curY += 3.5;
-  const badgeW = 62;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  const badgeTextW = doc.getTextWidth(statusBadgeLabel);
+  const badgeW = Math.max(54, badgeTextW + 12);
   const badgeH = 5.5;
   const badgeX = (pageWidth - badgeW) / 2;
-  doc.setFillColor(209, 250, 229); // emerald-100 (#d1fae5)
-  doc.setDrawColor(110, 231, 183); // emerald-300 (#6ee7b7)
+  doc.setFillColor(...statusBadgeBg);
+  doc.setDrawColor(...statusBadgeBorder);
   doc.setLineWidth(0.3);
   doc.roundedRect(badgeX, curY, badgeW, badgeH, 2.7, 2.7, "FD");
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(6, 95, 70); // emerald-800 (#065f46)
-  doc.text("ESTADO: VIGENTE / EN CURSO", pageWidth / 2, curY + 3.8, { align: "center" });
+  doc.setTextColor(...statusBadgeText);
+  doc.text(statusBadgeLabel, pageWidth / 2, curY + 3.8, { align: "center" });
 
   curY += badgeH + 6;
 
@@ -489,7 +522,7 @@ export const generateConstanciaPracticaVigente = (constancia = {}) => {
     ["Periodo Académico:", constancia.period || "2026-1", true, "default", "normal"],
     ["Horas Totales Programadas:", `${totalHrs} Horas`, false, "default", "bold"],
     ["Horas Realizadas a la Fecha:", `${accHrs} Horas Ejecutadas`, true, "blue", "bold"],
-    ["Estado de Vigencia:", "ACTIVA / EN CURSO", false, "green", "bold"],
+    ["Estado de Vigencia:", statusRowLabel, false, statusColorType, "bold"],
   ];
 
   rows.forEach(([label, val, isBg, colorType, fontType]) => {
@@ -510,6 +543,10 @@ export const generateConstanciaPracticaVigente = (constancia = {}) => {
       doc.setTextColor(29, 78, 216); // blue-700 (#1d4ed8)
     } else if (colorType === "green") {
       doc.setTextColor(5, 150, 105); // emerald-600 (#059669)
+    } else if (colorType === "purple") {
+      doc.setTextColor(107, 33, 168); // purple-800 (#6b21a8)
+    } else if (colorType === "rose") {
+      doc.setTextColor(190, 18, 60); // rose-700 (#be123c)
     } else {
       doc.setTextColor(15, 23, 42);
     }

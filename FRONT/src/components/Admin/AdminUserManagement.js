@@ -156,7 +156,14 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
           : null;
       if (raw) {
         const p = typeof raw === "string" ? JSON.parse(raw) : raw;
-        if (p && (p.cedula || p.Cédula)) return String(p.cedula || p.Cédula).trim();
+        if (p) {
+          if (p.cedula !== undefined && p.cedula !== null && String(p.cedula).trim() !== "") {
+            return String(p.cedula).trim();
+          }
+          if (p.Cédula !== undefined && p.Cédula !== null && String(p.Cédula).trim() !== "") {
+            return String(p.Cédula).trim();
+          }
+        }
       }
     } catch (e) {}
     try {
@@ -171,7 +178,9 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
         const parts = token.split(".");
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1]));
-          if (payload && payload.cedula) return String(payload.cedula).trim();
+          if (payload && payload.cedula !== undefined && payload.cedula !== null) {
+            return String(payload.cedula).trim();
+          }
         }
       }
     } catch (e) {}
@@ -584,10 +593,15 @@ const AdminUserManagement = ({ userRole: propUserRole }) => {
       .trim();
     const currentRoleNorm = String(userRole || "").toLowerCase().trim();
     const currentCedula = getCurrentUserCedula();
-    const targetCedula = String(user?.Cédula || user?.cedula || "").trim();
+    const targetCedula =
+      user?.Cédula !== undefined && user?.Cédula !== null
+        ? String(user.Cédula).trim()
+        : user?.cedula !== undefined && user?.cedula !== null
+        ? String(user.cedula).trim()
+        : "";
 
     // 1. Condición estricta: No se puede eliminar a él mismo si la sesión está activa
-    if (currentCedula && targetCedula && currentCedula === targetCedula) {
+    if (currentCedula !== "" && targetCedula !== "" && currentCedula === targetCedula) {
       toast.warning("No puedes eliminar tu propia cuenta mientras tu sesión esté activa.");
       return;
     }

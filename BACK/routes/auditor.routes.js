@@ -9,7 +9,7 @@ const express = require("express");
 const router = express.Router();
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
-const { calculateScoreFromCriteriaMap } = require("../utils/evaluationRubric");
+const { calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
 
 // Todas las rutas de auditor requieren token JWT válido y rol 'auditor', 'admin' o 'superadmin'
 router.use(verifyToken);
@@ -743,7 +743,23 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
     const cEquipo = parseFloat(comunicacion_equipo) || 4.0;
     const pAsistencia = parseFloat(puntualidad_asistencia) || 5.0;
 
-    // Calcular nota sugerida si viene criterios_rubrica (suma de los 10 criterios de la escala)
+    // Calcular nota sugerida si viene criterios_rubrica (suma de los criterios de la escala)
+    const requiredRubricIds = (Array.isArray(activeRubricIds) && activeRubricIds.length > 0)
+      ? activeRubricIds
+      : DEFAULT_RUBRIC_CRITERIA_IDS;
+
+    if (criterios_rubrica && typeof criterios_rubrica === "object") {
+      const missingCriteria = requiredRubricIds.filter(
+        (cId) => criterios_rubrica[cId] === undefined || criterios_rubrica[cId] === null || isNaN(Number(criterios_rubrica[cId]))
+      );
+      if (missingCriteria.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Faltan ${missingCriteria.length} ítem(s) por calificar en la rúbrica del informe clínico (${requiredRubricIds.length - missingCriteria.length}/${requiredRubricIds.length} calificados). Debes calificar todos los ítems antes de guardar.`,
+        });
+      }
+    }
+
     let calculatedNota = parseFloat(nota_sugerida);
     if (criterios_rubrica && typeof criterios_rubrica === "object") {
       const rubricScore = calculateScoreFromCriteriaMap(criterios_rubrica, activeRubricIds);

@@ -46,7 +46,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { RubricEvaluationInput } from '../Shared/PracticeRubric';
-import { calculateRubricTotal } from '../../utils/evaluationRubric';
+import { calculateRubricTotal, parseRubricCriteriaIds, DEFAULT_RUBRIC_CRITERIA_IDS } from '../../utils/evaluationRubric';
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -268,10 +268,25 @@ const DocentStudentManagement = () => {
     return { totalStudents, totalEvaluated, totalPending, totalPractices };
   }, [assignedStudents, docentPractices]);
 
-  // ─── Cálculo Automático de Nota y Desempeño según los 10 Criterios ───
+  // ─── Cálculo Automático de Nota y Desempeño según los Criterios de la Práctica ───
+  const activePracticeCriteria = useMemo(() => {
+    const raw = selectedStudent?.rubrica_criterios || currentPractice?.rubrica_criterios;
+    return parseRubricCriteriaIds(raw);
+  }, [selectedStudent, currentPractice]);
+
+  const scoredCriteriaCount = useMemo(() => {
+    return activePracticeCriteria.filter(
+      (id) => rubricScores[id] !== undefined && rubricScores[id] !== null && !isNaN(Number(rubricScores[id]))
+    ).length;
+  }, [activePracticeCriteria, rubricScores]);
+
+  const isAllCriteriaScored = useMemo(() => {
+    return activePracticeCriteria.length > 0 && scoredCriteriaCount === activePracticeCriteria.length;
+  }, [activePracticeCriteria, scoredCriteriaCount]);
+
   const computedScore = useMemo(() => {
-    return calculateRubricTotal(rubricScores, selectedStudent?.rubrica_criterios);
-  }, [rubricScores, selectedStudent]);
+    return calculateRubricTotal(rubricScores, selectedStudent?.rubrica_criterios || currentPractice?.rubrica_criterios);
+  }, [rubricScores, selectedStudent, currentPractice]);
 
   const getPerformanceBadge = (score) => {
     if (score >= 4.6) {
@@ -333,15 +348,38 @@ const DocentStudentManagement = () => {
   const handleOpenEvaluation = (student) => {
     setSelectedStudent(student);
     setEvaluationFeedback(student.feedback || student.retroalimentacion || '');
-    const existingCriterios = student.criterios && typeof student.criterios === 'object' && Object.keys(student.criterios).length > 0
-      ? student.criterios
-      : (student.auditorReport?.criterios_rubrica || {});
-    setRubricScores(existingCriterios || {});
+
+    // Cargar con máxima fidelidad los criterios guardados previamente por el docente
+    let saved = null;
+    if (student.criterios && typeof student.criterios === 'object' && Object.keys(student.criterios).length > 0) {
+      saved = student.criterios;
+    } else if (typeof student.criterios === 'string') {
+      try {
+        const parsed = JSON.parse(student.criterios);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) saved = parsed;
+      } catch (e) {}
+    } else if (student.likertScores && typeof student.likertScores === 'object' && Object.keys(student.likertScores).length > 0) {
+      saved = student.likertScores;
+    }
+
+    if (saved && Object.keys(saved).length > 0) {
+      setRubricScores({ ...saved });
+    } else {
+      setRubricScores({});
+    }
+
     setIsEvaluatingModalOpen(true);
   };
 
   const handleSaveEvaluation = async () => {
     if (!selectedStudent) return;
+
+    if (!isAllCriteriaScored) {
+      toast.error(
+        `Debes calificar todos los ítems de la rúbrica formativa (${scoredCriteriaCount}/${activePracticeCriteria.length} completados) antes de guardar la evaluación.`
+      );
+      return;
+    }
 
     const numScore = parseFloat(computedScore.toFixed(1));
 
@@ -368,7 +406,7 @@ const DocentStudentManagement = () => {
         throw new Error(errData.message || 'No se pudo guardar la calificación.');
       }
 
-      // Actualizar estado local inmediatamente
+      // Actualizar estado local inmediatamente con los criterios seleccionados
       setStudents((prev) =>
         prev.map((s) =>
           String(s.cedula) === String(selectedStudent.cedula) &&
@@ -378,7 +416,9 @@ const DocentStudentManagement = () => {
                 evaluationStatus: 'Completada',
                 score: numScore,
                 feedback: payload.retroalimentacion,
-                criterios: rubricScores,
+                retroalimentacion: payload.retroalimentacion,
+                criterios: { ...rubricScores },
+                likertScores: { ...rubricScores },
                 evaluationDate: new Date().toISOString().substring(0, 10),
               }
             : s
@@ -389,7 +429,7 @@ const DocentStudentManagement = () => {
       notifyDataChanged('evaluations', 'update');
       notifyDataChanged('practices', 'update');
       toast.success(
-        `Calificación de ${numScore.toFixed(1)} / 5.0 guardada exitosamente para ${
+        `Calificación oficial de ${numScore.toFixed(1)} / 5.0 guardada exitosamente para ${
           selectedStudent.fullName || selectedStudent.name
         }. El estudiante ya puede visualizarla en su panel.`
       );
@@ -453,6 +493,21 @@ const DocentStudentManagement = () => {
     if (!practiceId) {
       toast.error('No se pudo identificar la práctica para validar el estudiante.');
       return;
+    }
+
+    if (nuevoEstado === 'Activo') {
+      const docsCount = [
+        validatingStudent.has_cv,
+        validatingStudent.has_eps,
+        validatingStudent.has_arl,
+        validatingStudent.has_id,
+        validatingStudent.has_carnet,
+        validatingStudent.has_vaccines,
+      ].filter(Boolean).length;
+      if (docsCount < 6) {
+        toast.error(`No se puede otorgar el aval: el estudiante solo tiene ${docsCount} de 6 documentos cargados. Debe cargar la totalidad de los 6 documentos requeridos.`);
+        return;
+      }
     }
 
     setIsValidatingLoading(true);
@@ -1390,35 +1445,39 @@ const DocentStudentManagement = () => {
         )}
       </div>
 
-      {/* ─── Modal de Calificación Oficial (0.0 - 5.0) ─── */}
+      {/* ─── Modal de Calificación Oficial (0.0 - 5.0) Totalmente Responsive y Adaptativo ─── */}
       {isEvaluatingModalOpen && selectedStudent && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-gray-200 dark:border-zinc-800 my-8">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-200 dark:border-zinc-800">
-              <div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                  <FileEdit className="w-5 h-5 text-blue-500 inline-block" /> Evaluación
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden my-auto">
+            {/* Cabecera Fija */}
+            <div className="p-4 sm:p-6 pb-4 border-b border-gray-200 dark:border-zinc-800 flex items-start justify-between shrink-0 bg-white dark:bg-zinc-900">
+              <div className="min-w-0 pr-4">
+                <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <FileEdit className="w-5 h-5 text-blue-500 inline-block shrink-0" />
+                  <span>Evaluación Oficial de Competencias</span>
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
                   Estudiante: <strong className="text-gray-800 dark:text-gray-200">{selectedStudent.fullName || selectedStudent.name}</strong> (C.C. {selectedStudent.cedula})
+                  {selectedStudent.career ? ` · ${selectedStudent.career}` : ''}
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                  Práctica: <strong>{selectedStudent.practiceName || currentPractice?.titulo}</strong> · {selectedStudent.service} · {selectedStudent.hospital}
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setIsEvaluatingModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 cursor-pointer flex items-center justify-center"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer flex items-center justify-center shrink-0"
+                title="Cerrar evaluación"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-xl mb-4 text-xs text-blue-900 dark:text-blue-200">
-              <p><strong>Práctica:</strong> {selectedStudent.practiceName || currentPractice?.titulo}</p>
-              <p><strong>Servicio:</strong> {selectedStudent.service} · {selectedStudent.hospital}</p>
-            </div>
-
-            <div className="space-y-4">
+            {/* Contenido con Scroll Interior */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
               <RubricEvaluationInput
-                rubricaCriterios={selectedStudent.rubrica_criterios}
+                rubricaCriterios={selectedStudent.rubrica_criterios || currentPractice?.rubrica_criterios}
                 scores={rubricScores}
                 onChange={setRubricScores}
                 auditorReport={selectedStudent.auditorReport}
@@ -1439,35 +1498,59 @@ const DocentStudentManagement = () => {
 
               {/* Retroalimentación Textual */}
               <div>
-                <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-1">
-                  Retroalimentación para el Estudiante *
+                <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-1.5">
+                  Retroalimentación Oficial para el Estudiante *
                 </label>
                 <textarea
                   rows="3"
-                  placeholder="Detalla las fortalezas, aspectos a mejorar y concepto formativo..."
+                  placeholder="Detalla las fortalezas clínicas, aspectos a mejorar y concepto formativo para el estudiante..."
                   value={evaluationFeedback}
                   onChange={(e) => setEvaluationFeedback(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-sm placeholder-gray-400 dark:placeholder-zinc-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-xs placeholder-gray-400 dark:placeholder-zinc-500"
                 />
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsEvaluatingModalOpen(false)}
-                className="px-4 py-2.5 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isSavingEvaluation}
-                onClick={handleSaveEvaluation}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">{isSavingEvaluation ? 'Guardando...' : <><Save className="w-3.5 h-3.5" /> Guardar Evaluación</>}</span>
-              </button>
+            {/* Pie de Modal Fijo con Estado y Botones */}
+            <div className="p-4 sm:p-5 border-t border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/90 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2">
+                {!isAllCriteriaScored ? (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span>Faltan {activePracticeCriteria.length - scoredCriteriaCount} de {activePracticeCriteria.length} ítems por calificar</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>Todos los {activePracticeCriteria.length} ítems calificados ({computedScore.toFixed(1)} / 5.0)</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEvaluatingModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingEvaluation || !isAllCriteriaScored}
+                  onClick={handleSaveEvaluation}
+                  className={`px-5 py-2 font-bold rounded-xl text-xs transition shadow-md flex items-center gap-1.5 ${
+                    isAllCriteriaScored
+                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white cursor-pointer'
+                      : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 border border-gray-300 dark:border-zinc-700 cursor-not-allowed opacity-60'
+                  }`}
+                  title={!isAllCriteriaScored ? `Debes calificar los ${activePracticeCriteria.length} ítems antes de guardar` : "Guardar calificación oficial"}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {isSavingEvaluation ? 'Guardando...' : <><Save className="w-3.5 h-3.5" /> Guardar Evaluación</>}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>,
@@ -1491,237 +1574,245 @@ const DocentStudentManagement = () => {
       />
 
       {/* ─── Modal Profesional de Verificación Documental y Aval Docente ─── */}
-      {isValidatingModalOpen && validatingStudent && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-3xl w-full p-6 max-h-[92vh] flex flex-col">
-            {/* Cabecera del Modal */}
-            <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-zinc-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                  <ShieldCheck className="w-6 h-6" />
+      {isValidatingModalOpen && validatingStudent && (() => {
+        const docFields = [
+          { key: 'hoja_vida_digital', name: 'Hoja de Vida Digital', desc: 'Formato institucional o normalizado en PDF', loaded: Boolean(validatingStudent.has_cv), icon: FileText },
+          { key: 'seguridad_social_eps', name: 'Seguridad Social (EPS)', desc: 'Certificado de afiliación vigente a EPS', loaded: Boolean(validatingStudent.has_eps), icon: ShieldCheck },
+          { key: 'riesgos_profesionales_arl', name: 'Riesgos Laborales (ARL)', desc: 'Certificado de afiliación vigente a ARL', loaded: Boolean(validatingStudent.has_arl), icon: ShieldCheck },
+          { key: 'copia_documento_identidad', name: 'Documento de Identidad', desc: 'Copia legible del documento de identidad', loaded: Boolean(validatingStudent.has_id), icon: FileCheck },
+          { key: 'copia_carnet_estudiantil', name: 'Carnet Estudiantil', desc: 'Copia legible del carnet vigente de la UPTC', loaded: Boolean(validatingStudent.has_carnet), icon: GraduationCap },
+          { key: 'carnet_vacunas', name: 'Carnet de Vacunas', desc: 'Esquema completo según requerimientos de salud', loaded: Boolean(validatingStudent.has_vaccines), icon: FileCheck },
+        ];
+        const uploadedCount = docFields.filter((d) => d.loaded).length;
+        const canGrantAval = uploadedCount === 6;
+        const isActivo = validatingStudent.estado === 'Activo' || validatingStudent.estado_asignacion === 'Activo';
+        const token =
+          localStorage.getItem('authToken') ||
+          sessionStorage.getItem('authToken') ||
+          localStorage.getItem('token') ||
+          sessionStorage.getItem('token') ||
+          '';
+
+        return createPortal(
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 max-h-[92vh] flex flex-col my-auto overflow-hidden">
+              {/* Cabecera del Modal */}
+              <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-zinc-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                      Verificación Documental y Aval Docente
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      Estudiante: <strong className="text-gray-800 dark:text-gray-200">{validatingStudent.fullName || `${validatingStudent.name} ${validatingStudent.lastName}`.trim()}</strong> (C.C. {validatingStudent.cedula})
+                      {validatingStudent.career ? ` · ${validatingStudent.career}` : ''}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-                    Verificación Documental y Aval Docente
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Estudiante: <strong className="text-gray-800 dark:text-gray-200">{validatingStudent.fullName || `${validatingStudent.name} ${validatingStudent.lastName}`.trim()}</strong> (C.C. {validatingStudent.cedula})
-                    {validatingStudent.career ? ` · ${validatingStudent.career}` : ''}
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsValidatingModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer shrink-0"
+                  title="Cerrar ventana"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsValidatingModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                title="Cerrar ventana"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Contenido con Scroll */}
-            <div className="py-4 space-y-4 overflow-y-auto flex-1 pr-1">
-              {/* Tarjeta de Resumen de Estado */}
-              {(() => {
-                const docFields = [
-                  { key: 'hoja_vida_digital', name: 'Hoja de Vida Digital', desc: 'Formato institucional o normalizado en PDF', loaded: Boolean(validatingStudent.has_cv), icon: FileText },
-                  { key: 'seguridad_social_eps', name: 'Seguridad Social (EPS)', desc: 'Certificado de afiliación vigente a EPS', loaded: Boolean(validatingStudent.has_eps), icon: ShieldCheck },
-                  { key: 'riesgos_profesionales_arl', name: 'Riesgos Laborales (ARL)', desc: 'Certificado de afiliación vigente a ARL', loaded: Boolean(validatingStudent.has_arl), icon: ShieldCheck },
-                  { key: 'copia_documento_identidad', name: 'Documento de Identidad', desc: 'Copia legible del documento de identidad', loaded: Boolean(validatingStudent.has_id), icon: FileCheck },
-                  { key: 'copia_carnet_estudiantil', name: 'Carnet Estudiantil', desc: 'Copia legible del carnet vigente de la UPTC', loaded: Boolean(validatingStudent.has_carnet), icon: GraduationCap },
-                  { key: 'carnet_vacunas', name: 'Carnet de Vacunas', desc: 'Esquema completo según requerimientos de salud', loaded: Boolean(validatingStudent.has_vaccines), icon: FileCheck },
-                ];
-                const uploadedCount = docFields.filter((d) => d.loaded).length;
-                const isActivo = validatingStudent.estado === 'Activo' || validatingStudent.estado_asignacion === 'Activo';
-                const token =
-                  localStorage.getItem('authToken') ||
-                  sessionStorage.getItem('authToken') ||
-                  localStorage.getItem('token') ||
-                  sessionStorage.getItem('token') ||
-                  '';
-
-                return (
-                  <>
-                    <div className="bg-gray-50 dark:bg-zinc-800/60 rounded-xl p-4 border border-gray-200/80 dark:border-zinc-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-                          Estado Actual de la Vinculación
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-xs ${
-                              isActivo
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800'
-                            }`}
-                          >
-                            {isActivo ? (
-                              <>
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                <span>Activo (Aval Otorgado)</span>
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                <span>Pendiente de Validación</span>
-                              </>
-                            )}
-                          </span>
-                          <span className="text-xs font-semibold text-gray-600 dark:text-zinc-300">
-                            {uploadedCount} de 6 documentos cargados
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="w-full sm:w-auto text-left sm:text-right">
-                        <div className="text-xs text-gray-500 dark:text-zinc-400">Progreso Documental</div>
-                        <div className="text-sm font-black text-gray-900 dark:text-white">
-                          {Math.round((uploadedCount / 6) * 100)}% Completado
-                        </div>
-                      </div>
+              {/* Contenido con Scroll */}
+              <div className="py-4 space-y-4 overflow-y-auto flex-1 pr-1">
+                {/* Tarjeta de Resumen de Estado */}
+                <div className="bg-gray-50 dark:bg-zinc-800/60 rounded-xl p-4 border border-gray-200/80 dark:border-zinc-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                      Estado Actual de la Vinculación
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-xs ${
+                          isActivo
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                        }`}
+                      >
+                        {isActivo ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Activo (Aval Otorgado)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>Pendiente de Validación</span>
+                          </>
+                        )}
+                      </span>
+                      <span className="text-xs font-semibold text-gray-600 dark:text-zinc-300">
+                        {uploadedCount} de 6 documentos cargados
+                      </span>
+                    </div>
+                  </div>
 
-                    {/* Mensaje de recomendación */}
-                    {uploadedCount < 6 ? (
-                      <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <span>
-                          El estudiante no ha completado la totalidad de los 6 documentos de práctica. Si los documentos presentados no son conformes, puedes mantenerlo o marcarlo como <strong>Pendiente</strong>.
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-300">
-                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <span>
-                          ¡Todos los 6 documentos han sido cargados! Examina cada archivo y pulsa <strong>Dar Aval (Marcar como Activo)</strong> para certificar su conformidad.
-                        </span>
-                      </div>
-                    )}
+                  <div className="w-full sm:w-auto text-left sm:text-right">
+                    <div className="text-xs text-gray-500 dark:text-zinc-400">Progreso Documental</div>
+                    <div className="text-sm font-black text-gray-900 dark:text-white">
+                      {Math.round((uploadedCount / 6) * 100)}% Completado
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Grid de los 6 documentos */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                      {docFields.map((doc) => {
-                        const IconComponent = doc.icon;
-                        const viewUrl = `${API_BASE_URL}/api/student/view/${validatingStudent.cedula}/${doc.key}?view=true${token ? `&token=${encodeURIComponent(token)}` : ''}`;
-                        const downloadUrl = `${API_BASE_URL}/api/student/download/${validatingStudent.cedula}/${doc.key}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+                {/* Mensaje de recomendación y bloqueo de aval */}
+                {uploadedCount < 6 ? (
+                  <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-xs text-amber-800 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span>
+                      <strong>Aval Bloqueado:</strong> El estudiante solo ha cargado <strong>{uploadedCount} de los 6 documentos requeridos</strong>. Para poder otorgar el aval oficial (marcar como Activo), el estudiante debe haber cargado obligatoriamente la totalidad de sus 6 documentos de práctica.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/80 text-xs text-emerald-800 dark:text-emerald-300">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>
+                      ¡Todos los 6 documentos han sido cargados! Examina cada archivo y pulsa <strong>Dar Aval (Marcar como Activo)</strong> para certificar su conformidad.
+                    </span>
+                  </div>
+                )}
 
-                        return (
-                          <div
-                            key={doc.key}
-                            className={`p-3.5 rounded-xl border transition-all ${
-                              doc.loaded
-                                ? 'bg-white dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 shadow-2xs'
-                                : 'bg-gray-50/70 dark:bg-zinc-800/30 border-gray-200/60 dark:border-zinc-800 text-gray-400 opacity-80'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                    doc.loaded
-                                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-                                      : 'bg-gray-200 dark:bg-zinc-700 text-gray-500 dark:text-gray-400'
-                                  }`}
-                                >
-                                  <IconComponent className="w-4 h-4" />
-                                </div>
-                                <div className="font-bold text-xs text-gray-900 dark:text-white leading-tight">
-                                  {doc.name}
-                                </div>
-                              </div>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                                  doc.loaded
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
-                                }`}
-                              >
-                                {doc.loaded ? 'Cargado' : 'Sin cargar'}
-                              </span>
+                {/* Grid de los 6 documentos */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  {docFields.map((doc) => {
+                    const IconComponent = doc.icon;
+                    const viewUrl = `${API_BASE_URL}/api/student/view/${validatingStudent.cedula}/${doc.key}?view=true${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+                    const downloadUrl = `${API_BASE_URL}/api/student/download/${validatingStudent.cedula}/${doc.key}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+
+                    return (
+                      <div
+                        key={doc.key}
+                        className={`p-3.5 rounded-xl border transition-all ${
+                          doc.loaded
+                            ? 'bg-white dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 shadow-2xs'
+                            : 'bg-gray-50/70 dark:bg-zinc-800/30 border-gray-200/60 dark:border-zinc-800 text-gray-400 opacity-80'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                doc.loaded
+                                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                                  : 'bg-gray-200 dark:bg-zinc-700 text-gray-500 dark:text-gray-400'
+                              }`}
+                            >
+                              <IconComponent className="w-4 h-4" />
                             </div>
-
-                            <p className="text-[11px] text-gray-500 dark:text-zinc-400 mb-3 line-clamp-1">
-                              {doc.desc}
-                            </p>
-
-                            <div className="flex items-center gap-2 pt-1 border-t border-gray-100 dark:border-zinc-700/60">
-                              {doc.loaded ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => window.open(viewUrl, '_blank')}
-                                    className="flex-1 py-1.5 px-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
-                                    title="Previsualizar PDF en nueva pestaña"
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                    <span>Ver PDF</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => window.open(downloadUrl, '_blank')}
-                                    className="py-1.5 px-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-gray-700 dark:text-zinc-200 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
-                                    title="Descargar archivo PDF"
-                                  >
-                                    <Download className="w-3 h-3" />
-                                    <span>Descargar</span>
-                                  </button>
-                                </>
-                              ) : (
-                                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic py-1">
-                                  Archivo no adjuntado por el estudiante
-                                </span>
-                              )}
+                            <div className="font-bold text-xs text-gray-900 dark:text-white leading-tight">
+                              {doc.name}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                              doc.loaded
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                            }`}
+                          >
+                            {doc.loaded ? 'Cargado' : 'Sin cargar'}
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-gray-500 dark:text-zinc-400 mb-3 line-clamp-1">
+                          {doc.desc}
+                        </p>
+
+                        <div className="flex items-center gap-2 pt-1 border-t border-gray-100 dark:border-zinc-700/60">
+                          {doc.loaded ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => window.open(viewUrl, '_blank')}
+                                className="flex-1 py-1.5 px-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                                title="Previsualizar PDF en nueva pestaña"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Ver PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => window.open(downloadUrl, '_blank')}
+                                className="py-1.5 px-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-gray-700 dark:text-zinc-200 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                                title="Descargar archivo PDF"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Descargar</span>
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic py-1">
+                              Archivo no adjuntado por el estudiante
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pie de Acciones del Modal */}
+              <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsValidatingModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                >
+                  Cerrar
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isValidatingLoading}
+                  onClick={() => handleUpdateStudentValidation('Pendiente')}
+                  className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:hover:bg-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold rounded-xl text-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>Marcar como Pendiente</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isValidatingLoading || !canGrantAval}
+                  onClick={() => {
+                    if (!canGrantAval) {
+                      toast.error(`No se puede otorgar el aval: el estudiante solo tiene ${uploadedCount} de 6 documentos cargados.`);
+                      return;
+                    }
+                    handleUpdateStudentValidation('Activo');
+                  }}
+                  className={`px-5 py-2 font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md ${
+                    canGrantAval
+                      ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer'
+                      : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 border border-gray-300 dark:border-zinc-700 cursor-not-allowed opacity-60'
+                  }`}
+                  title={!canGrantAval ? `El estudiante debe cargar los 6 documentos para poder recibir el aval (actualmente tiene ${uploadedCount}/6)` : "Otorgar aval oficial de vinculación"}
+                >
+                  {isValidatingLoading ? (
+                    <span>Guardando...</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Dar Aval (Marcar como Activo)</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-
-            {/* Pie de Acciones del Modal */}
-            <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex flex-wrap items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsValidatingModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-              >
-                Cerrar
-              </button>
-
-              <button
-                type="button"
-                disabled={isValidatingLoading}
-                onClick={() => handleUpdateStudentValidation('Pendiente')}
-                className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:hover:bg-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800 font-bold rounded-xl text-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>Marcar como Pendiente</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isValidatingLoading}
-                onClick={() => handleUpdateStudentValidation('Activo')}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-md"
-              >
-                {isValidatingLoading ? (
-                  <span>Guardando...</span>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Dar Aval (Marcar como Activo)</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };
