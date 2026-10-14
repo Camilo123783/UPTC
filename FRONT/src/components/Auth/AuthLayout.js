@@ -37,7 +37,7 @@ const AuthLayout = ({ children, title }) => {
           try {
             const current = JSON.parse(localStorage.getItem("institutionSettings") || "{}");
             localStorage.setItem("institutionSettings", JSON.stringify({ ...current, ...data }));
-          } catch (e) {}
+          } catch (e) { }
         }
       } catch (e) {
         // Silent fallback to local assets
@@ -60,11 +60,10 @@ const AuthLayout = ({ children, title }) => {
 
       {/* Capa de superposición con gradiente atmosférico */}
       <div
-        className={`absolute inset-0 transition-colors duration-500 ${
-          isDark
-            ? "bg-gradient-to-br from-black/90 via-zinc-950/85 to-black/90 backdrop-blur-[6px]"
-            : "bg-gradient-to-br from-slate-900/60 via-blue-950/50 to-indigo-950/70 backdrop-blur-[4px]"
-        }`}
+        className={`absolute inset-0 transition-colors duration-500 ${isDark
+          ? "bg-gradient-to-br from-black/90 via-zinc-950/85 to-black/90 backdrop-blur-[6px]"
+          : "bg-gradient-to-br from-slate-900/60 via-blue-950/50 to-indigo-950/70 backdrop-blur-[4px]"
+          }`}
       />
 
       {/* Botón de alternar modo oscuro / claro */}

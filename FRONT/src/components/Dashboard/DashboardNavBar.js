@@ -41,7 +41,7 @@ const DashboardLayout = ({
           ...saved,
         };
       }
-    } catch (e) {}
+    } catch (e) { }
     return {
       name: "Facultad Ciencias de la Salud",
       logoPreview: `${process.env.PUBLIC_URL || ""}/images/uptc.png`,
@@ -59,7 +59,7 @@ const DashboardLayout = ({
         try {
           const current = JSON.parse(localStorage.getItem("institutionSettings") || "{}");
           localStorage.setItem("institutionSettings", JSON.stringify({ ...current, ...data }));
-        } catch (e) {}
+        } catch (e) { }
       }
     } catch (e) {
       try {
@@ -67,7 +67,7 @@ const DashboardLayout = ({
         if (savedData) {
           setInstitutionInfo(savedData);
         }
-      } catch (err) {}
+      } catch (err) { }
     }
   };
 
@@ -134,8 +134,7 @@ const DashboardLayout = ({
             localStorage.getItem("token") ||
             sessionStorage.getItem("token");
           setPhotoUrl(
-            `${BACKEND_URL}/api/student/photo/${cedula}?v=${Date.now()}${
-              token ? `&token=${encodeURIComponent(token)}` : ""
+            `${BACKEND_URL}/api/student/photo/${cedula}?v=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ""
             }`
           );
           setPhotoError(false);
@@ -150,8 +149,7 @@ const DashboardLayout = ({
             localStorage.getItem("token") ||
             sessionStorage.getItem("token");
           setPhotoUrl(
-            `${BACKEND_URL}/api/docent/photo/${cedula}?v=${Date.now()}${
-              token ? `&token=${encodeURIComponent(token)}` : ""
+            `${BACKEND_URL}/api/docent/photo/${cedula}?v=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ""
             }`
           );
           setPhotoError(false);
@@ -1122,28 +1120,25 @@ const DashboardLayout = ({
 
   return (
     <div
-      className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${
-        isDark ? "bg-black text-white" : "bg-white text-gray-800"
-      }`}
+      className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${isDark ? "bg-black text-white" : "bg-white text-gray-800"
+        }`}
     >
       {/* Header Fijo */}
       <header
-        className={`w-full h-16 py-2 px-3 sm:px-6 flex justify-between items-center z-20 flex-shrink-0 transition-colors duration-200 ${
-          isDark
-            ? "bg-black text-white border-b border-zinc-800 shadow-md shadow-black/40"
-            : "bg-white text-gray-800 border-b border-gray-200 shadow-sm"
-        }`}
+        className={`w-full h-16 py-2 px-3 sm:px-6 flex justify-between items-center z-20 flex-shrink-0 transition-colors duration-200 ${isDark
+          ? "bg-black text-white border-b border-zinc-800 shadow-md shadow-black/40"
+          : "bg-white text-gray-800 border-b border-gray-200 shadow-sm"
+          }`}
       >
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Botón hamburguesa para móvil (< md) */}
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`p-2 md:hidden rounded-xl transition cursor-pointer flex items-center justify-center ${
-              isDark
-                ? "text-zinc-200 hover:bg-zinc-800"
-                : "text-gray-700 hover:bg-gray-100"
-            }`}
+            className={`p-2 md:hidden rounded-xl transition cursor-pointer flex items-center justify-center ${isDark
+              ? "text-zinc-200 hover:bg-zinc-800"
+              : "text-gray-700 hover:bg-gray-100"
+              }`}
             title={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
           >
@@ -1178,17 +1173,15 @@ const DashboardLayout = ({
           />
           <div className="min-w-0">
             <h1
-              className={`text-sm sm:text-base md:text-xl font-bold truncate ${
-                isDark ? "text-white" : "text-gray-800"
-              }`}
+              className={`text-sm sm:text-base md:text-xl font-bold truncate ${isDark ? "text-white" : "text-gray-800"
+                }`}
             >
               {institutionInfo.name}
             </h1>
             {institutionInfo.slogan && (
               <p
-                className={`hidden sm:block text-xs truncate ${
-                  isDark ? "text-zinc-400" : "text-gray-600"
-                }`}
+                className={`hidden sm:block text-xs truncate ${isDark ? "text-zinc-400" : "text-gray-600"
+                  }`}
               >
                 {institutionInfo.slogan}
               </p>
@@ -1204,15 +1197,14 @@ const DashboardLayout = ({
             aria-expanded={isUserMenuOpen}
             aria-haspopup="true"
             title="Opciones de perfil y cuenta"
-            className={`group px-3.5 py-1.5 rounded-xl font-medium text-sm flex items-center gap-2 border transition-all duration-200 cursor-pointer select-none shadow-sm ${
-              isUserMenuOpen
-                ? isDark
-                  ? "bg-zinc-800 border-zinc-500 text-white ring-2 ring-blue-500/30"
-                  : "bg-gray-100 border-gray-400 text-gray-900 ring-2 ring-amber-500/30"
-                : isDark
+            className={`group px-3.5 py-1.5 rounded-xl font-medium text-sm flex items-center gap-2 border transition-all duration-200 cursor-pointer select-none shadow-sm ${isUserMenuOpen
+              ? isDark
+                ? "bg-zinc-800 border-zinc-500 text-white ring-2 ring-blue-500/30"
+                : "bg-gray-100 border-gray-400 text-gray-900 ring-2 ring-amber-500/30"
+              : isDark
                 ? "bg-zinc-900/90 hover:bg-zinc-800 border-zinc-700/80 text-zinc-200 hover:text-white hover:border-zinc-500"
                 : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-300"
-            }`}
+              }`}
           >
             {photoUrl && !photoError ? (
               <img
@@ -1234,11 +1226,10 @@ const DashboardLayout = ({
               viewBox="0 0 24 24"
               strokeWidth="2.2"
               stroke="currentColor"
-              className={`w-3.5 h-3.5 transition-transform duration-200 flex-shrink-0 ${
-                isUserMenuOpen
-                  ? "rotate-180 text-amber-500 dark:text-blue-400"
-                  : "text-gray-400 group-hover:text-gray-600 dark:text-zinc-400 dark:group-hover:text-zinc-200"
-              }`}
+              className={`w-3.5 h-3.5 transition-transform duration-200 flex-shrink-0 ${isUserMenuOpen
+                ? "rotate-180 text-amber-500 dark:text-blue-400"
+                : "text-gray-400 group-hover:text-gray-600 dark:text-zinc-400 dark:group-hover:text-zinc-200"
+                }`}
             >
               <path
                 strokeLinecap="round"
@@ -1251,11 +1242,10 @@ const DashboardLayout = ({
           {/* Recuadro un poco más grande (Dropdown / Popover) */}
           {isUserMenuOpen && (
             <div
-              className={`absolute right-0 mt-2.5 w-72 sm:w-80 rounded-2xl p-5 shadow-2xl border z-50 transition-all duration-150 transform origin-top-right ${
-                isDark
-                  ? "bg-zinc-900/95 backdrop-blur-md border-zinc-700/90 shadow-black/80 text-white"
-                  : "bg-white/95 backdrop-blur-md border-gray-200 shadow-2xl shadow-gray-400/30 text-gray-800"
-              }`}
+              className={`absolute right-0 mt-2.5 w-72 sm:w-80 rounded-2xl p-5 shadow-2xl border z-50 transition-all duration-150 transform origin-top-right ${isDark
+                ? "bg-zinc-900/95 backdrop-blur-md border-zinc-700/90 shadow-black/80 text-white"
+                : "bg-white/95 backdrop-blur-md border-gray-200 shadow-2xl shadow-gray-400/30 text-gray-800"
+                }`}
             >
               {/* Foto de Perfil (si tiene) con fallback elegante a iniciales */}
               <div className="flex justify-center mb-3">
@@ -1269,21 +1259,18 @@ const DashboardLayout = ({
                         setPhotoError(true);
                         setPhotoLoading(false);
                       }}
-                      className={`w-20 h-20 rounded-full object-cover shadow-md border-2 ${
-                        photoLoading ? "hidden" : "block"
-                      } ${
-                        isDark
+                      className={`w-20 h-20 rounded-full object-cover shadow-md border-2 ${photoLoading ? "hidden" : "block"
+                        } ${isDark
                           ? "border-blue-500/40 ring-4 ring-blue-500/10"
                           : "border-amber-500/50 ring-4 ring-amber-500/15"
-                      }`}
+                        }`}
                     />
                     {photoLoading && (
                       <div
-                        className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black shadow-md border-2 select-none animate-pulse ${
-                          isDark
-                            ? "bg-zinc-800 text-white border-zinc-700"
-                            : "bg-amber-100 text-amber-900 border-amber-300"
-                        }`}
+                        className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black shadow-md border-2 select-none animate-pulse ${isDark
+                          ? "bg-zinc-800 text-white border-zinc-700"
+                          : "bg-amber-100 text-amber-900 border-amber-300"
+                          }`}
                       >
                         {getInitials(fullName)}
                       </div>
@@ -1291,11 +1278,10 @@ const DashboardLayout = ({
                   </div>
                 ) : (
                   <div
-                    className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black shadow-md border-2 select-none ${
-                      isDark
-                        ? "bg-gradient-to-br from-zinc-800 to-zinc-950 text-white border-zinc-700 ring-4 ring-white/5"
-                        : "bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 border-amber-300 ring-4 ring-amber-500/10"
-                    }`}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black shadow-md border-2 select-none ${isDark
+                      ? "bg-gradient-to-br from-zinc-800 to-zinc-950 text-white border-zinc-700 ring-4 ring-white/5"
+                      : "bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 border-amber-300 ring-4 ring-amber-500/10"
+                      }`}
                   >
                     {getInitials(fullName)}
                   </div>
@@ -1306,18 +1292,16 @@ const DashboardLayout = ({
               <div className="text-center mb-4">
                 <div className="flex justify-center mb-1.5">
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
-                      getRoleBadge(userRole).badgeClass
-                    }`}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${getRoleBadge(userRole).badgeClass
+                      }`}
                   >
                     {getRoleBadge(userRole).name}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-gray-900 dark:text-white leading-snug">
                   <span
-                    className={`${
-                      getRoleBadge(userRole).textAccent
-                    } font-extrabold`}
+                    className={`${getRoleBadge(userRole).textAccent
+                      } font-extrabold`}
                   >
                     {getRoleBadge(userRole).name}
                   </span>{" "}
@@ -1330,24 +1314,23 @@ const DashboardLayout = ({
                 )}
                 {(currentUserData?.correo_institucional ||
                   currentUserData?.email) && (
-                  <p
-                    className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5 truncate max-w-full"
-                    title={
-                      currentUserData.correo_institucional ||
-                      currentUserData.email
-                    }
-                  >
-                    {currentUserData.correo_institucional ||
-                      currentUserData.email}
-                  </p>
-                )}
+                    <p
+                      className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5 truncate max-w-full"
+                      title={
+                        currentUserData.correo_institucional ||
+                        currentUserData.email
+                      }
+                    >
+                      {currentUserData.correo_institucional ||
+                        currentUserData.email}
+                    </p>
+                  )}
               </div>
 
               {/* Línea divisoria */}
               <div
-                className={`border-t mb-3.5 ${
-                  isDark ? "border-zinc-800" : "border-gray-100"
-                }`}
+                className={`border-t mb-3.5 ${isDark ? "border-zinc-800" : "border-gray-100"
+                  }`}
               />
 
               {/* Botones de Acción */}
@@ -1360,11 +1343,10 @@ const DashboardLayout = ({
                       setIsUserMenuOpen(false);
                       onNavigate(userRole === "docent" ? "docentProfile" : "studentProfile");
                     }}
-                    className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 cursor-pointer ${
-                      isDark
-                        ? "bg-purple-600/90 hover:bg-purple-600 text-white shadow-sm shadow-purple-600/30"
-                        : "bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-600/20"
-                    }`}
+                    className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 cursor-pointer ${isDark
+                      ? "bg-purple-600/90 hover:bg-purple-600 text-white shadow-sm shadow-purple-600/30"
+                      : "bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-600/20"
+                      }`}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -1391,11 +1373,10 @@ const DashboardLayout = ({
                     setIsUserMenuOpen(false);
                     onNavigate("changePassword");
                   }}
-                  className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-800/90 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/80 hover:border-zinc-600"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 hover:border-gray-300"
-                  }`}
+                  className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 cursor-pointer ${isDark
+                    ? "bg-zinc-800/90 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/80 hover:border-zinc-600"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 hover:border-gray-300"
+                    }`}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1418,11 +1399,10 @@ const DashboardLayout = ({
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-800/90 hover:bg-zinc-700 text-yellow-300 border border-zinc-700/80 hover:border-zinc-600"
-                      : "bg-gray-100 hover:bg-gray-200 text-slate-800 border border-gray-200 hover:border-gray-300"
-                  }`}
+                  className={`w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 cursor-pointer ${isDark
+                    ? "bg-zinc-800/90 hover:bg-zinc-700 text-yellow-300 border border-zinc-700/80 hover:border-zinc-600"
+                    : "bg-gray-100 hover:bg-gray-200 text-slate-800 border border-gray-200 hover:border-gray-300"
+                    }`}
                 >
                   {isDark ? (
                     <svg
@@ -1506,35 +1486,31 @@ const DashboardLayout = ({
             fixed inset-y-0 left-0 z-40 md:static md:z-10
             ${isMobileMenuOpen ? "translate-x-0 w-72 max-w-[85vw] p-5" : "-translate-x-full md:translate-x-0"}
             ${isCollapsed ? "md:w-20 md:p-3" : "md:w-64 md:p-5"}
-            ${
-              isDark
-                ? "border-r border-zinc-800"
-                : "border-r border-amber-500/40"
+            ${isDark
+              ? "border-r border-zinc-800"
+              : "border-r border-amber-500/40"
             }`}
         >
           {/* Cabecera del Sidebar */}
           <div
-            className={`flex items-center pb-3 mb-3 transition-all ${
-              isDark ? "border-b border-zinc-800" : "border-b border-amber-500/50"
-            } ${isCollapsed ? "justify-center" : "justify-between px-1"}`}
+            className={`flex items-center pb-3 mb-3 transition-all ${isDark ? "border-b border-zinc-800" : "border-b border-amber-500/50"
+              } ${isCollapsed ? "justify-center" : "justify-between px-1"}`}
           >
             {/* Header y botón cerrar para móvil */}
             <div className="flex items-center justify-between w-full md:hidden">
               <span
-                className={`text-xs font-black uppercase tracking-widest ${
-                  isDark ? "text-slate-300" : "text-amber-950 font-bold"
-                }`}
+                className={`text-xs font-black uppercase tracking-widest ${isDark ? "text-slate-300" : "text-amber-950 font-bold"
+                  }`}
               >
                 Menú de Navegación
               </span>
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  isDark
-                    ? "text-slate-400 hover:text-white hover:bg-slate-800"
-                    : "text-slate-800 hover:text-black hover:bg-amber-500/30"
-                }`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isDark
+                  ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                  : "text-slate-800 hover:text-black hover:bg-amber-500/30"
+                  }`}
                 title="Cerrar menú"
                 aria-label="Cerrar menú"
               >
@@ -1555,20 +1531,18 @@ const DashboardLayout = ({
                   aria-label="Guardar menú"
                 >
                   <span
-                    className={`text-xs font-black uppercase tracking-widest truncate transition-colors ${
-                      isDark
-                        ? "text-slate-400 group-hover/navheader:text-white"
-                        : "text-amber-950/80 group-hover/navheader:text-black"
-                    }`}
+                    className={`text-xs font-black uppercase tracking-widest truncate transition-colors ${isDark
+                      ? "text-slate-400 group-hover/navheader:text-white"
+                      : "text-amber-950/80 group-hover/navheader:text-black"
+                      }`}
                   >
                     Navegación
                   </span>
                   <span
-                    className={`p-2 rounded-xl transition-all flex items-center justify-center ${
-                      isDark
-                        ? "text-slate-300 group-hover/navheader:text-white group-hover/navheader:bg-slate-800/90"
-                        : "text-slate-900 group-hover/navheader:text-black group-hover/navheader:bg-amber-500/40"
-                    }`}
+                    className={`p-2 rounded-xl transition-all flex items-center justify-center ${isDark
+                      ? "text-slate-300 group-hover/navheader:text-white group-hover/navheader:bg-slate-800/90"
+                      : "text-slate-900 group-hover/navheader:text-black group-hover/navheader:bg-amber-500/40"
+                      }`}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -1590,11 +1564,10 @@ const DashboardLayout = ({
                 <button
                   type="button"
                   onClick={() => setIsCollapsed(!isCollapsed)}
-                  className={`p-2 rounded-xl transition-all focus:outline-none focus:ring-2 flex items-center justify-center cursor-pointer mx-auto ${
-                    isDark
-                      ? "text-slate-300 hover:text-white hover:bg-slate-800/90 focus:ring-blue-500/50"
-                      : "text-slate-900 hover:text-black hover:bg-amber-500/40 focus:ring-amber-600/50"
-                  }`}
+                  className={`p-2 rounded-xl transition-all focus:outline-none focus:ring-2 flex items-center justify-center cursor-pointer mx-auto ${isDark
+                    ? "text-slate-300 hover:text-white hover:bg-slate-800/90 focus:ring-blue-500/50"
+                    : "text-slate-900 hover:text-black hover:bg-amber-500/40 focus:ring-amber-600/50"
+                    }`}
                   title="Expandir menú"
                   aria-label="Expandir menú"
                 >
@@ -1646,19 +1619,17 @@ const DashboardLayout = ({
                       <li className="list-none pt-3 pb-1">
                         {!isCollapsed ? (
                           <span
-                            className={`text-[11px] font-extrabold uppercase tracking-wider px-3 block ${
-                              isDark ? "text-slate-400" : "text-amber-950/80"
-                            }`}
+                            className={`text-[11px] font-extrabold uppercase tracking-wider px-3 block ${isDark ? "text-slate-400" : "text-amber-950/80"
+                              }`}
                           >
                             {item.section}
                           </span>
                         ) : (
                           <div
-                            className={`my-1.5 mx-1 border-t ${
-                              isDark
-                                ? "border-slate-800"
-                                : "border-amber-500/50"
-                            }`}
+                            className={`my-1.5 mx-1 border-t ${isDark
+                              ? "border-slate-800"
+                              : "border-amber-500/50"
+                              }`}
                           />
                         )}
                       </li>
@@ -1672,24 +1643,21 @@ const DashboardLayout = ({
                           setIsMobileMenuOpen(false);
                           onNavigate(item.page);
                         }}
-                        className={`w-full flex items-center rounded-xl transition-all duration-150 cursor-pointer font-medium relative ${
-                          isCollapsed
-                            ? "justify-center p-3"
-                            : "px-3.5 py-2.5 text-sm"
-                        } ${
-                          isActive
+                        className={`w-full flex items-center rounded-xl transition-all duration-150 cursor-pointer font-medium relative ${isCollapsed
+                          ? "justify-center p-3"
+                          : "px-3.5 py-2.5 text-sm"
+                          } ${isActive
                             ? isDark
                               ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20"
                               : "bg-slate-950 text-white font-bold shadow-md"
                             : isDark
-                            ? "text-slate-300 hover:text-white hover:bg-slate-800/80"
-                            : "text-slate-950 hover:bg-amber-500/35 hover:text-black font-semibold"
-                        }`}
+                              ? "text-slate-300 hover:text-white hover:bg-slate-800/80"
+                              : "text-slate-950 hover:bg-amber-500/35 hover:text-black font-semibold"
+                          }`}
                       >
                         <span
-                          className={`flex items-center justify-center flex-shrink-0 ${
-                            isCollapsed ? "" : "mr-3"
-                          }`}
+                          className={`flex items-center justify-center flex-shrink-0 ${isCollapsed ? "" : "mr-3"
+                            }`}
                         >
                           {icons[item.name] || (
                             <svg
@@ -1711,9 +1679,8 @@ const DashboardLayout = ({
 
                         {!isCollapsed && (
                           <span
-                            className={`flex-1 leading-snug whitespace-normal break-words text-left ${
-                              item.name.length > 18 ? "text-xs font-semibold" : "text-sm"
-                            } ${showBadge ? "pr-5" : ""}`}
+                            className={`flex-1 leading-snug whitespace-normal break-words text-left ${item.name.length > 18 ? "text-xs font-semibold" : "text-sm"
+                              } ${showBadge ? "pr-5" : ""}`}
                           >
                             {item.name}
                           </span>
@@ -1722,9 +1689,8 @@ const DashboardLayout = ({
                         {/* Badge con el número pequeño arriba a la derecha */}
                         {showBadge && (
                           <span
-                            className={`absolute ${
-                              isCollapsed ? "top-1 right-1" : "top-2 right-2.5"
-                            } min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-md shadow-red-600/40 border border-white/20 animate-pulse pointer-events-none z-10`}
+                            className={`absolute ${isCollapsed ? "top-1 right-1" : "top-2 right-2.5"
+                              } min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-md shadow-red-600/40 border border-white/20 animate-pulse pointer-events-none z-10`}
                             title={`${badgeCount} mensajes pendientes`}
                           >
                             {badgeCount > 99 ? "99+" : badgeCount}
@@ -1735,11 +1701,10 @@ const DashboardLayout = ({
                       {/* Tooltip flotante al pasar el cursor en modo colapsado */}
                       {isCollapsed && (
                         <div
-                          className={`absolute left-full top-1/2 -translate-y-1/2 ml-3.5 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-2xl whitespace-nowrap z-50 pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 border ${
-                            isDark
-                              ? "bg-slate-900 text-white border-slate-700"
-                              : "bg-slate-900 text-white border-slate-700"
-                          }`}
+                          className={`absolute left-full top-1/2 -translate-y-1/2 ml-3.5 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-2xl whitespace-nowrap z-50 pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 border ${isDark
+                            ? "bg-slate-900 text-white border-slate-700"
+                            : "bg-slate-900 text-white border-slate-700"
+                            }`}
                         >
                           <div className="flex items-center gap-1.5">
                             <span>{item.name}</span>
@@ -1764,9 +1729,8 @@ const DashboardLayout = ({
 
         {/* Área de Contenido Principal (Única que hace Scroll) */}
         <main
-          className={`flex-1 min-w-0 h-full p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto transition-colors duration-200 flex flex-col justify-between ${
-            isDark ? "bg-black text-gray-100" : "bg-white text-gray-900"
-          }`}
+          className={`flex-1 min-w-0 h-full p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-y-auto transition-colors duration-200 flex flex-col justify-between ${isDark ? "bg-black text-gray-100" : "bg-white text-gray-900"
+            }`}
         >
           <div className="flex-1 w-full">
             {children}

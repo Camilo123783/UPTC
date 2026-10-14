@@ -7,6 +7,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { queryDB } = require("../config/db");
+const { syncPracticeStatuses } = require("../services/practiceSync.service");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const jwt = require("jsonwebtoken");
 
@@ -556,6 +557,9 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
         message: "Cédula del estudiante no especificada.",
       });
     }
+
+    // Sincronizar estados de prácticas en tiempo real según fecha actual
+    await syncPracticeStatuses();
 
     const rows = await queryDB(`
       SELECT 

@@ -360,9 +360,11 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       sql = `
         SELECT 
           hc.*,
+          d.foto_firma AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes,
           TIMESTAMPDIFF(DAY, hc.fecha_emision, NOW()) AS dias_desde_emision
         FROM historial_certificado hc
+        LEFT JOIN docente d ON hc.docente_cedula = d.cedula
         WHERE hc.estudiante_cedula = ?
           AND (hc.fecha_expiracion_estudiante IS NULL OR hc.fecha_expiracion_estudiante >= NOW())
           AND ${constanciaCondition}
@@ -412,12 +414,14 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       sql = `
         SELECT 
           hc.*,
+          d.foto_firma AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes,
           CASE 
             WHEN hc.fecha_expiracion_estudiante IS NULL OR hc.fecha_expiracion_estudiante >= NOW() THEN 1 
             ELSE 0 
           END AS vigente_estudiante
         FROM historial_certificado hc
+        LEFT JOIN docente d ON hc.docente_cedula = d.cedula
         WHERE ${whereClauses.join(" AND ")}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
@@ -425,23 +429,37 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       sql = `
         SELECT 
           hc.*,
+          d.foto_firma AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes
         FROM historial_certificado hc
+        LEFT JOIN docente d ON hc.docente_cedula = d.cedula
         WHERE hc.docente_cedula = ?
           AND ${constanciaCondition}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
       params = [cedula];
-    } else {
-      // Auditor / Otros
+    } else if (role === "auditor") {
       sql = `
         SELECT 
           hc.*,
+          d.foto_firma AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes
         FROM historial_certificado hc
-        WHERE ${constanciaCondition}
+        LEFT JOIN docente d ON hc.docente_cedula = d.cedula
+        WHERE (
+          hc.practica_id IN (
+            SELECT pr.id FROM practica pr WHERE pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1)
+          )
+          OR hc.practica_id IN (
+            SELECT hp.practica_id FROM historial_practica hp WHERE hp.auditor_cedula = ? OR hp.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1)
+          )
+        )
+        AND ${constanciaCondition}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
+      params = [cedula, cedula, cedula, cedula];
+    } else {
+      return res.status(403).json({ success: false, message: "Acceso denegado al historial de certificados." });
     }
 
     const rows = await queryDB(sql, params);
@@ -478,7 +496,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
  * 2. Si la práctica está finalizada: solo permite emisión hasta 30 días después.
  * 3. Genera identificador hexadecimal único y calcula vigencia de 1 año para estudiantes.
  */
-router.post("/certificates/register", verifyToken, async (req, res, next) => {
+router.post("/certificates/register", verifyToken, requireRole("docent", "admin", "superadmin"), async (req, res, next) => {
   try {
     const {
       estudiante_cedula,
@@ -524,6 +542,14 @@ router.post("/certificates/register", verifyToken, async (req, res, next) => {
 
     const pr = practiceRows[0];
 
+    // Regla de autorización para docentes: solo pueden emitir de prácticas bajo su tutoría
+    if (req.user.role === "docent" && String(pr.docente_cedula) !== String(req.user.cedula)) {
+      return res.status(403).json({
+        success: false,
+        message: "Acceso denegado: solo puedes avalar certificados para las prácticas donde eres el docente tutor.",
+      });
+    }
+
     // Regla: Práctica cancelada no permite emitir certificados ni reportes
     if (pr.estado === "Cancelada") {
       return res.status(400).json({
@@ -558,10 +584,7 @@ router.post("/certificates/register", verifyToken, async (req, res, next) => {
     const est = studentRows[0] || {};
     const estNombre = `${est.nombre || ""} ${est.apellidos || ""}`.trim() || `Estudiante ${estudiante_cedula}`;
 
-    // Obtener nota real de la práctica
-    let finalGrade = calificacion !== undefined ? calificacion : null;
-    let finalHours = horas_totales || pr.horas_totales || 120;
-
+    // Obtener nota real de la práctica directamente de la asignación en la base de datos
     const peRows = await queryDB(`
       SELECT calificacion, horas_cumplidas 
       FROM practica_estudiante 
@@ -569,9 +592,27 @@ router.post("/certificates/register", verifyToken, async (req, res, next) => {
       LIMIT 1
     `, [practica_id, estudiante_cedula]);
 
-    if (peRows.length > 0) {
-      if (finalGrade === null) finalGrade = peRows[0].calificacion;
-      if (peRows[0].horas_cumplidas) finalHours = peRows[0].horas_cumplidas;
+    let finalGrade = peRows.length > 0 ? peRows[0].calificacion : null;
+    let finalHours = (peRows.length > 0 && peRows[0].horas_cumplidas) ? peRows[0].horas_cumplidas : (horas_totales || pr.horas_totales || 120);
+
+    // Solo administradores o superadministradores pueden sobreescribir nota si se provee explícitamente
+    if ((req.user.role === "admin" || req.user.role === "superadmin") && calificacion !== undefined && calificacion !== null) {
+      finalGrade = calificacion;
+    }
+
+    const isReport =
+      categoria_solicitud === "reporte" ||
+      (tipo_certificado && tipo_certificado.toLowerCase().includes("reporte")) ||
+      (tipo_certificado && tipo_certificado.toLowerCase().includes("constancia"));
+
+    // Para certificados oficiales, es OBLIGATORIO que exista una calificación aprobatoria real
+    if (!isReport) {
+      if (finalGrade === null || finalGrade === undefined || Number(finalGrade) <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No es posible emitir un Certificado Oficial sin una calificación final registrada y aprobatoria.",
+        });
+      }
     }
 
     // Generar identificador hexadecimal único
@@ -647,7 +688,32 @@ router.get("/certificates/verify/:hexId", async (req, res, next) => {
   try {
     const { hexId } = req.params;
     const rows = await queryDB(`
-      SELECT * FROM historial_certificado WHERE id_hex = ? LIMIT 1
+      SELECT 
+        hc.id,
+        hc.id_hex,
+        hc.estudiante_cedula,
+        hc.estudiante_nombre,
+        hc.estudiante_codigo,
+        hc.practica_id,
+        hc.practica_titulo,
+        hc.programa_nombre,
+        hc.institucion_nombre,
+        hc.servicio_nombre,
+        hc.docente_nombre,
+        hc.docente_cedula,
+        hc.horas_totales,
+        hc.calificacion,
+        hc.periodo,
+        hc.tipo_certificado,
+        hc.categoria_solicitud,
+        hc.motivo,
+        hc.fecha_inicio,
+        hc.fecha_fin,
+        hc.fecha_emision,
+        hc.fecha_expiracion_estudiante,
+        hc.metadatos_json
+      FROM historial_certificado hc
+      WHERE hc.id_hex = ? LIMIT 1
     `, [hexId.toUpperCase().trim()]);
 
     if (rows.length === 0) {

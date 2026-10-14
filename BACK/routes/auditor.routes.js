@@ -9,6 +9,7 @@ const express = require("express");
 const router = express.Router();
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
+const { syncPracticeStatuses } = require("../services/practiceSync.service");
 const { calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
 
 // Todas las rutas de auditor requieren token JWT válido y rol 'auditor', 'admin' o 'superadmin'
@@ -134,24 +135,10 @@ router.get("/dashboard-stats", async (req, res, next) => {
 // ──────────────────────────────────────────────
 router.get("/practices", async (req, res, next) => {
   try {
-    const todayStr = getColombiaToday();
     const auditorCedula = getAuditorCedula(req);
 
-    // Sincronizar estados de prácticas por fecha
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Finalizada' 
-      WHERE estado != 'Cancelada' AND estado != 'Finalizada' 
-        AND fecha_fin IS NOT NULL AND ? >= fecha_fin
-    `, [todayStr]);
-
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Activa' 
-      WHERE estado = 'Planificada' 
-        AND fecha_inicio IS NOT NULL AND ? >= fecha_inicio 
-        AND (fecha_fin IS NULL OR ? < fecha_fin)
-    `, [todayStr, todayStr]);
+    // Sincronizar estados de prácticas por fecha (hora Colombia)
+    await syncPracticeStatuses();
 
     const { institucion_id, estado } = req.query;
 

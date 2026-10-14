@@ -581,6 +581,11 @@ router.post("/auth/change-password", async (req, res, next) => {
         const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
         if (decoded.role === "admin" || decoded.role === "superadmin") {
           isAdmin = true;
+        } else if (decoded.cedula && String(decoded.cedula) !== String(cedula)) {
+          return res.status(403).json({
+            success: false,
+            message: "Acceso denegado: solo puedes cambiar la contraseña de tu propia cuenta.",
+          });
         }
       } catch (e) {
         // Token inválido, continuar como no-admin

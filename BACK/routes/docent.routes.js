@@ -8,6 +8,7 @@ const router = express.Router();
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
+const { syncPracticeStatuses, calculatePracticeStatus } = require("../services/practiceSync.service");
 const { validateRubricCriteriaSelection, calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
 
 // Caché ultrarrápida en memoria RAM para fotos de perfil de docentes (< 1ms)
@@ -105,6 +106,37 @@ router.get("/photo/:docentId", async (req, res, next) => {
     res.setHeader("Content-Length", fileBuffer.length);
     res.setHeader("Cache-Control", "public, max-age=86400, must-revalidate");
     return res.end(fileBuffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/docent/signature/:docentId
+// Servir la firma digital del docente para emisión y descarga de certificados
+// Requiere autenticación (JWT) para evitar recolección anónima de firmas legales
+// ──────────────────────────────────────────────
+router.get("/signature/:docentId", verifyToken, async (req, res, next) => {
+  try {
+    const { docentId } = req.params;
+    const docentKey = String(docentId).trim();
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+    const rows = await queryDB(
+      "SELECT foto_firma FROM docente WHERE cedula = ? LIMIT 1",
+      [docentKey]
+    );
+
+    if (rows.length === 0 || !rows[0].foto_firma) {
+      return res.status(404).json({ success: false, message: "Firma digital no registrada." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      signature: rows[0].foto_firma,
+    });
   } catch (err) {
     next(err);
   }
@@ -256,54 +288,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
     }
 
     // Sincronizar automáticamente el ciclo de vida de las prácticas por fechas (hora Colombia UTC-5):
-    const todayStr = getColombiaToday();
-
-    // 1. Si llegó o pasó la fecha final -> 'Finalizada'
-    const newlyFinished = await queryDB(`
-      SELECT id FROM practica 
-      WHERE estado != 'Cancelada' 
-        AND estado != 'Finalizada' 
-        AND fecha_fin IS NOT NULL 
-        AND ? >= fecha_fin
-    `, [todayStr]);
-
-    if (newlyFinished.length > 0) {
-      await queryDB(`
-        UPDATE practica 
-        SET estado = 'Finalizada' 
-        WHERE estado != 'Cancelada' 
-          AND estado != 'Finalizada' 
-          AND fecha_fin IS NOT NULL 
-          AND ? >= fecha_fin
-      `, [todayStr]);
-
-      for (const nf of newlyFinished) {
-        try {
-          await archivePractice(nf.id);
-        } catch (e) {
-          console.error(`Error archivando práctica #${nf.id}:`, e.message);
-        }
-      }
-    }
-
-    // 2. Si llegó la fecha de inicio y no ha terminado -> 'Activa'
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Activa' 
-      WHERE estado = 'Planificada' 
-        AND fecha_inicio IS NOT NULL 
-        AND ? >= fecha_inicio 
-        AND (fecha_fin IS NULL OR ? < fecha_fin)
-    `, [todayStr, todayStr]);
-
-    // 3. Si la fecha de inicio aún no ha llegado (es futura) -> 'Planificada'
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Planificada' 
-      WHERE estado = 'Activa' 
-        AND fecha_inicio IS NOT NULL 
-        AND ? < fecha_inicio
-    `, [todayStr]);
+    await syncPracticeStatuses();
 
     // 1. Obtener todas las prácticas asignadas a este docente
     const practices = await queryDB(`
@@ -1200,13 +1185,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       }
       finalMotivo = finalMotivo.trim();
     } else {
-      if (fFin && todayStr >= fFin) {
-        finalEstado = "Finalizada";
-      } else if (fIni && todayStr < fIni) {
-        finalEstado = "Planificada";
-      } else if (fIni && todayStr >= fIni) {
-        finalEstado = "Activa";
-      }
+      finalEstado = calculatePracticeStatus(fIni, fFin, finalEstado);
     }
 
     await queryDB(`
@@ -1439,16 +1418,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
     const fFin = fecha_fin ? (typeof fecha_fin === "string" ? fecha_fin.substring(0, 10) : "") : "";
     const fIni = fecha_inicio ? (typeof fecha_inicio === "string" ? fecha_inicio.substring(0, 10) : "") : "";
 
-    let finalEstado = estado || 'Planificada';
-    if (finalEstado !== "Cancelada") {
-      if (fFin && todayStr >= fFin) {
-        finalEstado = "Finalizada";
-      } else if (fIni && todayStr < fIni) {
-        finalEstado = "Planificada";
-      } else if (fIni && todayStr >= fIni) {
-        finalEstado = "Activa";
-      }
-    }
+    const finalEstado = calculatePracticeStatus(fIni, fFin, estado || 'Planificada');
 
     const insertResult = await queryDB(`
       INSERT INTO practica (

@@ -148,7 +148,7 @@ app.use((req, res) => {
 // ── 11. Manejador global de errores (siempre al final) ────
 app.use(errorHandler);
 
-// ── 12. Arranque del servidor ─────────────────────────────
+// ── 12. Arranque del servidor y tareas en segundo plano ────
 app.listen(PORT, () => {
   console.log("=".repeat(55));
   console.log(`🚀  Servidor UPTC corriendo en http://localhost:${PORT}`);
@@ -163,4 +163,29 @@ app.listen(PORT, () => {
   } catch (err) {
     console.warn("Aviso al invocar migración v5:", err.message);
   }
+
+  // Sincronización automática de prácticas (inicial y periódica cada 15 min)
+  try {
+    const { syncPracticeStatuses } = require("./services/practiceSync.service");
+    syncPracticeStatuses().catch((e) => console.warn("Aviso en sincronización inicial de prácticas:", e.message));
+
+    const syncInterval = setInterval(() => {
+      syncPracticeStatuses().catch((e) => console.warn("Aviso en sincronización periódica de prácticas:", e.message));
+    }, 15 * 60 * 1000);
+
+    if (syncInterval.unref) {
+      syncInterval.unref();
+    }
+  } catch (syncErr) {
+    console.warn("Aviso al inicializar sincronizador de prácticas:", syncErr.message);
+  }
+});
+
+// ── 13. Resiliencia del proceso ante excepciones no controladas ──
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("⚠️ [CRITICAL] Promesa no manejada (Unhandled Rejection):", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ [CRITICAL] Excepción no capturada (Uncaught Exception):", error);
 });

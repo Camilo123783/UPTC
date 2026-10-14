@@ -1,3 +1,4 @@
+
 // ============================================================
 // AuditorUserViewer.js — Directorio de Prácticas y Usuarios Vinculados
 // El auditor visualiza exclusivamente sus prácticas asignadas, el docente
@@ -339,11 +340,10 @@ const AuditorUserViewer = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedPracticeId("all")}
-                  className={`px-3.5 py-2 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
-                    selectedPracticeId === "all"
-                      ? "bg-purple-600 text-white shadow-md shadow-purple-500/25"
-                      : "bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700"
-                  }`}
+                  className={`px-3.5 py-2 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${selectedPracticeId === "all"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-500/25"
+                    : "bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700"
+                    }`}
                   title="Ver todas las prácticas sin filtrar"
                 >
                   <Globe className="w-3.5 h-3.5" />
@@ -362,11 +362,10 @@ const AuditorUserViewer = () => {
                   <div
                     key={pr.id}
                     onClick={() => setSelectedPracticeId(isSelected ? "all" : String(pr.id))}
-                    className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
-                      isSelected
-                        ? "bg-purple-50/60 dark:bg-purple-950/25 border-purple-500 dark:border-purple-500 ring-2 ring-purple-500/30 shadow-lg scale-[1.01]"
-                        : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700/60 hover:shadow-md"
-                    }`}
+                    className={`p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${isSelected
+                      ? "bg-purple-50/60 dark:bg-purple-950/25 border-purple-500 dark:border-purple-500 ring-2 ring-purple-500/30 shadow-lg scale-[1.01]"
+                      : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-purple-700/60 hover:shadow-md"
+                      }`}
                   >
                     <div>
                       {/* Insignias superiores de estado y periodo */}
@@ -440,11 +439,10 @@ const AuditorUserViewer = () => {
                             e.stopPropagation();
                             setSelectedPracticeId(isSelected ? "all" : String(pr.id));
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                            isSelected
-                              ? "bg-purple-600 text-white shadow-sm shadow-purple-500/30"
-                              : "bg-gray-100 hover:bg-purple-600 hover:text-white dark:bg-zinc-800 dark:hover:bg-purple-600 text-gray-700 dark:text-zinc-300"
-                          }`}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${isSelected
+                            ? "bg-purple-600 text-white shadow-sm shadow-purple-500/30"
+                            : "bg-gray-100 hover:bg-purple-600 hover:text-white dark:bg-zinc-800 dark:hover:bg-purple-600 text-gray-700 dark:text-zinc-300"
+                            }`}
                         >
                           {isSelected ? (
                             <>
@@ -529,356 +527,354 @@ const AuditorUserViewer = () => {
           </div>
 
           <div className="space-y-6">
-          {isLoading ? (
-            <SkeletonTable rows={6} cols={5} />
-          ) : filteredPractices.length === 0 ? (
-            <div className="text-center py-16 px-4 rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-800">
-              <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-2 opacity-50" />
-              <p className="text-xs font-bold text-gray-700 dark:text-zinc-300">
-                No se encontraron prácticas o usuarios con los criterios de búsqueda.
-              </p>
-              <p className="text-[11px] text-gray-500 mt-1">
-                Verifica el texto ingresado en el buscador.
-              </p>
-            </div>
-          ) : (
-            filteredPractices.map((pr) => {
-              const isCollapsed = !!collapsedPractices[pr.id];
-              const students = pr.displayStudents || [];
+            {isLoading ? (
+              <SkeletonTable rows={6} cols={5} />
+            ) : filteredPractices.length === 0 ? (
+              <div className="text-center py-16 px-4 rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-800">
+                <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-2 opacity-50" />
+                <p className="text-xs font-bold text-gray-700 dark:text-zinc-300">
+                  No se encontraron prácticas o usuarios con los criterios de búsqueda.
+                </p>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Verifica el texto ingresado en el buscador.
+                </p>
+              </div>
+            ) : (
+              filteredPractices.map((pr) => {
+                const isCollapsed = !!collapsedPractices[pr.id];
+                const students = pr.displayStudents || [];
 
-              return (
-                <div
-                  key={pr.id}
-                  className="rounded-3xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md overflow-hidden transition"
-                >
-                  {/* Encabezado de la Práctica */}
+                return (
                   <div
-                    onClick={() => toggleCollapse(pr.id)}
-                    className="p-5 sm:p-6 bg-gray-50/80 dark:bg-zinc-800/60 border-b border-gray-200 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-100/70 dark:hover:bg-zinc-800/90 transition select-none"
+                    key={pr.id}
+                    className="rounded-3xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md overflow-hidden transition"
                   >
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
-                          {pr.estado || "Activa"}
-                        </span>
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-                          Periodo {pr.periodo || "2026-1"}
-                        </span>
-                        <span className="text-[10px] font-semibold text-gray-500 dark:text-zinc-400">
-                          Horas requeridas: {pr.horas_totales || 120}h
-                        </span>
-                      </div>
-
-                      <h3 className="text-xl font-black text-gray-900 dark:text-white">
-                        {pr.titulo || `Práctica Formativa #${pr.id}`}
-                      </h3>
-
-                      <p className="text-xs text-gray-600 dark:text-zinc-400 flex items-center gap-1.5 mt-1.5">
-                        <Building className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="font-semibold text-gray-800 dark:text-zinc-200">
-                          {pr.institucion_nombre || "Hospital Universitario"}
-                        </span>
-                        {pr.servicio_nombre && <span> · {pr.servicio_nombre}</span>}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadPracticeCsv(pr);
-                        }}
-                        className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                        title={`Descargar CSV con información de estudiantes de "${pr.titulo}"`}
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
-                        <span>Descargar CSV</span>
-                      </button>
-
-                      <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700">
-                        {students.length} Estudiante{students.length === 1 ? "" : "s"}
-                      </span>
-                      <button
-                        type="button"
-                        className="p-2 rounded-xl bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700"
-                        title={isCollapsed ? "Ver usuarios vinculados" : "Contraer"}
-                      >
-                        {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Detalle Desplegable: Docente y Estudiantes Vinculados */}
-                  {!isCollapsed && (
-                    <div className="p-5 sm:p-6 space-y-6">
-                      {/* Ficha del Docente a Cargo */}
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-3 flex items-center gap-1.5">
-                          <GraduationCap className="w-4 h-4 text-purple-500" />
-                          <span>Docente a Cargo</span>
-                        </h4>
-
-                        <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <DocentAvatar
-                              cedula={pr.docente_cedula}
-                              name={pr.docente_nombre}
-                              size="w-11 h-11"
-                              className="rounded-2xl"
-                            />
-                            <div>
-                              <p className="font-bold text-sm text-gray-900 dark:text-white">
-                                {pr.docente_nombre || "Docente no asignado"}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-600 dark:text-zinc-400 mt-0.5">
-                                {pr.docente_cedula && <span>C.C. {pr.docente_cedula}</span>}
-                                {pr.docente_correo && (
-                                  <span className="flex items-center gap-1 text-purple-700 dark:text-purple-300 font-medium">
-                                    <Mail className="w-3 h-3" />
-                                    <span>{pr.docente_correo}</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[11px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-700">
-                            Docente UPTC
+                    {/* Encabezado de la Práctica */}
+                    <div
+                      onClick={() => toggleCollapse(pr.id)}
+                      className="p-5 sm:p-6 bg-gray-50/80 dark:bg-zinc-800/60 border-b border-gray-200 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-100/70 dark:hover:bg-zinc-800/90 transition select-none"
+                    >
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                            {pr.estado || "Activa"}
+                          </span>
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                            Periodo {pr.periodo || "2026-1"}
+                          </span>
+                          <span className="text-[10px] font-semibold text-gray-500 dark:text-zinc-400">
+                            Horas requeridas: {pr.horas_totales || 120}h
                           </span>
                         </div>
+
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white">
+                          {pr.titulo || `Práctica Formativa #${pr.id}`}
+                        </h3>
+
+                        <p className="text-xs text-gray-600 dark:text-zinc-400 flex items-center gap-1.5 mt-1.5">
+                          <Building className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="font-semibold text-gray-800 dark:text-zinc-200">
+                            {pr.institucion_nombre || "Hospital Universitario"}
+                          </span>
+                          {pr.servicio_nombre && <span> · {pr.servicio_nombre}</span>}
+                        </p>
                       </div>
 
-                      {/* Lista de Estudiantes Vinculados a la Práctica */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 flex items-center gap-1.5">
-                            <Users className="w-4 h-4 text-blue-500" />
-                            <span>Estudiantes Matriculados ({students.length})</span>
-                          </h4>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPracticeCsv(pr);
+                          }}
+                          className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          title={`Descargar CSV con información de estudiantes de "${pr.titulo}"`}
+                        >
+                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                          <span>Descargar CSV</span>
+                        </button>
 
-                        {students.length === 0 ? (
-                          <div className="p-6 text-center text-xs text-gray-500 rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-800">
-                            No hay estudiantes vinculados a esta práctica bajo el filtro de búsqueda.
-                          </div>
-                        ) : (
-                          <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-zinc-800">
-                            <table className="w-full text-left text-xs border-collapse">
-                              <thead className="bg-gray-50/90 dark:bg-zinc-800/70 border-b border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 uppercase tracking-wider text-[10px]">
-                                <tr>
-                                  <th className="py-3 px-4">Estudiante</th>
-                                  <th className="py-3 px-4">Identificación</th>
-                                  <th className="py-3 px-4 text-center">Estado</th>
-                                  <th className="py-3 px-4">Correo Institucional</th>
-                                  <th className="py-3 px-4">Programa / Carrera</th>
-                                  <th className="py-3 px-4">Horas Cumplidas</th>
-                                  <th className="py-3 px-4 text-center">Informe Clínico</th>
-                                  <th className="py-3 px-4 text-center">Documentos / Ficha</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60 bg-white dark:bg-zinc-900">
-                                {students.map((st) => {
-                                  const horasAsignadas = st.horas_asignadas || pr.horas_totales || 120;
-                                  const horasCumplidas = st.horas_cumplidas || 0;
-                                  const pct = Math.min(100, Math.round((horasCumplidas / (horasAsignadas || 1)) * 100));
-                                  const hasReport = !!st.report_id;
-                                  const isActivo =
-                                    (st.estado || st.estado_asignacion || "").toLowerCase() === "activo" ||
-                                    (st.estado || st.estado_asignacion || "").toLowerCase() === "activa";
-
-                                  const studentForFicha = {
-                                    ...st,
-                                    practica_titulo: pr.titulo,
-                                    institucion_nombre: pr.institucion_nombre,
-                                    servicio_nombre: pr.servicio_nombre,
-                                    docente_nombre: pr.docente_nombre,
-                                    auditor_nombre: currentUser?.nombre_completo || currentUser?.nombre || "Auditor Clínico",
-                                    horas_totales: horasAsignadas,
-                                  };
-
-                                  return (
-                                    <tr
-                                      key={st.cedula}
-                                      className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/40 transition"
-                                    >
-                                      {/* Estudiante: Foto real o letra inicial con fallback */}
-                                      <td className="py-3.5 px-4 whitespace-nowrap">
-                                        <button
-                                          type="button"
-                                          onClick={() => setSelectedStudentForFicha(studentForFicha)}
-                                          className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
-                                          title={`Ver ficha completa de ${st.nombre_completo || st.nombre}`}
-                                        >
-                                          <StudentAvatar
-                                            cedula={st.cedula}
-                                            name={st.nombre_completo || st.nombre}
-                                            size="sm"
-                                            hasPhoto={st.tiene_foto}
-                                            className="group-hover:scale-105 transition-transform"
-                                          />
-                                          <div>
-                                            <p className="font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                              {st.nombre_completo || st.nombre}
-                                            </p>
-                                          </div>
-                                        </button>
-                                      </td>
-
-                                      {/* Cédula y Código */}
-                                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-700 dark:text-zinc-300">
-                                        <div>C.C. {st.cedula}</div>
-                                        {st.codigo && (
-                                          <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                                            Cód. {st.codigo}
-                                          </div>
-                                        )}
-                                      </td>
-
-                                      {/* Estado Estudiante (Activo / Pendiente) */}
-                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        {isActivo ? (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                                            <span>Activo</span>
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                                            <span>Pendiente</span>
-                                          </span>
-                                        )}
-                                      </td>
-
-                                      {/* Correo */}
-                                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-600 dark:text-zinc-300">
-                                        {st.correo || "No registrado"}
-                                      </td>
-
-                                      {/* Carrera */}
-                                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-700 dark:text-zinc-300">
-                                        <span className="font-medium">{st.carrera || "Facultad de Salud"}</span>
-                                      </td>
-
-                                      {/* Horas */}
-                                      <td className="py-3.5 px-4 min-w-[130px]">
-                                        <div className="flex items-center justify-between text-[11px] mb-1">
-                                          <span className="font-bold text-gray-900 dark:text-white">
-                                            {horasCumplidas}h / {horasAsignadas}h
-                                          </span>
-                                          <span className="text-gray-500">{pct}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
-                                          <div
-                                            className={`h-full transition-all duration-300 rounded-full ${
-                                              pct >= 100
-                                                ? "bg-emerald-500"
-                                                : pct >= 50
-                                                ? "bg-amber-500"
-                                                : "bg-blue-500"
-                                            }`}
-                                            style={{ width: `${pct}%` }}
-                                          />
-                                        </div>
-                                      </td>
-
-                                      {/* Estado Informe */}
-                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setClinicalReportModal({
-                                              isOpen: true,
-                                              student: {
-                                                ...st,
-                                                fullName: st.nombre_completo || st.nombre,
-                                                criterios_rubrica: st.criterios_rubrica,
-                                                observaciones: st.observaciones || st.report_observaciones,
-                                              },
-                                              practice: pr,
-                                            })
-                                          }
-                                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm group ${
-                                            hasReport
-                                              ? "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                                              : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-                                          }`}
-                                          title={
-                                            hasReport
-                                              ? `Calificación sugerida: ${st.nota_sugerida !== null ? Number(st.nota_sugerida).toFixed(1) : ""} (${st.concepto || "Emitido"}). Clic para ver o modificar la rúbrica formativa.`
-                                              : "Calificar al estudiante en sitio con la rúbrica oficial de la práctica (Guía confidencial para el docente)"
-                                          }
-                                        >
-                                          {hasReport ? (
-                                            <>
-                                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
-                                              <span>
-                                                {st.nota_sugerida !== null ? `${Number(st.nota_sugerida).toFixed(1)} - ` : ""}
-                                                {st.concepto || "Emitido"}
-                                              </span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
-                                              <span>Calificar Rúbrica (Pendiente)</span>
-                                            </>
-                                          )}
-                                        </button>
-                                      </td>
-
-                                      {/* Ver Documentos y Ficha Integral */}
-                                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                        <button
-                                          type="button"
-                                          onClick={() => setSelectedStudentForFicha(studentForFicha)}
-                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition cursor-pointer shadow-sm"
-                                          title={`Ver documentos oficiales (${st.docs_count !== undefined ? st.docs_count : 0}/6) y ficha integral de ${st.nombre_completo || st.nombre}`}
-                                        >
-                                          <FileText className="w-3.5 h-3.5" />
-                                          <span>Documentos ({st.docs_count !== undefined ? st.docs_count : (st.has_cv ? "Cargados" : "0")}/6)</span>
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                        <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700">
+                          {students.length} Estudiante{students.length === 1 ? "" : "s"}
+                        </span>
+                        <button
+                          type="button"
+                          className="p-2 rounded-xl bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700"
+                          title={isCollapsed ? "Ver usuarios vinculados" : "Contraer"}
+                        >
+                          {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+
+                    {/* Detalle Desplegable: Docente y Estudiantes Vinculados */}
+                    {!isCollapsed && (
+                      <div className="p-5 sm:p-6 space-y-6">
+                        {/* Ficha del Docente a Cargo */}
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-3 flex items-center gap-1.5">
+                            <GraduationCap className="w-4 h-4 text-purple-500" />
+                            <span>Docente a Cargo</span>
+                          </h4>
+
+                          <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <DocentAvatar
+                                cedula={pr.docente_cedula}
+                                name={pr.docente_nombre}
+                                size="w-11 h-11"
+                                className="rounded-2xl"
+                              />
+                              <div>
+                                <p className="font-bold text-sm text-gray-900 dark:text-white">
+                                  {pr.docente_nombre || "Docente no asignado"}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-600 dark:text-zinc-400 mt-0.5">
+                                  {pr.docente_cedula && <span>C.C. {pr.docente_cedula}</span>}
+                                  {pr.docente_correo && (
+                                    <span className="flex items-center gap-1 text-purple-700 dark:text-purple-300 font-medium">
+                                      <Mail className="w-3 h-3" />
+                                      <span>{pr.docente_correo}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[11px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-700">
+                              Docente UPTC
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Lista de Estudiantes Vinculados a la Práctica */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 flex items-center gap-1.5">
+                              <Users className="w-4 h-4 text-blue-500" />
+                              <span>Estudiantes Matriculados ({students.length})</span>
+                            </h4>
+                          </div>
+
+                          {students.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-gray-500 rounded-2xl bg-gray-50 dark:bg-zinc-800/40 border border-dashed border-gray-200 dark:border-zinc-800">
+                              No hay estudiantes vinculados a esta práctica bajo el filtro de búsqueda.
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-zinc-800">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead className="bg-gray-50/90 dark:bg-zinc-800/70 border-b border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 uppercase tracking-wider text-[10px]">
+                                  <tr>
+                                    <th className="py-3 px-4">Estudiante</th>
+                                    <th className="py-3 px-4">Identificación</th>
+                                    <th className="py-3 px-4 text-center">Estado</th>
+                                    <th className="py-3 px-4">Correo Institucional</th>
+                                    <th className="py-3 px-4">Programa / Carrera</th>
+                                    <th className="py-3 px-4">Horas Cumplidas</th>
+                                    <th className="py-3 px-4 text-center">Informe Clínico</th>
+                                    <th className="py-3 px-4 text-center">Documentos / Ficha</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60 bg-white dark:bg-zinc-900">
+                                  {students.map((st) => {
+                                    const horasAsignadas = st.horas_asignadas || pr.horas_totales || 120;
+                                    const horasCumplidas = st.horas_cumplidas || 0;
+                                    const pct = Math.min(100, Math.round((horasCumplidas / (horasAsignadas || 1)) * 100));
+                                    const hasReport = !!st.report_id;
+                                    const isActivo =
+                                      (st.estado || st.estado_asignacion || "").toLowerCase() === "activo" ||
+                                      (st.estado || st.estado_asignacion || "").toLowerCase() === "activa";
+
+                                    const studentForFicha = {
+                                      ...st,
+                                      practica_titulo: pr.titulo,
+                                      institucion_nombre: pr.institucion_nombre,
+                                      servicio_nombre: pr.servicio_nombre,
+                                      docente_nombre: pr.docente_nombre,
+                                      auditor_nombre: currentUser?.nombre_completo || currentUser?.nombre || "Auditor Clínico",
+                                      horas_totales: horasAsignadas,
+                                    };
+
+                                    return (
+                                      <tr
+                                        key={st.cedula}
+                                        className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/40 transition"
+                                      >
+                                        {/* Estudiante: Foto real o letra inicial con fallback */}
+                                        <td className="py-3.5 px-4 whitespace-nowrap">
+                                          <button
+                                            type="button"
+                                            onClick={() => setSelectedStudentForFicha(studentForFicha)}
+                                            className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
+                                            title={`Ver ficha completa de ${st.nombre_completo || st.nombre}`}
+                                          >
+                                            <StudentAvatar
+                                              cedula={st.cedula}
+                                              name={st.nombre_completo || st.nombre}
+                                              size="sm"
+                                              hasPhoto={st.tiene_foto}
+                                              className="group-hover:scale-105 transition-transform"
+                                            />
+                                            <div>
+                                              <p className="font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                {st.nombre_completo || st.nombre}
+                                              </p>
+                                            </div>
+                                          </button>
+                                        </td>
+
+                                        {/* Cédula y Código */}
+                                        <td className="py-3.5 px-4 whitespace-nowrap text-gray-700 dark:text-zinc-300">
+                                          <div>C.C. {st.cedula}</div>
+                                          {st.codigo && (
+                                            <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                              Cód. {st.codigo}
+                                            </div>
+                                          )}
+                                        </td>
+
+                                        {/* Estado Estudiante (Activo / Pendiente) */}
+                                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                          {isActivo ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                              <span>Activo</span>
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                              <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                              <span>Pendiente</span>
+                                            </span>
+                                          )}
+                                        </td>
+
+                                        {/* Correo */}
+                                        <td className="py-3.5 px-4 whitespace-nowrap text-gray-600 dark:text-zinc-300">
+                                          {st.correo || "No registrado"}
+                                        </td>
+
+                                        {/* Carrera */}
+                                        <td className="py-3.5 px-4 whitespace-nowrap text-gray-700 dark:text-zinc-300">
+                                          <span className="font-medium">{st.carrera || "Facultad de Salud"}</span>
+                                        </td>
+
+                                        {/* Horas */}
+                                        <td className="py-3.5 px-4 min-w-[130px]">
+                                          <div className="flex items-center justify-between text-[11px] mb-1">
+                                            <span className="font-bold text-gray-900 dark:text-white">
+                                              {horasCumplidas}h / {horasAsignadas}h
+                                            </span>
+                                            <span className="text-gray-500">{pct}%</span>
+                                          </div>
+                                          <div className="w-full bg-gray-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                                            <div
+                                              className={`h-full transition-all duration-300 rounded-full ${pct >= 100
+                                                ? "bg-emerald-500"
+                                                : pct >= 50
+                                                  ? "bg-amber-500"
+                                                  : "bg-blue-500"
+                                                }`}
+                                              style={{ width: `${pct}%` }}
+                                            />
+                                          </div>
+                                        </td>
+
+                                        {/* Estado Informe */}
+                                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setClinicalReportModal({
+                                                isOpen: true,
+                                                student: {
+                                                  ...st,
+                                                  fullName: st.nombre_completo || st.nombre,
+                                                  criterios_rubrica: st.criterios_rubrica,
+                                                  observaciones: st.observaciones || st.report_observaciones,
+                                                },
+                                                practice: pr,
+                                              })
+                                            }
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm group ${hasReport
+                                              ? "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                              : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/70 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                              }`}
+                                            title={
+                                              hasReport
+                                                ? `Calificación sugerida: ${st.nota_sugerida !== null ? Number(st.nota_sugerida).toFixed(1) : ""} (${st.concepto || "Emitido"}). Clic para ver o modificar la rúbrica formativa.`
+                                                : "Calificar al estudiante en sitio con la rúbrica oficial de la práctica (Guía confidencial para el docente)"
+                                            }
+                                          >
+                                            {hasReport ? (
+                                              <>
+                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                                <span>
+                                                  {st.nota_sugerida !== null ? `${Number(st.nota_sugerida).toFixed(1)} - ` : ""}
+                                                  {st.concepto || "Emitido"}
+                                                </span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+                                                <span>Calificar Rúbrica (Pendiente)</span>
+                                              </>
+                                            )}
+                                          </button>
+                                        </td>
+
+                                        {/* Ver Documentos y Ficha Integral */}
+                                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                          <button
+                                            type="button"
+                                            onClick={() => setSelectedStudentForFicha(studentForFicha)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition cursor-pointer shadow-sm"
+                                            title={`Ver documentos oficiales (${st.docs_count !== undefined ? st.docs_count : 0}/6) y ficha integral de ${st.nombre_completo || st.nombre}`}
+                                          >
+                                            <FileText className="w-3.5 h-3.5" />
+                                            <span>Documentos ({st.docs_count !== undefined ? st.docs_count : (st.has_cv ? "Cargados" : "0")}/6)</span>
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
-    </div>
 
-    {/* Modal Ficha Integral del Estudiante para el Auditor */}
-    <StudentFichaModal
-      isOpen={!!selectedStudentForFicha}
-      onClose={() => setSelectedStudentForFicha(null)}
-      student={selectedStudentForFicha}
-      role="auditor"
-    />
-
-    {/* Modal de Informe Clínico y Evaluación Formativa con Rúbrica */}
-    {clinicalReportModal.isOpen && (
-      <ClinicalReportModal
-        isOpen={clinicalReportModal.isOpen}
-        onClose={() => setClinicalReportModal({ isOpen: false, student: null, practice: null })}
-        student={clinicalReportModal.student}
-        practice={clinicalReportModal.practice}
-        onSuccess={() => {
-          fetchPracticesAndUsers();
-          setClinicalReportModal({ isOpen: false, student: null, practice: null });
-        }}
+      {/* Modal Ficha Integral del Estudiante para el Auditor */}
+      <StudentFichaModal
+        isOpen={!!selectedStudentForFicha}
+        onClose={() => setSelectedStudentForFicha(null)}
+        student={selectedStudentForFicha}
+        role="auditor"
       />
-    )}
-  </div>
-);
+
+      {/* Modal de Informe Clínico y Evaluación Formativa con Rúbrica */}
+      {clinicalReportModal.isOpen && (
+        <ClinicalReportModal
+          isOpen={clinicalReportModal.isOpen}
+          onClose={() => setClinicalReportModal({ isOpen: false, student: null, practice: null })}
+          student={clinicalReportModal.student}
+          practice={clinicalReportModal.practice}
+          onSuccess={() => {
+            fetchPracticesAndUsers();
+            setClinicalReportModal({ isOpen: false, student: null, practice: null });
+          }}
+        />
+      )}
+    </div>
+  );
 };
 
 export default AuditorUserViewer;

@@ -89,6 +89,32 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
     }
   });
 
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      try {
+        setInstSettings(JSON.parse(localStorage.getItem("institutionSettings")) || {});
+      } catch (e) {}
+    };
+    window.addEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+
+    // Si instSettings está vacío en localStorage, cargar desde la API pública
+    if (!instSettings || Object.keys(instSettings).length === 0) {
+      fetch(`${API_BASE_URL}/api/admin/institution-settings/public`)
+        .then((r) => r.json())
+        .then((resData) => {
+          if (resData && resData.success && resData.data) {
+            setInstSettings(resData.data);
+            try {
+              localStorage.setItem("institutionSettings", JSON.stringify(resData.data));
+            } catch (e) {}
+          }
+        })
+        .catch((err) => console.warn("No se pudo cargar config institucional:", err));
+    }
+
+    return () => window.removeEventListener("institutionSettingsUpdated", handleSettingsUpdate);
+  }, []);
+
   const fetchCertificates = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -143,11 +169,35 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
     setTimeout(() => setCopiedHex(null), 2500);
   };
 
-  // Descargar PDF del Certificado
-  const handleDownloadPDF = (cert, e) => {
+  // Descargar PDF del Certificado con Firma Oficial Estampada
+  const handleDownloadPDF = async (cert, e) => {
     if (e) e.stopPropagation();
 
     try {
+      // 1. Obtener la firma digital:
+      // A) Directamente de la respuesta del historial si viene vinculada
+      let signatureImg = cert.docente_foto_firma || cert.signatureImage || null;
+
+      // B) Si no viene en el certificado pero tenemos la cédula del docente tutor, obtenerla del endpoint
+      if (!signatureImg && cert.docente_cedula) {
+        try {
+          const sigRes = await fetch(`${API_BASE_URL}/api/docent/signature/${cert.docente_cedula}`);
+          if (sigRes.ok) {
+            const sigJson = await sigRes.json();
+            if (sigJson.signature) {
+              signatureImg = sigJson.signature;
+            }
+          }
+        } catch (sigErr) {
+          console.warn("No se pudo obtener firma del docente desde API:", sigErr);
+        }
+      }
+
+      // C) Fallback local si el usuario tiene una firma almacenada en el navegador
+      if (!signatureImg && typeof window !== "undefined") {
+        signatureImg = localStorage.getItem("uptc_cert_signature") || null;
+      }
+
       generateProfessionalCertificate({
         studentName: cert.estudiante_nombre,
         cedula: cert.estudiante_cedula,
@@ -163,6 +213,16 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
         grade: cert.calificacion,
         date: cert.fecha_emision ? cert.fecha_emision.substring(0, 10) : "",
         id_hex: cert.id_hex,
+        directorName:
+          cert.directorName ||
+          instSettings?.director_nombre ||
+          instSettings?.representante ||
+          "Coordinador(a) de Prácticas Formativas UPTC",
+        directorRole:
+          cert.directorRole ||
+          instSettings?.director_cargo ||
+          "Coordinador(a) de Práctica",
+        signatureImage: signatureImg,
         institutionSettings: instSettings,
       });
       toast.success(`Certificado #${cert.id_hex} descargado en formato PDF.`);
@@ -756,6 +816,37 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
                     Horas certificadas: {selectedCert.horas_totales || 120} hrs
                   </span>
                 </div>
+              </div>
+
+              {/* Bloque de Rúbrica y Firma Digital Oficial */}
+              <div
+                className={`p-4 rounded-2xl border text-center ${
+                  isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-gray-50/80 border-gray-200"
+                }`}
+              >
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-2">
+                  Firma Digital Oficial Avalada
+                </span>
+                {(selectedCert.docente_foto_firma || selectedCert.signatureImage || (typeof window !== "undefined" && localStorage.getItem("uptc_cert_signature"))) ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <img
+                      src={selectedCert.docente_foto_firma || selectedCert.signatureImage || (typeof window !== "undefined" && localStorage.getItem("uptc_cert_signature"))}
+                      alt="Firma Digital Oficial"
+                      className="h-14 sm:h-16 max-w-[220px] object-contain filter contrast-125 dark:brightness-110 mb-1"
+                    />
+                    <div className="w-48 h-[1px] bg-gray-400 dark:bg-zinc-600 mb-1"></div>
+                    <span className="text-xs font-bold text-gray-800 dark:text-zinc-200">
+                      {selectedCert.docente_nombre || "Docente Tutor UPTC"}
+                    </span>
+                    <span className="text-[10px] text-gray-500 dark:text-zinc-400">
+                      Docente Tutor Evaluador / Coordinador de Práctica
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 py-2">
+                    Firma digital oficial estampada al descargar el documento.
+                  </div>
+                )}
               </div>
 
               {/* Políticas de Almacenamiento */}

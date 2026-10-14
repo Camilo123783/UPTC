@@ -12,6 +12,7 @@ const bcrypt = require("bcryptjs");
 const { queryDB, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
+const { syncPracticeStatuses, calculatePracticeStatus } = require("../services/practiceSync.service");
 const { validateRubricCriteriaSelection, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
 
 // ── Configuración de almacenamiento Multer para logos y fondos ──
@@ -1523,6 +1524,7 @@ router.put(["/servicios/:id", "/servicio/:id"], async (req, res, next) => {
 // GET /api/admin/practices/count
 router.get("/practices/count", async (req, res, next) => {
   try {
+    await syncPracticeStatuses();
     const rows = await queryDB(`SELECT COUNT(*) AS total_practices FROM practica`);
     const total = rows[0]?.total_practices || 0;
     res.status(200).json({ total_practices: total });
@@ -1561,54 +1563,7 @@ router.get("/reports/summary", async (req, res, next) => {
 router.get("/practices", async (req, res, next) => {
   try {
     // Sincronizar automáticamente el ciclo de vida de las prácticas por fechas (hora Colombia UTC-5):
-    const todayStr = getColombiaToday();
-
-    // 1. Si llegó o pasó la fecha final -> 'Finalizada'
-    const newlyFinished = await queryDB(`
-      SELECT id FROM practica 
-      WHERE estado != 'Cancelada' 
-        AND estado != 'Finalizada' 
-        AND fecha_fin IS NOT NULL 
-        AND ? >= fecha_fin
-    `, [todayStr]);
-
-    if (newlyFinished.length > 0) {
-      await queryDB(`
-        UPDATE practica 
-        SET estado = 'Finalizada' 
-        WHERE estado != 'Cancelada' 
-          AND estado != 'Finalizada' 
-          AND fecha_fin IS NOT NULL 
-          AND ? >= fecha_fin
-      `, [todayStr]);
-
-      for (const nf of newlyFinished) {
-        try {
-          await archivePractice(nf.id);
-        } catch (e) {
-          console.error(`Error archivando práctica #${nf.id}:`, e.message);
-        }
-      }
-    }
-
-    // 2. Si llegó la fecha de inicio y no ha terminado -> 'Activa'
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Activa' 
-      WHERE estado = 'Planificada' 
-        AND fecha_inicio IS NOT NULL 
-        AND ? >= fecha_inicio 
-        AND (fecha_fin IS NULL OR ? < fecha_fin)
-    `, [todayStr, todayStr]);
-
-    // 3. Si la fecha de inicio aún no ha llegado (es futura) -> 'Planificada'
-    await queryDB(`
-      UPDATE practica 
-      SET estado = 'Planificada' 
-      WHERE estado = 'Activa' 
-        AND fecha_inicio IS NOT NULL 
-        AND ? < fecha_inicio
-    `, [todayStr]);
+    await syncPracticeStatuses();
 
     const rows = await queryDB(`
       SELECT 
@@ -1891,16 +1846,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
     const fFin = fecha_fin ? (typeof fecha_fin === "string" ? fecha_fin.substring(0, 10) : "") : "";
     const fIni = fecha_inicio ? (typeof fecha_inicio === "string" ? fecha_inicio.substring(0, 10) : "") : "";
 
-    let finalEstado = estado || 'Planificada';
-    if (finalEstado !== "Cancelada") {
-      if (fFin && todayStr >= fFin) {
-        finalEstado = "Finalizada";
-      } else if (fIni && todayStr < fIni) {
-        finalEstado = "Planificada";
-      } else if (fIni && todayStr >= fIni) {
-        finalEstado = "Activa";
-      }
-    }
+    const finalEstado = calculatePracticeStatus(fIni, fFin, estado || 'Planificada');
 
     const insertResult = await queryDB(`
       INSERT INTO practica (
@@ -2153,13 +2099,7 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       }
       finalMotivo = finalMotivo.trim();
     } else {
-      if (fFin && todayStr >= fFin) {
-        finalEstado = "Finalizada";
-      } else if (fIni && todayStr < fIni) {
-        finalEstado = "Planificada";
-      } else if (fIni && todayStr >= fIni) {
-        finalEstado = "Activa";
-      }
+      finalEstado = calculatePracticeStatus(fIni, fFin, finalEstado);
     }
 
     await queryDB(`

@@ -132,12 +132,16 @@ const StudentPractices = () => {
     if (status === "Planificada") return 0;
     if (!startDate || !endDate) return status === "Activa" ? 50 : 20;
 
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
+    const sStr = typeof startDate === "string" ? startDate.substring(0, 10) : "";
+    const eStr = typeof endDate === "string" ? endDate.substring(0, 10) : "";
+    if (!sStr || !eStr) return status === "Activa" ? 50 : 20;
+
+    const start = new Date(sStr + "T00:00:00").getTime();
+    const end = new Date(eStr + "T23:59:59").getTime();
     const now = Date.now();
 
     if (isNaN(start) || isNaN(end) || end <= start) {
-      return status === "Activa" ? 60 : 30;
+      return status === "Activa" ? 50 : 0;
     }
 
     if (now <= start) return 0;
