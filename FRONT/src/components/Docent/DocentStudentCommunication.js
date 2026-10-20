@@ -205,7 +205,7 @@ const DocentStudentCommunication = () => {
 
   // Scroll automático al final cuando llegan mensajes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
   // Práctica actualmente seleccionada
@@ -725,7 +725,7 @@ const DocentStudentCommunication = () => {
                         Destinatarios del mensaje:
                       </span>
 
-                      <div className="inline-flex rounded-xl bg-gray-200 dark:bg-zinc-700 p-0.5 text-xs font-bold">
+                      <div className="flex flex-wrap sm:inline-flex rounded-xl bg-gray-200 dark:bg-zinc-700 p-0.5 text-xs font-bold gap-0.5">
                         <button
                           type="button"
                           onClick={() => {

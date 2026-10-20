@@ -1153,7 +1153,7 @@ const AdminCertificateDesigner = () => {
                 {/* HOJA DEL CERTIFICADO EN PANTALLA: FORMATO VERTICAL OFICIAL UPTC */}
                 <div className="overflow-y-auto max-h-[82vh] p-2 sm:p-4 flex justify-center bg-slate-100/70 dark:bg-zinc-950/60 rounded-2xl border border-slate-200 dark:border-zinc-800">
                   <div
-                    className="certificate-preview-sheet relative w-full max-w-[540px] aspect-[210/297] p-7 sm:p-9 rounded-xl shadow-2xl border border-slate-300 select-none flex flex-col justify-between"
+                    className="certificate-preview-sheet relative w-full max-w-[540px] min-h-[460px] sm:aspect-[210/297] p-5 sm:p-9 rounded-xl shadow-2xl border border-slate-300 select-none flex flex-col justify-between gap-3"
                     style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
                   >
                     {/* Doble Marco Institucional Dorado */}
@@ -1166,11 +1166,11 @@ const AdminCertificateDesigner = () => {
                         {/* Logo Institucional a la izquierda */}
                         <div className="w-20 sm:w-24 flex items-center">
                           <img
-                            src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || uptcLogo}
+                            src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || `${process.env.PUBLIC_URL || ""}/images/uptc.png`}
                             alt="Logo Institución"
                             className="h-9 sm:h-11 w-auto object-contain"
                             onError={(e) => {
-                              if (e.currentTarget.src !== uptcLogo) e.currentTarget.src = uptcLogo;
+                              if (!e.currentTarget.src.endsWith("/images/uptc.png")) e.currentTarget.src = `${process.env.PUBLIC_URL || ""}/images/uptc.png`;
                             }}
                           />
                         </div>

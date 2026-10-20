@@ -75,8 +75,8 @@ export const saveActiveSession = (userRole, currentPage, userData, token) => {
     }
     if (token) {
       try {
-        localStorage.setItem(KEYS.AUTH_TOKEN, token);
-        localStorage.setItem("token", token);
+        try { localStorage.setItem(KEYS.AUTH_TOKEN, token); } catch (q) { try { localStorage.removeItem("institutionSettings"); localStorage.removeItem("uptc_cert_signature"); localStorage.setItem(KEYS.AUTH_TOKEN, token); } catch (e2) {} }
+        try { localStorage.setItem("token", token); } catch (q) {}
         sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
         sessionStorage.setItem("token", token);
       } catch (e) {}

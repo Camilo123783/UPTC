@@ -47,7 +47,7 @@ const AuthLayout = ({ children, title }) => {
   }, []);
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center p-3 sm:p-6 overflow-hidden select-none">
+    <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center p-3 sm:p-6 overflow-y-auto overflow-x-hidden select-none">
       {/* Fondo con imagen dinámica y doble fallback */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transform scale-105 transition-transform duration-1000 ease-out"
@@ -88,7 +88,7 @@ const AuthLayout = ({ children, title }) => {
         </button>
       </div>
 
-      <div className="relative z-10 w-full max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/60 dark:border-zinc-800/80 text-gray-900 dark:text-white transition-all duration-300 mb-8 sm:mb-6">
+      <div className="relative z-10 w-full max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border border-white/60 dark:border-zinc-800/80 text-gray-900 dark:text-white transition-all duration-300 my-auto">
         {/* Logo Institucional */}
         <div className="flex justify-center mb-4">
           <img
@@ -109,7 +109,7 @@ const AuthLayout = ({ children, title }) => {
       </div>
 
       {/* Footer sutil */}
-      <div className="absolute bottom-3 left-0 right-0 z-20 text-center px-4">
+      <div className="relative z-20 text-center px-4 pt-4 pb-1">
         <p className="text-[11px] sm:text-xs text-white/60 dark:text-zinc-500 font-medium tracking-wide">
           © 2026 Sistema de gestion de practicas · Camilo Sáenz R. · Fred Manrique A. · Tunja, Boyacá
         </p>

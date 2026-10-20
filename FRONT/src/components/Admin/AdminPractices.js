@@ -1879,7 +1879,7 @@ const AdminPractices = () => {
                   Estudiantes Inscritos ({viewingPractice.total_estudiantes} / {viewingPractice.cupos || 10})
                 </h4>
                 {viewingPractice.estudiantes && viewingPractice.estudiantes.length > 0 ? (
-                  <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+                  <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-xs">
                       <thead className="bg-gray-100 dark:bg-zinc-800">
                         <tr>

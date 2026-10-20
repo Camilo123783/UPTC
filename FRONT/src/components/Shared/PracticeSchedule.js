@@ -605,7 +605,7 @@ export const PracticeScheduleEditor = ({
               return (
                 <div
                   key={dia}
-                  className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-blue-200/80 dark:border-zinc-700 shadow-xs flex items-center justify-between gap-3 hover:border-blue-400 transition"
+                  className="p-3 rounded-xl bg-white dark:bg-zinc-900 border border-blue-200/80 dark:border-zinc-700 shadow-xs flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 hover:border-blue-400 transition"
                 >
                   {/* Badge del Día */}
                   <div className="flex items-center gap-2 min-w-[95px]">

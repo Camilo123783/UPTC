@@ -1498,7 +1498,7 @@ const AdminReports = () => {
 
                     {/* HOJA DE LA CONSTANCIA EN PANTALLA: SIEMPRE BLANCA Y VERTICAL (A4) */}
                     <div
-                      className="relative w-full aspect-[210/297] p-6 sm:p-8 rounded-2xl shadow-2xl border border-gray-300 select-none overflow-hidden flex flex-col justify-between"
+                      className="relative w-full min-h-[480px] sm:aspect-[210/297] p-4 sm:p-8 rounded-2xl shadow-2xl border border-gray-300 select-none overflow-visible sm:overflow-hidden flex flex-col justify-between gap-3"
                       style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
                     >
                       {/* Franja superior dorada UPTC */}
@@ -1508,11 +1508,11 @@ const AdminReports = () => {
                       <div>
                         <div className="flex items-center justify-between mt-1 mb-2">
                           <img
-                            src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || uptcLogo}
+                            src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || `${process.env.PUBLIC_URL || ""}/images/uptc.png`}
                             alt="Logo Institución"
                             className="h-8 sm:h-9 w-auto object-contain"
                             onError={(e) => {
-                              if (e.currentTarget.src !== uptcLogo) e.currentTarget.src = uptcLogo;
+                              if (!e.currentTarget.src.endsWith("/images/uptc.png")) e.currentTarget.src = `${process.env.PUBLIC_URL || ""}/images/uptc.png`;
                             }}
                           />
                           {instSettings.logo_facultad ? (
@@ -1523,7 +1523,7 @@ const AdminReports = () => {
                             />
                           ) : (
                             <img
-                              src={facultyLogo}
+                              src={instSettings.logo_facultad || `${process.env.PUBLIC_URL || ""}/images/uptc.png`}
                               alt="Facultad Ciencias de la Salud"
                               className="h-10 sm:h-11 w-auto object-contain"
                             />

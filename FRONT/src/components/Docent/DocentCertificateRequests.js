@@ -304,7 +304,7 @@ const DocentCertificateRequests = () => {
         }),
       });
 
-      localStorage.setItem("uptc_cert_signature", signaturePreview);
+      try { localStorage.setItem("uptc_cert_signature", signaturePreview); } catch (e) {}
       setDocentProfile((prev) => ({
         ...(prev || {}),
         foto_firma: signaturePreview,
@@ -349,7 +349,7 @@ const DocentCertificateRequests = () => {
       }
     } catch (err) {
       console.error("Error al guardar firma:", err);
-      localStorage.setItem("uptc_cert_signature", signaturePreview);
+      try { localStorage.setItem("uptc_cert_signature", signaturePreview); } catch (e) {}
       setDocentProfile((prev) => ({
         ...(prev || {}),
         foto_firma: signaturePreview,

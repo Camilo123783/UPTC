@@ -48,7 +48,7 @@ app.use(
         allowedOrigins.includes(origin) ||
         origin.endsWith(".vercel.app") ||
         origin.includes("localhost") ||
-        origin.includes("127.0.0.1")
+        origin.includes("127.0.0.1") || /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(origin)
       ) {
         return callback(null, true);
       }

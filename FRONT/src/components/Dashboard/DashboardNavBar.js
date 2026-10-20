@@ -1126,7 +1126,7 @@ const DashboardLayout = ({
 
   return (
     <div
-      className={`h-screen w-screen flex flex-col overflow-hidden transition-colors duration-200 ${isDark ? "bg-black text-white" : "bg-white text-gray-800"
+      className={`h-[100dvh] w-full max-w-[100vw] flex flex-col overflow-hidden transition-colors duration-200 ${isDark ? "bg-black text-white" : "bg-white text-gray-800"
         }`}
     >
       {/* Header Fijo */}
@@ -1223,7 +1223,7 @@ const DashboardLayout = ({
                 {getInitials(fullName).substring(0, 2)}
               </span>
             )}
-            <span className="truncate max-w-[170px] sm:max-w-[240px] font-semibold">
+            <span className="truncate max-w-[110px] sm:max-w-[240px] font-semibold">
               {fullName}
             </span>
             <svg
@@ -1248,7 +1248,7 @@ const DashboardLayout = ({
           {/* Recuadro un poco más grande (Dropdown / Popover) */}
           {isUserMenuOpen && (
             <div
-              className={`absolute right-0 mt-2.5 w-72 sm:w-80 rounded-2xl p-5 shadow-2xl border z-50 transition-all duration-150 transform origin-top-right ${isDark
+              className={`absolute right-0 mt-2.5 w-72 max-w-[calc(100vw-1.5rem)] sm:w-80 rounded-2xl p-5 shadow-2xl border z-50 transition-all duration-150 transform origin-top-right ${isDark
                 ? "bg-zinc-900/95 backdrop-blur-md border-zinc-700/90 shadow-black/80 text-white"
                 : "bg-white/95 backdrop-blur-md border-gray-200 shadow-2xl shadow-gray-400/30 text-gray-800"
                 }`}
@@ -1500,7 +1500,7 @@ const DashboardLayout = ({
           {/* Cabecera del Sidebar */}
           <div
             className={`flex items-center pb-3 mb-3 transition-all ${isDark ? "border-b border-zinc-800" : "border-b border-amber-500/50"
-              } ${isCollapsed ? "justify-center" : "justify-between px-1"}`}
+              } ${(isCollapsed && !isMobileMenuOpen) ? "justify-center" : "justify-between px-1"}`}
           >
             {/* Header y botón cerrar para móvil */}
             <div className="flex items-center justify-between w-full md:hidden">
@@ -1623,7 +1623,7 @@ const DashboardLayout = ({
                     {/* Encabezado de Sección */}
                     {item.section && (
                       <li className="list-none pt-3 pb-1">
-                        {!isCollapsed ? (
+                        {(!isCollapsed || isMobileMenuOpen) ? (
                           <span
                             className={`text-[11px] font-extrabold uppercase tracking-wider px-3 block ${isDark ? "text-slate-400" : "text-amber-950/80"
                               }`}
@@ -1649,7 +1649,7 @@ const DashboardLayout = ({
                           setIsMobileMenuOpen(false);
                           onNavigate(item.page);
                         }}
-                        className={`w-full flex items-center rounded-xl transition-all duration-150 cursor-pointer font-medium relative ${isCollapsed
+                        className={`w-full flex items-center rounded-xl transition-all duration-150 cursor-pointer font-medium relative ${(isCollapsed && !isMobileMenuOpen)
                           ? "justify-center p-3"
                           : "px-3.5 py-2.5 text-sm"
                           } ${isActive
@@ -1662,7 +1662,7 @@ const DashboardLayout = ({
                           }`}
                       >
                         <span
-                          className={`flex items-center justify-center flex-shrink-0 ${isCollapsed ? "" : "mr-3"
+                          className={`flex items-center justify-center flex-shrink-0 ${(isCollapsed && !isMobileMenuOpen) ? "" : "mr-3"
                             }`}
                         >
                           {icons[item.name] || (
@@ -1683,7 +1683,7 @@ const DashboardLayout = ({
                           )}
                         </span>
 
-                        {!isCollapsed && (
+                        {(!isCollapsed || isMobileMenuOpen) && (
                           <span
                             className={`flex-1 leading-snug whitespace-normal break-words text-left ${item.name.length > 18 ? "text-xs font-semibold" : "text-sm"
                               } ${showBadge ? "pr-5" : ""}`}
@@ -1705,7 +1705,7 @@ const DashboardLayout = ({
                       </button>
 
                       {/* Tooltip flotante al pasar el cursor en modo colapsado */}
-                      {isCollapsed && (
+                      {(isCollapsed && !isMobileMenuOpen) && (
                         <div
                           className={`absolute left-full top-1/2 -translate-y-1/2 ml-3.5 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-2xl whitespace-nowrap z-50 pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 border ${isDark
                             ? "bg-slate-900 text-white border-slate-700"

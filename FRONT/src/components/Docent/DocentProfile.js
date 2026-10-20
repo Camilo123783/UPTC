@@ -188,8 +188,8 @@ const DocentProfile = () => {
 
       // Guardar firma local para generador de reportes
       if (signaturePreview) {
-        localStorage.setItem("uptc_cert_signature", signaturePreview);
-        localStorage.setItem("uptc_report_docent_sig", signaturePreview);
+        try { localStorage.setItem("uptc_cert_signature", signaturePreview); } catch (e) {}
+        try { localStorage.setItem("uptc_report_docent_sig", signaturePreview); } catch (e) {}
       } else {
         localStorage.removeItem("uptc_cert_signature");
         localStorage.removeItem("uptc_report_docent_sig");

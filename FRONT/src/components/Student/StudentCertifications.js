@@ -1472,7 +1472,7 @@ const StudentCertifications = () => {
             {/* Hoja de Certificado Virtual Vertical */}
             <div className="flex justify-center bg-slate-100/70 dark:bg-zinc-950/60 p-3 sm:p-5 rounded-2xl border border-slate-200 dark:border-zinc-800">
               <div
-                className="certificate-preview-sheet relative w-full max-w-[540px] aspect-[210/297] p-7 sm:p-9 rounded-xl shadow-2xl border border-slate-300 select-none flex flex-col justify-between"
+                className="certificate-preview-sheet relative w-full max-w-[540px] min-h-[460px] sm:aspect-[210/297] p-5 sm:p-9 rounded-xl shadow-2xl border border-slate-300 select-none flex flex-col justify-between gap-3"
                 style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
               >
                 {/* Doble Marco Institucional Dorado */}
@@ -1484,11 +1484,11 @@ const StudentCertifications = () => {
                   <div className="flex items-center justify-between px-3 mb-2">
                     <div className="w-20 sm:w-24 flex items-center">
                       <img
-                        src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || uptcLogo}
+                        src={instSettings.logo_institucion || instSettings.logoPreview || instSettings.logo_url || `${process.env.PUBLIC_URL || ""}/images/uptc.png`}
                         alt="Logo Institución"
                         className="h-9 sm:h-11 w-auto object-contain"
                         onError={(e) => {
-                          if (e.currentTarget.src !== uptcLogo) e.currentTarget.src = uptcLogo;
+                          if (!e.currentTarget.src.endsWith("/images/uptc.png")) e.currentTarget.src = `${process.env.PUBLIC_URL || ""}/images/uptc.png`;
                         }}
                       />
                     </div>
@@ -1610,7 +1610,7 @@ const StudentCertifications = () => {
             </div>
 
             {/* Footer del Modal */}
-            <div className="pt-6 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3 mt-6">
+            <div className="pt-6 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-6">
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 Documento oficial válido según reglamentación de la Facultad de Ciencias de la Salud UPTC.
               </span>

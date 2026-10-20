@@ -191,7 +191,7 @@ const StudentDocentCommunication = () => {
 
   // Scroll automático al final cuando llegan mensajes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
   // Práctica actualmente seleccionada

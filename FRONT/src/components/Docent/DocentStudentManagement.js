@@ -641,7 +641,7 @@ const DocentStudentManagement = () => {
         </div>
 
         {/* Botones de Acción Global */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/docent/hours-compliance"
             className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm"
@@ -844,37 +844,37 @@ const DocentStudentManagement = () => {
 
                     {/* Detalles relacionales asociados */}
                     <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300 mb-6 bg-gray-50 dark:bg-zinc-800/60 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Landmark className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">
                           <strong>Entidad:</strong> {p.institucion_nombre || 'Sin asignar'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">
                           <strong>Servicio:</strong> {p.servicio_nombre || 'Sin asignar'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <BookOpen className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">
                           <strong>Programa:</strong> {p.programa_nombre || 'General'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Book className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">
                           <strong>Asignatura:</strong> {p.asignatura_nombre || 'Sin asignar'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <UserCheck className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">
                           <strong>Docente:</strong> {p.docente_nombre?.trim() || 'Sin docente'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="truncate">
                           <strong>Auditor:</strong> {p.auditor_nombre?.trim() || 'Sin auditor'}
@@ -956,7 +956,7 @@ const DocentStudentManagement = () => {
               </div>
 
               {/* Indicadores KPI en el Banner */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <div className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 text-center">
                   <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-zinc-400 block">Inscritos</span>
                   <span className="text-lg font-black text-gray-900 dark:text-white">{practiceMetrics.total} alumnos</span>
@@ -1064,7 +1064,7 @@ const DocentStudentManagement = () => {
                           </td>
 
                           <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                               <div
                                 className="cursor-pointer"
                                 onClick={() => setViewingStudent(st)}
@@ -1218,7 +1218,7 @@ const DocentStudentManagement = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <div className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 text-center">
                   <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-zinc-400 block">Total</span>
                   <span className="text-lg font-black text-gray-900 dark:text-white">{students.length} alumnos</span>
@@ -1295,7 +1295,7 @@ const DocentStudentManagement = () => {
                       </td>
 
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                           <div
                             className="cursor-pointer"
                             onClick={() => setViewingStudent(st)}
@@ -1514,7 +1514,7 @@ const DocentStudentManagement = () => {
 
             {/* Pie de Modal Fijo con Estado y Botones */}
             <div className="p-4 sm:p-5 border-t border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/90 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {!isAllCriteriaScored ? (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -1599,7 +1599,7 @@ const DocentStudentManagement = () => {
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 max-h-[92vh] flex flex-col my-auto overflow-hidden">
               {/* Cabecera del Modal */}
               <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-zinc-800 shrink-0">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                     <ShieldCheck className="w-6 h-6" />
                   </div>
@@ -1699,7 +1699,7 @@ const DocentStudentManagement = () => {
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <div
                               className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                                 doc.loaded

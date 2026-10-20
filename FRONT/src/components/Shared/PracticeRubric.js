@@ -546,7 +546,7 @@ export const RubricEvaluationInput = ({
       {/* Sugerencia del Auditor Clínico (Solo visible para el Docente Tutor) */}
       {!isAuditor && auditorReport && (
         <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 space-y-2">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" /> Concepto Emitido por el Auditor Clínico (Privado para el Docente):
@@ -593,7 +593,7 @@ export const RubricEvaluationInput = ({
               key={c.id}
               className="p-3.5 rounded-xl bg-white dark:bg-zinc-850 border border-gray-200 dark:border-zinc-800 shadow-3xs space-y-2"
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
                   <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
                     {index + 1}

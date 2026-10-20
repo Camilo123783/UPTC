@@ -1195,7 +1195,7 @@ const StudentProfile = () => {
                 <FileText className="w-4 h-4 text-amber-500" />
                 {previewModal.title}
               </h3>
-              <button
+              <a href={previewModal.url} target="_blank" rel="noopener noreferrer" download className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition ml-auto mr-2">Abrir / Descargar</a><button
                 type="button"
                 onClick={() => setPreviewModal({ isOpen: false, title: "", url: "" })}
                 className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg transition cursor-pointer"
