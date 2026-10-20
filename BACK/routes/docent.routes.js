@@ -2165,6 +2165,13 @@ const handleRespondRequest = async (req, res, next) => {
         (sol.tipo_certificado || "").toLowerCase().includes("reporte") ||
         (sol.tipo_certificado || "").toLowerCase().includes("constancia");
       if (!isReportReq) {
+        if (sol.practica_estado !== "Finalizada") {
+          return res.status(400).json({
+            success: false,
+            message:
+              `No es posible emitir ni avalar el certificado porque la práctica formativa aún no ha finalizado (estado actual: ${sol.practica_estado || "En Curso"}). Mientras la práctica no finalice, solo se pueden emitir reportes de práctica.`,
+          });
+        }
         const studentGrade =
           sol.estudiante_calificacion !== null &&
           sol.estudiante_calificacion !== undefined &&

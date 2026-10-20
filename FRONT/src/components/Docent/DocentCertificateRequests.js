@@ -375,7 +375,19 @@ const DocentCertificateRequests = () => {
         req.estudiante_calificacion !== ""
           ? Number(req.estudiante_calificacion)
           : null;
-      if (!isReportReq && (gradeVal === null || gradeVal < 3.0)) {
+      if (!isReportReq && req.practica_estado && req.practica_estado !== "Finalizada") {
+        toast.error(
+          `No es posible emitir ni avalar el certificado porque la práctica formativa aún no ha finalizado (estado actual: ${req.practica_estado}). Mientras esté en curso, solo se pueden avalar reportes de práctica.`
+        );
+        return;
+      }
+      if (!isReportReq && req.practica_estado && req.practica_estado !== "Finalizada") {
+      toast.error(
+        `No es posible emitir el certificado porque la práctica formativa aún no ha finalizado (estado actual: ${req.practica_estado}).`
+      );
+      return;
+    }
+    if (!isReportReq && (gradeVal === null || gradeVal < 3.0)) {
         toast.error(
           "No es posible emitir ni avalar el certificado porque el estudiante no aprobó la práctica formativa (calificación mínima requerida: 3.0)."
         );
@@ -498,6 +510,12 @@ const DocentCertificateRequests = () => {
       rawGrade !== null && rawGrade !== undefined && rawGrade !== ""
         ? Number(rawGrade)
         : null;
+    if (!isReportReq && req.practica_estado && req.practica_estado !== "Finalizada") {
+      toast.error(
+        `No es posible emitir el certificado porque la práctica formativa aún no ha finalizado (estado actual: ${req.practica_estado}).`
+      );
+      return;
+    }
     if (!isReportReq && (gradeVal === null || gradeVal < 3.0)) {
       toast.error(
         "No es posible emitir el certificado porque el estudiante no aprobó la práctica formativa (nota mínima requerida: 3.0)."

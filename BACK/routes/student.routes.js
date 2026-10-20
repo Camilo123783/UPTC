@@ -849,8 +849,9 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
       if (prInfo.estado !== "Finalizada") {
         return res.status(400).json({
           success: false,
+          requiresReport: true,
           message:
-            "No puedes solicitar el Certificado Oficial antes de que finalice la práctica formativa.",
+            "La práctica formativa aún no ha finalizado. No puedes solicitar el Certificado Oficial antes de que finalice la práctica; en su lugar, te recomendamos solicitar un Reporte de Práctica.",
         });
       }
       const evalCheckEarly = await queryDB(

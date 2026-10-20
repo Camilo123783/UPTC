@@ -319,6 +319,16 @@ const AdminCertificateDesigner = () => {
   const handleSelectPractice = (practice) => {
     setSelectedPractice(practice);
     const students = practice.estudiantes || [];
+    if (practice.estado !== "Finalizada") {
+      setSelectedStudentCedulas([]);
+      setFocusedStudent(students[0] || null);
+      toast.warning(
+        `La práctica "${practice.titulo || practice.servicio_nombre}" aún no ha finalizado (${practice.estado || "En Curso"}). La emisión de certificados está bloqueada hasta que finalice la práctica.`
+      );
+      return;
+    }
+    setSelectedPractice(practice);
+    const students = practice.estudiantes || [];
 
     // Por defecto, preseleccionar a los estudiantes que tienen nota aprobatoria (>= 3.0) o a todos si no hay notas
     const approved = students
@@ -343,6 +353,10 @@ const AdminCertificateDesigner = () => {
 
   // ── Alternar selección de un estudiante ──
   const handleToggleStudent = (cedula) => {
+    if (selectedPractice?.estado !== "Finalizada") {
+      toast.error("No es posible emitir certificados porque la práctica aún no ha finalizado.");
+      return;
+    }
     const stObj = (selectedPractice?.estudiantes || []).find((s) => s.cedula === cedula);
     if (stObj && (stObj.calificacion === null || stObj.calificacion === undefined || Number(stObj.calificacion) < 3.0)) {
       toast.error(`No es posible emitir certificado para ${stObj.nombre_completo} porque no aprobó la práctica (se requiere calificación mínima de 3.0).`);
@@ -356,6 +370,11 @@ const AdminCertificateDesigner = () => {
   // ── Seleccionar todos ──
   const handleSelectAllStudents = () => {
     if (!selectedPractice) return;
+    if (selectedPractice.estado !== "Finalizada") {
+      toast.error("No es posible emitir certificados porque la práctica aún no ha finalizado.");
+      return;
+    }
+    if (!selectedPractice) return;
     const approvedCedulas = selectedPractice.estudiantes
       .filter((s) => s.calificacion !== null && s.calificacion !== undefined && Number(s.calificacion) >= 3.0)
       .map((s) => s.cedula);
@@ -367,6 +386,11 @@ const AdminCertificateDesigner = () => {
 
   // ── Seleccionar solo aprobados ──
   const handleSelectApprovedOnly = () => {
+    if (!selectedPractice) return;
+    if (selectedPractice.estado !== "Finalizada") {
+      toast.error("No es posible emitir certificados porque la práctica aún no ha finalizado.");
+      return;
+    }
     if (!selectedPractice) return;
     const approved = selectedPractice.estudiantes
       .filter((s) => s.calificacion !== null && s.calificacion >= 3.0)
@@ -453,6 +477,12 @@ const AdminCertificateDesigner = () => {
 
   // ── Emitir Certificado Individual del estudiante actualmente en foco ──
   const handleIssueSingle = () => {
+    if (selectedPractice?.estado !== "Finalizada") {
+      toast.error(
+        `No es posible emitir el certificado porque la práctica "${selectedPractice?.titulo || "seleccionada"}" aún no ha finalizado (estado actual: ${selectedPractice?.estado || "En Curso"}).`
+      );
+      return;
+    }
     if (!focusedStudent) {
       toast.warn("Por favor, selecciona un estudiante para visualizar y emitir.");
       return;
@@ -521,6 +551,12 @@ const AdminCertificateDesigner = () => {
 
   // ── Emitir Certificados de los Estudiantes Seleccionados (Lote) ──
   const handleIssueBatch = () => {
+    if (selectedPractice?.estado !== "Finalizada") {
+      toast.error(
+        `No es posible emitir certificados porque la práctica "${selectedPractice?.titulo || "seleccionada"}" aún no ha finalizado (estado actual: ${selectedPractice?.estado || "En Curso"}).`
+      );
+      return;
+    }
     if (isDocent && !signatureImage) {
       toast.warning(
         "Tienes que terminar de subir tus datos primero (foto de la firma en 'Datos Docente') para poder emitir certificados."
@@ -902,8 +938,8 @@ const AdminCertificateDesigner = () => {
                 <button
                   type="button"
                   onClick={handleIssueBatch}
-                  disabled={selectedStudentCedulas.length === 0}
-                  className={`py-2.5 px-5 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center gap-2 shadow-md ${selectedStudentCedulas.length > 0
+                  disabled={selectedStudentCedulas.length === 0 || selectedPractice.estado !== "Finalizada"}
+                  className={`py-2.5 px-5 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center gap-2 shadow-md ${selectedStudentCedulas.length > 0 && selectedPractice.estado === "Finalizada"
                       ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95"
                       : "bg-gray-300 dark:bg-zinc-800 text-gray-500 cursor-not-allowed"
                     }`}
@@ -919,6 +955,19 @@ const AdminCertificateDesigner = () => {
             </div>
           </div>
 
+          {selectedPractice.estado !== "Finalizada" && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-3 shadow-xs">
+              <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div>
+                <strong className="block text-sm text-amber-950 dark:text-amber-100">
+                  Emisión de Certificados Bloqueada — Práctica Aún No Finalizada ({selectedPractice.estado || "En Curso"})
+                </strong>
+                <span>
+                  Por cláusula institucional, el docente no puede emitir certificados si la práctica aún no ha finalizado. Únicamente cuando la práctica se encuentre en estado <strong>Finalizada</strong> y el estudiante tenga nota aprobatoria (≥ 3.0) se habilitará la emisión.
+                </span>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-10">
             {/* ─── COLUMNA IZQUIERDA: Listado de Estudiantes y Notas de la Práctica ─── */}
             <div className="lg:col-span-5 space-y-4">
@@ -994,7 +1043,7 @@ const AdminCertificateDesigner = () => {
                             <input
                               type="checkbox"
                               checked={isSelected}
-                              disabled={!isApproved}
+                              disabled={!isApproved || selectedPractice.estado !== "Finalizada"}
                               title={!isApproved ? "No aprobó la práctica (requiere mínimo 3.0)" : "Seleccionar para emitir certificado"}
                               onChange={(e) => {
                                 e.stopPropagation();
@@ -1165,12 +1214,14 @@ const AdminCertificateDesigner = () => {
                     onClick={handleIssueSingle}
                     disabled={
                       !focusedStudent ||
+                      selectedPractice.estado !== "Finalizada" ||
                       focusedStudent.calificacion === null ||
                       focusedStudent.calificacion === undefined ||
                       Number(focusedStudent.calificacion) < 3.0
                     }
                     title={
                       !focusedStudent ||
+                      selectedPractice.estado !== "Finalizada" ||
                       focusedStudent.calificacion === null ||
                       focusedStudent.calificacion === undefined ||
                       Number(focusedStudent.calificacion) < 3.0
