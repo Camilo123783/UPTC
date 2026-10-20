@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+
 import { BACKEND_URL } from "../config/api";
 
 const ThemeContext = createContext();
@@ -12,7 +13,10 @@ export const applyInstitutionColors = (settings, currentTheme) => {
     ? settings?.color_primario_dark || "#f59e0b"
     : settings?.color_primario_light || "#f59e0b";
   const secondary = isDarkMode
-    ? (settings?.color_secundario_dark && settings?.color_secundario_dark !== "#0f172a" ? settings.color_secundario_dark : "#000000")
+    ? settings?.color_secundario_dark &&
+      settings?.color_secundario_dark !== "#0f172a"
+      ? settings.color_secundario_dark
+      : "#000000"
     : settings?.color_secundario_light || "#ffffff";
   const text = isDarkMode
     ? settings?.color_texto_dark || "#f8fafc"
@@ -57,7 +61,10 @@ export const ThemeProvider = ({ children }) => {
           }
         }
       } catch (e) {
-        console.warn("No se pudo cargar la configuración institucional desde backend:", e);
+        console.warn(
+          "No se pudo cargar la configuración institucional desde backend:",
+          e,
+        );
       }
     };
     fetchInstitutionSettings();
@@ -95,7 +102,10 @@ export const ThemeProvider = ({ children }) => {
     window.addEventListener("institutionSettingsUpdated", handleStorageChange);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("institutionSettingsUpdated", handleStorageChange);
+      window.removeEventListener(
+        "institutionSettingsUpdated",
+        handleStorageChange,
+      );
     };
   }, []);
 
