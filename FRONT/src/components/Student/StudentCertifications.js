@@ -301,6 +301,30 @@ const StudentCertifications = () => {
       return;
     }
 
+    if (category === "certificado") {
+      if (practice.estado !== "Finalizada") {
+        toast.error("No puedes solicitar el Certificado Oficial antes de finalizar la práctica formativa.");
+        return;
+      }
+      const hasGrade =
+        practice.calificacion !== null &&
+        practice.calificacion !== undefined &&
+        practice.calificacion !== "" &&
+        Number(practice.calificacion) > 0;
+      if (!hasGrade || Number(practice.calificacion) < 3.0) {
+        toast.error(
+          hasGrade
+            ? `No puedes solicitar el certificado porque no aprobaste la práctica formativa (tu nota final fue ${Number(practice.calificacion).toFixed(1)} / 5.0 y la nota mínima aprobatoria es 3.0).`
+            : "No puedes solicitar el certificado porque la práctica finalizó y no aprobaste con la calificación mínima requerida (3.0)."
+        );
+        return;
+      }
+    }
+    if (practice.estado === "Cancelada") {
+      toast.error("La práctica está cancelada. Por normativa institucional, no es posible tramitar certificados ni reportes de prácticas canceladas.");
+      return;
+    }
+
     if (practice.estado === "Finalizada" && practice.fecha_fin) {
       const diffDays = Math.floor((Date.now() - new Date(practice.fecha_fin).getTime()) / (1000 * 60 * 60 * 24));
       if (diffDays > 30) {
@@ -342,6 +366,20 @@ const StudentCertifications = () => {
 
     // Validación si intenta solicitar certificado sin nota
     const isReport = requestCategory === "reporte";
+    if (!isReport && selectedPracticeForRequest.estado !== "Finalizada") {
+      toast.error("No puedes solicitar el Certificado Oficial antes de finalizar la práctica formativa.");
+      return;
+    }
+    if (
+      !isReport &&
+      (selectedPracticeForRequest.calificacion === null ||
+        selectedPracticeForRequest.calificacion === undefined ||
+        selectedPracticeForRequest.calificacion === "" ||
+        Number(selectedPracticeForRequest.calificacion) < 3.0)
+    ) {
+      toast.error("No puedes solicitar el certificado porque no aprobaste la práctica formativa (la nota mínima aprobatoria es 3.0).");
+      return;
+    }
     const hasGrade =
       selectedPracticeForRequest.calificacion !== null &&
       selectedPracticeForRequest.calificacion !== undefined &&
@@ -724,6 +762,9 @@ const StudentCertifications = () => {
                   Number(pr.calificacion) > 0;
                 const pendingReq = certificateRequestsByPracticeId[pr.id];
                 const alreadyEmitted = issuedCertificatesByPracticeId[pr.id];
+                const isFinalizada = pr.estado === "Finalizada";
+                const isApproved = hasGrade && Number(pr.calificacion) >= 3.0;
+                const canRequestCertificate = isFinalizada && isApproved;
 
                 return (
                   <div
@@ -774,8 +815,36 @@ const StudentCertifications = () => {
                         </div>
                       </div>
 
-                      {/* Estado de Calificación */}
-                      {hasGrade ? (
+                      {/* Estado de Calificación y Cláusula de Certificación */}
+                      {canRequestCertificate ? (
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            Nota Final: {Number(pr.calificacion).toFixed(1)} / 5.0
+                          </span>
+                          <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-800 dark:text-emerald-200">
+                            Aprobada (≥ 3.0)
+                          </span>
+                        </div>
+                      ) : isFinalizada && !isApproved ? (
+                        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-900 dark:text-rose-200 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between gap-1.5 font-bold text-rose-700 dark:text-rose-300">
+                            <span className="flex items-center gap-1.5">
+                              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                              <span>Práctica No Aprobada — Certificado Bloqueado</span>
+                            </span>
+                            {hasGrade && (
+                              <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-800 dark:text-rose-200 shrink-0">
+                                Nota: {Number(pr.calificacion).toFixed(1)} / 5.0
+                              </span>
+                            )}
+                          </div>
+                          <p className="leading-relaxed text-rose-800 dark:text-rose-200/90 text-[11px] font-medium">
+                            Esta práctica ya finalizó, pero no alcanzaste la nota mínima aprobatoria (3.0). No puedes solicitar el certificado porque no aprobaste la práctica.
+                          </p>
+                        </div>
+                      ) : !isFinalizada && false ? (
+
                         <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
                           <span className="flex items-center gap-1.5">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -789,10 +858,10 @@ const StudentCertifications = () => {
                         <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs space-y-2">
                           <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
                             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                            <span>Calificación Pendiente — Certificado No Disponible</span>
+                            <span>Práctica en Curso ({pr.estado || "Activa"}) — Certificado No Disponible</span>
                           </div>
                           <p className="leading-relaxed text-gray-700 dark:text-zinc-300 text-[11px]">
-                            Aún no tienes nota definitiva registrada en esta práctica. Los Certificados Oficiales solo se expiden tras la calificación final del docente.
+                            No puedes solicitar el Certificado Oficial antes de finalizar la práctica formativa y obtener una calificación aprobatoria (mínimo 3.0).{hasGrade ? ` (Nota registrada actual: ${Number(pr.calificacion).toFixed(1)} / 5.0)` : ""}
                           </p>
                           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-amber-500/20">
                             <span className="text-[10px] text-gray-500 dark:text-zinc-400">
@@ -838,7 +907,7 @@ const StudentCertifications = () => {
                             Pendiente
                           </span>
                         </div>
-                      ) : hasGrade ? (
+                      ) : canRequestCertificate ? (
                         <button
                           onClick={() => handleOpenRequestModal(pr, "certificado")}
                           className="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition duration-150"
@@ -849,7 +918,9 @@ const StudentCertifications = () => {
                       ) : (
                         <div className="text-center py-1">
                           <span className="text-[11px] font-semibold text-gray-400">
-                            Requiere nota para habilitar solicitud oficial
+                            {isFinalizada
+                              ? "No puedes solicitar el certificado porque no aprobaste la práctica (mínimo 3.0)"
+                              : "No disponible hasta finalizar y aprobar la práctica (≥ 3.0)"}
                           </span>
                         </div>
                       )}
@@ -1352,7 +1423,7 @@ const StudentCertifications = () => {
 
             {/* Verificación de Calificación si es Certificado */}
             {requestCategory === "certificado" &&
-              (!selectedPracticeForRequest.calificacion || Number(selectedPracticeForRequest.calificacion) <= 0) && (
+              (selectedPracticeForRequest.estado !== "Finalizada" || !selectedPracticeForRequest.calificacion || Number(selectedPracticeForRequest.calificacion) < 3.0) && (
                 <div className="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs space-y-2">
                   <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
@@ -1420,7 +1491,7 @@ const StudentCertifications = () => {
                   disabled={
                     isSubmittingRequest ||
                     (requestCategory === "certificado" &&
-                      (!selectedPracticeForRequest.calificacion || Number(selectedPracticeForRequest.calificacion) <= 0))
+                      (selectedPracticeForRequest.estado !== "Finalizada" || !selectedPracticeForRequest.calificacion || Number(selectedPracticeForRequest.calificacion) < 3.0))
                   }
                   className={`inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-xs font-bold shadow-md transition duration-150 disabled:opacity-50 ${
                     requestCategory === "reporte" ? "bg-blue-600 hover:bg-blue-700" : "bg-amber-600 hover:bg-amber-700"

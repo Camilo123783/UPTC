@@ -1173,6 +1173,7 @@ const DocentPractices = () => {
                               e.stopPropagation();
                               handleOpenEditModal(practice);
                             }}
+                    
                             className="px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/70 dark:hover:bg-blue-900/80 rounded-md transition"
                           >
                             Editar
@@ -2034,11 +2035,11 @@ const DocentPractices = () => {
         student={fichaStudent}
         practiceInfo={selectedPractice || {}}
         role="docent"
-        onPrimaryAction={(st) => {
-          setTargetStudentCedula(st.cedula);
-          setObsTipo("Desempeño");
-        }}
-        primaryActionLabel="Redactar Observación"
+        onPrimaryAction={null}
+
+
+
+
       />
     </div>
   );

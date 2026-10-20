@@ -591,7 +591,7 @@ const StudentFichaModal = ({
             </button>
           )}
 
-          {onPrimaryAction && (
+          {onPrimaryAction && !(role === "docent" && primaryActionLabel === "Redactar Observación") && (
             <button
               type="button"
               onClick={() => {

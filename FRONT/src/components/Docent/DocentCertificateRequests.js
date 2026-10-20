@@ -365,6 +365,24 @@ const DocentCertificateRequests = () => {
   // Abrir modal de acción (Verifica firma oficial para emisión automática)
   const handleOpenActionModal = (req, action) => {
     if (action === "approve") {
+      const isReportReq =
+        req.categoria_solicitud === "reporte" ||
+        (req.tipo_certificado || "").toLowerCase().includes("reporte") ||
+        (req.tipo_certificado || "").toLowerCase().includes("constancia");
+      const gradeVal =
+        req.estudiante_calificacion !== null &&
+        req.estudiante_calificacion !== undefined &&
+        req.estudiante_calificacion !== ""
+          ? Number(req.estudiante_calificacion)
+          : null;
+      if (!isReportReq && (gradeVal === null || gradeVal < 3.0)) {
+        toast.error(
+          "No es posible emitir ni avalar el certificado porque el estudiante no aprobó la práctica formativa (calificación mínima requerida: 3.0)."
+        );
+        return;
+      }
+    }
+    if (action === "approve") {
       if (req.practica_estado === "Cancelada") {
         toast.error("Esta práctica formativa está cancelada. Por normativa institucional, no es posible avalar certificados de prácticas canceladas.");
         return;
@@ -421,7 +439,7 @@ const DocentCertificateRequests = () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      await fetch(`${API_BASE_URL}/api/docent/certificate-requests/${selectedRequest.id}/respond`, {
+      const res = await fetch(`${API_BASE_URL}/api/docent/certificate-requests/${selectedRequest.id}/respond`, {
         method: "PUT",
         headers,
         body: JSON.stringify({
@@ -430,6 +448,11 @@ const DocentCertificateRequests = () => {
         }),
       });
 
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok || resData.success === false) {
+        toast.error(resData.message || "No fue posible procesar la solicitud.");
+        return;
+      }
       // Actualizar estado en memoria
       setRequests((prev) =>
         prev.map((r) =>
@@ -466,6 +489,21 @@ const DocentCertificateRequests = () => {
 
   // Descargar el certificado generado desde la vista del docente
   const handleDownloadGeneratedCertificate = (req) => {
+    const isReportReq =
+      req.categoria_solicitud === "reporte" ||
+      (req.tipo_certificado || "").toLowerCase().includes("reporte") ||
+      (req.tipo_certificado || "").toLowerCase().includes("constancia");
+    const rawGrade = req.estudiante_calificacion ?? req.calificacion;
+    const gradeVal =
+      rawGrade !== null && rawGrade !== undefined && rawGrade !== ""
+        ? Number(rawGrade)
+        : null;
+    if (!isReportReq && (gradeVal === null || gradeVal < 3.0)) {
+      toast.error(
+        "No es posible emitir el certificado porque el estudiante no aprobó la práctica formativa (nota mínima requerida: 3.0)."
+      );
+      return;
+    }
     const savedSig = docentProfile?.foto_firma || (typeof window !== "undefined" ? localStorage.getItem("uptc_cert_signature") : null);
     if (!savedSig) {
       toast.warning(
@@ -805,7 +843,23 @@ const DocentCertificateRequests = () => {
                         })}
                       </span>
 
-                      {req.estudiante_calificacion && (
+                      {req.estudiante_calificacion !== null && req.estudiante_calificacion !== undefined && req.estudiante_calificacion !== "" ? (
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${
+                            Number(req.estudiante_calificacion) >= 3.0
+                              ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900"
+                              : "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900"
+                          }`}
+                        >
+                          Nota: {Number(req.estudiante_calificacion).toFixed(1)} / 5.0{" "}
+                          {Number(req.estudiante_calificacion) >= 3.0 ? "(Aprobó)" : "(No Aprobó < 3.0)"}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                          Sin nota aprobatoria (Mínimo 3.0)
+                        </span>
+                      )}
+                      {false && (
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
                           Nota: {Number(req.estudiante_calificacion).toFixed(1)} / 5.0
                         </span>

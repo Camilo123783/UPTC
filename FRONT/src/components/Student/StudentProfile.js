@@ -78,7 +78,8 @@ const getAuthToken = () => {
  */
 const normalizePhotoUrl = (rawUrl, cedula) => {
   if (!rawUrl && !cedula) return null;
-  if (rawUrl && (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:"))) return rawUrl;
+  if (rawUrl && (rawUrl.startsWith("data:") || rawUrl.startsWith("blob:")))
+    return rawUrl;
   let path = `/api/student/photo/${cedula}`;
   if (rawUrl) {
     if (rawUrl.startsWith("/api/student/photo/")) {
@@ -90,7 +91,7 @@ const normalizePhotoUrl = (rawUrl, cedula) => {
   const token = getAuthToken();
   const sep = path.includes("?") ? "&" : "?";
   const tokenParam = token ? `${sep}token=${encodeURIComponent(token)}` : "";
-  const sepV = tokenParam ? "&" : (path.includes("?") ? "&" : "?");
+  const sepV = tokenParam ? "&" : path.includes("?") ? "&" : "?";
   return `${BACKEND_URL}${path}${tokenParam}`;
 };
 
@@ -99,7 +100,12 @@ const normalizePhotoUrl = (rawUrl, cedula) => {
  * Convierte a JPEG estándar de alta calidad (500x500 máx, ~40-60 KB) para carga instantánea
  * universal sin problemas de compatibilidad en ningún navegador.
  */
-const compressImage = (file, maxWidth = 500, maxHeight = 500, quality = 0.85) => {
+const compressImage = (
+  file,
+  maxWidth = 500,
+  maxHeight = 500,
+  quality = 0.85,
+) => {
   return new Promise((resolve) => {
     if (!file) {
       resolve({ file, dataUrl: null });
@@ -143,7 +149,7 @@ const compressImage = (file, maxWidth = 500, maxHeight = 500, quality = 0.85) =>
             resolve({ file: compressedFile, dataUrl });
           },
           "image/jpeg",
-          quality
+          quality,
         );
       };
       img.onerror = () => resolve({ file, dataUrl: e.target.result });
@@ -345,9 +351,14 @@ const StudentProfile = () => {
           detailsData.familyContactPhone ?? prev.familyContactPhone ?? "",
 
         // Foto y documentos
-        photoPreview: normalizePhotoUrl(detailsData.photoPreview, id) || prev.photoPreview,
+        photoPreview:
+          normalizePhotoUrl(detailsData.photoPreview, id) || prev.photoPreview,
         documentsInDB: docsInDB,
-        estado: detailsData.estado || initialData.estado || prev.estado || "Pendiente",
+        estado:
+          detailsData.estado ||
+          initialData.estado ||
+          prev.estado ||
+          "Pendiente",
       }));
       setPhotoError(false);
     } catch (err) {
@@ -408,7 +419,10 @@ const StudentProfile = () => {
         }));
         setPhotoError(false);
       } catch (err) {
-        console.warn("Fallo en compresión de imagen, usando archivo original:", err);
+        console.warn(
+          "Fallo en compresión de imagen, usando archivo original:",
+          err,
+        );
         const reader = new FileReader();
         reader.onloadend = () => {
           setProfile((prev) => ({
@@ -491,7 +505,7 @@ const StudentProfile = () => {
     ];
 
     const empty = requiredFields.find(
-      ({ field }) => !profile[field] || String(profile[field]).trim() === ""
+      ({ field }) => !profile[field] || String(profile[field]).trim() === "",
     );
     if (empty) {
       return setErrorMessage(`El campo "${empty.label}" es obligatorio.`);
@@ -499,7 +513,9 @@ const StudentProfile = () => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(profile.personalEmail)) {
-      return setErrorMessage("El correo personal ingresado no tiene un formato válido.");
+      return setErrorMessage(
+        "El correo personal ingresado no tiene un formato válido.",
+      );
     }
 
     if (
@@ -511,12 +527,12 @@ const StudentProfile = () => {
 
     // Validaciones de documentos
     const missingDoc = DOCUMENT_CONFIGS.find(
-      ({ key }) => !profile.documents[key] && !profile.documentsInDB[key]
+      ({ key }) => !profile.documents[key] && !profile.documentsInDB[key],
     );
 
     if (missingDoc) {
       return setErrorMessage(
-        `El documento "${missingDoc.title}" es obligatorio y debe ser adjuntado.`
+        `El documento "${missingDoc.title}" es obligatorio y debe ser adjuntado.`,
       );
     }
 
@@ -608,19 +624,22 @@ const StudentProfile = () => {
       window.dispatchEvent(
         new CustomEvent("uptc:profile-updated", {
           detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
-        })
+        }),
       );
       window.dispatchEvent(
         new CustomEvent("uptc:profile-photo-updated", {
           detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
-        })
+        }),
       );
       window.dispatchEvent(
         new CustomEvent("uptc:user-data-updated", {
           detail: { foto_perfil: updatedPhotoUrl, cedula: currentCedula },
-        })
+        }),
       );
-      notifyDataChanged("students", "update", { cedula: currentCedula, photoUrl: updatedPhotoUrl });
+      notifyDataChanged("students", "update", {
+        cedula: currentCedula,
+        photoUrl: updatedPhotoUrl,
+      });
 
       // Refrescar expediente del estudiante
       fetchStudentData(currentCedula);
@@ -660,7 +679,9 @@ const StudentProfile = () => {
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
             No se pudo cargar el perfil
           </h2>
-          <p className="text-gray-600 dark:text-zinc-400 text-sm mb-5">{error}</p>
+          <p className="text-gray-600 dark:text-zinc-400 text-sm mb-5">
+            {error}
+          </p>
           <button
             onClick={() => fetchStudentData(getStudentCedula())}
             className="px-5 py-2.5 bg-gray-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-xl font-semibold text-sm transition-all cursor-pointer shadow-sm"
@@ -675,7 +696,6 @@ const StudentProfile = () => {
   return (
     <div className="w-full text-gray-900 dark:text-zinc-100 transition-colors duration-200">
       <div className="max-w-5xl mx-auto space-y-6">
-
         {/* ================================================================= */}
         {/* HERO BANNER: PERFIL DEL ESTUDIANTE */}
         {/* ================================================================= */}
@@ -694,7 +714,7 @@ const StudentProfile = () => {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-blue-50 dark:bg-zinc-800 text-blue-700 dark:text-blue-300 font-extrabold text-2xl select-none">
-                    {((profile.name || "E").trim().charAt(0)).toUpperCase()}
+                    {(profile.name || "E").trim().charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
@@ -718,17 +738,20 @@ const StudentProfile = () => {
             <div className="flex-1 space-y-2.5">
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Estudiante UPTC
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />{" "}
+                  Estudiante UPTC
                 </span>
 
                 {profile.code && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                    <GraduationCap className="w-3.5 h-3.5" /> Cód: {profile.code}
+                    <GraduationCap className="w-3.5 h-3.5" /> Cód:{" "}
+                    {profile.code}
                   </span>
                 )}
 
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-700">
-                  <IdCard className="w-3.5 h-3.5 text-gray-500" /> CC: {profile.studentId || "N/A"}
+                  <IdCard className="w-3.5 h-3.5 text-gray-500" /> CC:{" "}
+                  {profile.studentId || "N/A"}
                 </span>
               </div>
 
@@ -765,7 +788,9 @@ const StudentProfile = () => {
                   <GraduationCap className="w-4 h-4" />
                   {profile.career || "Programa Académico sin asignar"}
                 </span>
-                <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">•</span>
+                <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">
+                  •
+                </span>
                 <span className="flex items-center gap-1.5 font-mono">
                   <Mail className="w-4 h-4 text-gray-400" />
                   {profile.email || "correo@uptc.edu.co"}
@@ -807,7 +832,8 @@ const StudentProfile = () => {
               </h2>
             </div>
             <span className="text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60 self-start sm:self-auto flex items-center gap-1.5 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Verificada por la UPTC
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />{" "}
+              Verificada por la UPTC
             </span>
           </div>
 
@@ -835,7 +861,8 @@ const StudentProfile = () => {
             {/* Cédula */}
             <div className="p-4 rounded-2xl bg-gray-50/80 dark:bg-zinc-800/40 border border-gray-200/80 dark:border-zinc-800 flex flex-col justify-center transition-colors">
               <span className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1 flex items-center gap-1.5">
-                <IdCard className="w-3.5 h-3.5" /> Documento de Identidad (Cédula)
+                <IdCard className="w-3.5 h-3.5" /> Documento de Identidad
+                (Cédula)
               </span>
               <span className="text-sm sm:text-base font-mono font-bold text-gray-900 dark:text-zinc-100">
                 {profile.studentId || "N/A"}
@@ -862,7 +889,10 @@ const StudentProfile = () => {
               <span className="text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5" /> Correo Institucional
               </span>
-              <span className="text-xs sm:text-sm font-mono text-gray-800 dark:text-zinc-200 truncate" title={profile.email}>
+              <span
+                className="text-xs sm:text-sm font-mono text-gray-800 dark:text-zinc-200 truncate"
+                title={profile.email}
+              >
                 {profile.email || "N/A"}
               </span>
             </div>
@@ -921,7 +951,8 @@ const StudentProfile = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-zinc-300 mb-1.5 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-gray-500" /> Teléfono / Celular *
+                <Phone className="w-3.5 h-3.5 text-gray-500" /> Teléfono /
+                Celular *
               </label>
               <input
                 type="text"
@@ -951,7 +982,8 @@ const StudentProfile = () => {
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-zinc-300 mb-1.5 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-gray-500" /> Dirección Residencial *
+                <MapPin className="w-3.5 h-3.5 text-gray-500" /> Dirección
+                Residencial *
               </label>
               <input
                 type="text"
@@ -978,7 +1010,8 @@ const StudentProfile = () => {
                 Contacto de Emergencia / Familiar
               </h2>
               <p className="text-xs text-gray-500 dark:text-zinc-400">
-                Persona de contacto en caso de cualquier novedad durante las prácticas.
+                Persona de contacto en caso de cualquier novedad durante las
+                prácticas.
               </p>
             </div>
           </div>
@@ -986,7 +1019,8 @@ const StudentProfile = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-zinc-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-gray-500" /> Nombre del Contacto Familiar *
+                <User className="w-3.5 h-3.5 text-gray-500" /> Nombre del
+                Contacto Familiar *
               </label>
               <input
                 type="text"
@@ -1000,7 +1034,8 @@ const StudentProfile = () => {
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 dark:text-zinc-300 mb-1.5 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-gray-500" /> Teléfono del Contacto Familiar *
+                <Phone className="w-3.5 h-3.5 text-gray-500" /> Teléfono del
+                Contacto Familiar *
               </label>
               <input
                 type="text"
@@ -1049,8 +1084,8 @@ const StudentProfile = () => {
                     localFile
                       ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800"
                       : isInDB
-                      ? "bg-gray-50/50 dark:bg-zinc-800/40 border-emerald-300 dark:border-emerald-800/60"
-                      : "bg-gray-50/40 dark:bg-zinc-800/20 border-gray-200 dark:border-zinc-800"
+                        ? "bg-gray-50/50 dark:bg-zinc-800/40 border-emerald-300 dark:border-emerald-800/60"
+                        : "bg-gray-50/40 dark:bg-zinc-800/20 border-gray-200 dark:border-zinc-800"
                   }`}
                 >
                   <div className="space-y-3 mb-4">
@@ -1127,7 +1162,11 @@ const StudentProfile = () => {
                         className="py-1.5 px-3 bg-gray-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                         title="Ver o descargar soporte"
                       >
-                        {localFile ? <Eye className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                        {localFile ? (
+                          <Eye className="w-3.5 h-3.5" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
                         <span>{localFile ? "Ver" : "Descargar"}</span>
                       </button>
                     )}
@@ -1181,39 +1220,51 @@ const StudentProfile = () => {
             )}
           </button>
         </div>
-
       </div>
 
       {/* ================================================================= */}
       {/* MODAL DE PREVISUALIZACIÓN DE ARCHIVO LOCAL */}
       {/* ================================================================= */}
-      {previewModal.isOpen && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-4xl h-[85vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-3.5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-950">
-              <h3 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-500" />
-                {previewModal.title}
-              </h3>
-              <a href={previewModal.url} target="_blank" rel="noopener noreferrer" download className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition ml-auto mr-2">Abrir / Descargar</a><button
-                type="button"
-                onClick={() => setPreviewModal({ isOpen: false, title: "", url: "" })}
-                className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {previewModal.isOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-4xl h-[85vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+              <div className="p-3.5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-950">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-500" />
+                  {previewModal.title}
+                </h3>
+                <a
+                  href={previewModal.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition ml-auto mr-2"
+                >
+                  Abrir / Descargar
+                </a>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewModal({ isOpen: false, title: "", url: "" })
+                  }
+                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex-1 bg-gray-100 dark:bg-zinc-950 p-2">
+                <iframe
+                  src={previewModal.url}
+                  className="w-full h-full rounded-xl border border-gray-300 dark:border-zinc-800"
+                  title="Previsualización de Documento"
+                ></iframe>
+              </div>
             </div>
-            <div className="flex-1 bg-gray-100 dark:bg-zinc-950 p-2">
-              <iframe
-                src={previewModal.url}
-                className="w-full h-full rounded-xl border border-gray-300 dark:border-zinc-800"
-                title="Previsualización de Documento"
-              ></iframe>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

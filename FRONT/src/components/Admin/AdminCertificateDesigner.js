@@ -328,7 +328,7 @@ const AdminCertificateDesigner = () => {
     if (approved.length > 0) {
       setSelectedStudentCedulas(approved);
     } else {
-      setSelectedStudentCedulas(students.map((s) => s.cedula));
+      setSelectedStudentCedulas([]);
     }
 
     setFocusedStudent(students[0] || null);
@@ -343,6 +343,11 @@ const AdminCertificateDesigner = () => {
 
   // ── Alternar selección de un estudiante ──
   const handleToggleStudent = (cedula) => {
+    const stObj = (selectedPractice?.estudiantes || []).find((s) => s.cedula === cedula);
+    if (stObj && (stObj.calificacion === null || stObj.calificacion === undefined || Number(stObj.calificacion) < 3.0)) {
+      toast.error(`No es posible emitir certificado para ${stObj.nombre_completo} porque no aprobó la práctica (se requiere calificación mínima de 3.0).`);
+      return;
+    }
     setSelectedStudentCedulas((prev) =>
       prev.includes(cedula) ? prev.filter((c) => c !== cedula) : [...prev, cedula]
     );
@@ -351,7 +356,13 @@ const AdminCertificateDesigner = () => {
   // ── Seleccionar todos ──
   const handleSelectAllStudents = () => {
     if (!selectedPractice) return;
-    setSelectedStudentCedulas(selectedPractice.estudiantes.map((s) => s.cedula));
+    const approvedCedulas = selectedPractice.estudiantes
+      .filter((s) => s.calificacion !== null && s.calificacion !== undefined && Number(s.calificacion) >= 3.0)
+      .map((s) => s.cedula);
+    setSelectedStudentCedulas(approvedCedulas);
+    if (approvedCedulas.length < selectedPractice.estudiantes.length) {
+      toast.info("Solo se seleccionaron los estudiantes que aprobaron la práctica (nota ≥ 3.0). No es posible emitir certificados a quienes no aprobaron.");
+    }
   };
 
   // ── Seleccionar solo aprobados ──
@@ -446,6 +457,20 @@ const AdminCertificateDesigner = () => {
       toast.warn("Por favor, selecciona un estudiante para visualizar y emitir.");
       return;
     }
+    if (
+      focusedStudent.calificacion === null ||
+      focusedStudent.calificacion === undefined ||
+      Number(focusedStudent.calificacion) < 3.0
+    ) {
+      toast.error(
+        `No es posible emitir el certificado para "${focusedStudent.nombre_completo}" porque no aprobó la práctica formativa (calificación mínima requerida: 3.0).`
+      );
+      return;
+    }
+    if (!focusedStudent) {
+      toast.warn("Por favor, selecciona un estudiante para visualizar y emitir.");
+      return;
+    }
 
     if (isDocent && !signatureImage) {
       toast.warning(
@@ -509,7 +534,18 @@ const AdminCertificateDesigner = () => {
       return;
     }
 
-    const studentsToCertify = selectedPractice.estudiantes.filter((s) =>
+    const studentsToCertify = selectedPractice.estudiantes.filter(
+      (s) =>
+        selectedStudentCedulas.includes(s.cedula) &&
+        s.calificacion !== null &&
+        s.calificacion !== undefined &&
+        Number(s.calificacion) >= 3.0
+    );
+    if (studentsToCertify.length === 0) {
+      toast.error("Ninguno de los estudiantes seleccionados aprobó la práctica (mínimo 3.0). No es posible emitir certificados.");
+      return;
+    }
+    const _legacyFilter = selectedPractice.estudiantes.filter((s) =>
       selectedStudentCedulas.includes(s.cedula)
     );
 
@@ -958,6 +994,8 @@ const AdminCertificateDesigner = () => {
                             <input
                               type="checkbox"
                               checked={isSelected}
+                              disabled={!isApproved}
+                              title={!isApproved ? "No aprobó la práctica (requiere mínimo 3.0)" : "Seleccionar para emitir certificado"}
                               onChange={(e) => {
                                 e.stopPropagation();
                                 handleToggleStudent(st.cedula);
@@ -1112,13 +1150,34 @@ const AdminCertificateDesigner = () => {
                   </div>
                 </div>
 
-                {/* Botón de Descarga Individual del Estudiante Enfocado */}
+                  {/* Botón de Descarga Individual del Estudiante Enfocado */}
+                  {focusedStudent &&
+                    (focusedStudent.calificacion === null ||
+                      focusedStudent.calificacion === undefined ||
+                      Number(focusedStudent.calificacion) < 3.0) && (
+                      <div className="mt-3 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 text-[11px] font-semibold text-rose-700 dark:text-rose-300 text-center">
+                        Cláusula de Aprobación: No es posible emitir el certificado a {focusedStudent.nombre_completo} porque no aprobó la práctica (se requiere calificación mínima de 3.0).
+                      </div>
+                    )}
                 <div className="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800">
                   <button
                     type="button"
                     onClick={handleIssueSingle}
-                    disabled={!focusedStudent}
-                    className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-xs sm:text-sm"
+                    disabled={
+                      !focusedStudent ||
+                      focusedStudent.calificacion === null ||
+                      focusedStudent.calificacion === undefined ||
+                      Number(focusedStudent.calificacion) < 3.0
+                    }
+                    title={
+                      !focusedStudent ||
+                      focusedStudent.calificacion === null ||
+                      focusedStudent.calificacion === undefined ||
+                      Number(focusedStudent.calificacion) < 3.0
+                        ? "No es posible emitir el certificado porque el estudiante no aprobó la práctica (mínimo 3.0)"
+                        : "Emitir y descargar certificado"
+                    }
+                    className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-zinc-800 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-xs sm:text-sm"
                   >
                     <Printer className="w-4 h-4" />
                     <span>

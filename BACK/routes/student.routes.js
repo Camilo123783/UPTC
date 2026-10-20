@@ -844,7 +844,36 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
       }
     }
 
-    // Si es un certificado oficial, es OBLIGATORIO que la práctica tenga nota final registrada
+    // Cláusula Institucional: El estudiante no puede solicitar el certificado antes de finalizar la práctica, ni si no aprobó (>= 3.0)
+    if (!isReport) {
+      if (prInfo.estado !== "Finalizada") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "No puedes solicitar el Certificado Oficial antes de que finalice la práctica formativa.",
+        });
+      }
+      const evalCheckEarly = await queryDB(
+        "SELECT calificacion FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula = ?",
+        [practica_id, effectiveCedula]
+      );
+      const gradeVal =
+        evalCheckEarly.length > 0 &&
+        evalCheckEarly[0].calificacion !== null &&
+        evalCheckEarly[0].calificacion !== undefined &&
+        evalCheckEarly[0].calificacion !== ""
+          ? Number(evalCheckEarly[0].calificacion)
+          : null;
+      if (gradeVal === null || gradeVal < 3.0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            gradeVal !== null
+              ? `No puedes solicitar el certificado porque no aprobaste la práctica formativa (tu calificación fue ${gradeVal.toFixed(1)} / 5.0 y la nota mínima aprobatoria es 3.0).`
+              : "No puedes solicitar el certificado porque la práctica finalizó y no aprobaste con la calificación mínima requerida (3.0).",
+        });
+      }
+    }
     if (!isReport) {
       const evalCheck = await queryDB(
         "SELECT calificacion, estado_evaluacion FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula = ?",

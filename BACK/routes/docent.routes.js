@@ -2158,7 +2158,28 @@ const handleRespondRequest = async (req, res, next) => {
       }
     }
 
-    // Reglas de emisión según estado de la práctica al aprobar:
+    // Reglas de emisión según estado de la práctica y cláusula de aprobación (>= 3.0) al aprobar:
+    if (estado === "Aprobado") {
+      const isReportReq =
+        sol.categoria_solicitud === "reporte" ||
+        (sol.tipo_certificado || "").toLowerCase().includes("reporte") ||
+        (sol.tipo_certificado || "").toLowerCase().includes("constancia");
+      if (!isReportReq) {
+        const studentGrade =
+          sol.estudiante_calificacion !== null &&
+          sol.estudiante_calificacion !== undefined &&
+          sol.estudiante_calificacion !== ""
+            ? Number(sol.estudiante_calificacion)
+            : null;
+        if (studentGrade === null || studentGrade < 3.0) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "No es posible emitir ni avalar el certificado porque el estudiante no aprobó la práctica formativa (se requiere calificación mínima de 3.0).",
+          });
+        }
+      }
+    }
     if (estado === "Aprobado") {
       // 1. Si la práctica está cancelada: PROHIBIDO emitir
       if (sol.practica_estado === "Cancelada") {
