@@ -1,4 +1,5 @@
 {
+      "name": "uptc",
       "scripts": {
             "start": "cross-env PORT=3003 react-scripts start",
             "build": "cross-env GENERATE_SOURCEMAP=false react-scripts build",

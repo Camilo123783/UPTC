@@ -34,7 +34,7 @@ const AuditorCommunication = React.lazy(() => import("./components/Auditor/Audit
 
 const DocentEvaluations = React.lazy(() => import("./components/Docent/DocentEvaluations"));
 const DocentPractices = React.lazy(() => import("./components/Docent/DocentPractices"));
-const DocentStudents = React.lazy(() => import("./components/Docent/DocentStudents"));
+const DocentStudents = React.lazy(() => import("./components/Docent/DocentStudentManagement"));
 const DocentHoursCompliance = React.lazy(() => import("./components/Docent/DocentHoursCompliance"));
 const DocentCertificateRequests = React.lazy(() => import("./components/Docent/DocentCertificateRequests"));
 const DocentCommunication = React.lazy(() => import("./components/Docent/DocentCommunication"));
