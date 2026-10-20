@@ -317,11 +317,10 @@ const AdminCertificateDesigner = () => {
 
   // ── Al seleccionar una práctica ──
   const handleSelectPractice = (practice) => {
-    setSelectedPractice(practice);
-    const students = practice.estudiantes || [];
     if (practice.estado !== "Finalizada") {
+      setSelectedPractice(practice);
       setSelectedStudentCedulas([]);
-      setFocusedStudent(students[0] || null);
+      setFocusedStudent((practice.estudiantes || [])[0] || null);
       toast.warning(
         `La práctica "${practice.titulo || practice.servicio_nombre}" aún no ha finalizado (${practice.estado || "En Curso"}). La emisión de certificados está bloqueada hasta que finalice la práctica.`
       );

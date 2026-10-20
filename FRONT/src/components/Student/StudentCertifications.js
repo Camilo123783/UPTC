@@ -336,6 +336,7 @@ const StudentCertifications = () => {
         return;
       }
       }
+    }
     if (practice.estado === "Cancelada") {
       toast.error("La práctica está cancelada. Por normativa institucional, no es posible tramitar certificados ni reportes de prácticas canceladas.");
       return;
