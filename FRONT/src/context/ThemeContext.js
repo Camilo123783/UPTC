@@ -61,7 +61,7 @@ export const ThemeProvider = ({ children }) => {
       }
     };
     fetchInstitutionSettings();
-  }, [theme]);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("appTheme", theme);
@@ -97,7 +97,7 @@ export const ThemeProvider = ({ children }) => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("institutionSettingsUpdated", handleStorageChange);
     };
-  }, [theme]);
+  }, []);
 
   const updateInstitutionSettings = (newSettings) => {
     setInstitutionSettings(newSettings);

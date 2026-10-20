@@ -9,6 +9,7 @@ const resolveToastOpts = (options = {}) => {
   const isDark =
     typeof document !== "undefined" &&
     (document.documentElement.classList.contains("dark") ||
+      localStorage.getItem("appTheme") === "dark" ||
       localStorage.getItem("theme") === "dark");
   return {
     position: options.position || "bottom-right",

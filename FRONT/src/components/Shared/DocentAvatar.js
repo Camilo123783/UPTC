@@ -22,7 +22,7 @@ const DocentAvatar = ({
 }) => {
   const [hasError, setHasError] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [version, setVersion] = useState(() => Date.now());
+  const [version, setVersion] = useState(1);
   const [forceHasPhoto, setForceHasPhoto] = useState(null);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ const DocentAvatar = ({
 
     const handlePhotoUpdate = (e) => {
       const targetCedula = e?.detail?.cedula;
-      if (!targetCedula || String(targetCedula) === String(cedula)) {
+      if ((targetCedula && String(targetCedula) === String(cedula)) || (e?.type === "uptc:profile-photo-updated" && !targetCedula)) {
         setVersion(Date.now());
         setForceHasPhoto(true);
         setHasError(false);

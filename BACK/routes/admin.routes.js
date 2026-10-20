@@ -2182,6 +2182,11 @@ router.delete(["/practices/:id", "/practice/:id"], async (req, res, next) => {
     }
     const titulo = pract[0].titulo;
 
+    try { await queryDB(`DELETE FROM asistencia_estudiante WHERE practica_id = ?`, [id]); } catch (e) {}
+    try { await queryDB(`DELETE FROM observacion_practica WHERE practica_id = ?`, [id]); } catch (e) {}
+    try { await queryDB(`DELETE FROM reporte_auditor WHERE practica_id = ?`, [id]); } catch (e) {}
+    try { await queryDB(`DELETE FROM mensaje_estudiante_docente WHERE practica_id = ?`, [id]); } catch (e) {}
+    try { await queryDB(`DELETE FROM solicitud_certificado WHERE practica_id = ?`, [id]); } catch (e) {}
     await queryDB(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
     await queryDB(`DELETE FROM practica WHERE id = ?`, [id]);
 
@@ -2311,7 +2316,7 @@ async function getInstitutionSettingsHandler(req, res) {
       });
     }
 
-    if (fs.existsSync(SETTINGS_FILE)) {
+    if (typeof SETTINGS_FILE !== "undefined" && fs.existsSync(SETTINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
       return res.status(200).json(data);
     }
@@ -2487,7 +2492,7 @@ async function updateInstitutionSettingsHandler(req, res) {
     }
 
     try {
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), "utf8");
+      if (typeof SETTINGS_FILE !== "undefined") fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), "utf8");
     } catch (e) {}
 
     console.log("✅ Configuración institucional guardada en BD institucion_educativa.");
@@ -2519,6 +2524,7 @@ async function uploadInstitutionLogoHandler(req, res) {
 
     const mime = req.file.mimetype || "image/png";
     const base64Data = fs.readFileSync(req.file.path).toString("base64");
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
     const fullUrl = `data:${mime};base64,${base64Data}`;
 
     const existing = await queryDB("SELECT id FROM institucion_educativa ORDER BY id DESC LIMIT 1");
@@ -2550,6 +2556,7 @@ async function uploadFacultyLogoHandler(req, res) {
 
     const mime = req.file.mimetype || "image/png";
     const base64Data = fs.readFileSync(req.file.path).toString("base64");
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
     const fullUrl = `data:${mime};base64,${base64Data}`;
 
     const existing = await queryDB("SELECT id FROM institucion_educativa ORDER BY id DESC LIMIT 1");
@@ -2596,6 +2603,7 @@ async function uploadLoginBgHandler(req, res) {
 
     const mime = req.file.mimetype || "image/jpeg";
     const base64Data = fs.readFileSync(req.file.path).toString("base64");
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
     const fullUrl = `data:${mime};base64,${base64Data}`;
 
     const existing = await queryDB("SELECT id FROM institucion_educativa ORDER BY id DESC LIMIT 1");

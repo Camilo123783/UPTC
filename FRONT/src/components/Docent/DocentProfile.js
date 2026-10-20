@@ -324,7 +324,7 @@ const DocentProfile = () => {
                   Nombre Completo
                 </span>
                 <p className="text-sm font-bold text-gray-900 dark:text-white">
-                  {profileData?.nombre_completo || "Gloria Alvarez"}
+                  {profileData?.nombre_completo || "Docente UPTC"}
                 </p>
               </div>
 
@@ -334,7 +334,7 @@ const DocentProfile = () => {
                   Cédula de Ciudadanía
                 </span>
                 <p className="text-sm font-bold text-gray-900 dark:text-white font-mono">
-                  C.C. {profileData?.cedula || "3"}
+                  C.C. {profileData?.cedula || "No registrada"}
                 </p>
               </div>
 
@@ -344,7 +344,7 @@ const DocentProfile = () => {
                   Correo Electrónico
                 </span>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                  {profileData?.correo_institucional || "gh@ghj.com"}
+                  {profileData?.correo_institucional || "No registrado"}
                 </p>
               </div>
 
@@ -354,7 +354,7 @@ const DocentProfile = () => {
                   Programa / Escuela
                 </span>
                 <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                  {profileData?.programa || "Enfermería"}
+                  {profileData?.programa || "Programa no asignado"}
                 </p>
               </div>
 

@@ -248,7 +248,7 @@ export const saveInactivityProgress = (userRole, currentPage) => {
   localStorage.setItem(KEYS.SAVED_PROGRESS, JSON.stringify(progress));
   localStorage.setItem(
     KEYS.INACTIVITY_NOTICE,
-    "La sesión se cerró automáticamente por 5 minutos de inactividad. Tu progreso estará disponible por 5 minutos si vuelves a ingresar."
+    "La sesión se cerró automáticamente por 25 minutos de inactividad. Tu progreso estará disponible por 15 minutos si vuelves a ingresar."
   );
 };
 

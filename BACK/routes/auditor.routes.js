@@ -1026,6 +1026,9 @@ router.delete(["/practices/:practiceId/messages/:messageId", "/messages/:message
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
+    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
+    }
     await queryDB("DELETE FROM observacion_practica WHERE id = ?", [messageId]);
 
     console.log(`🗑️ Mensaje #${messageId} eliminado por auditor ${auditorCedula}.`);

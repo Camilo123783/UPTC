@@ -27,7 +27,7 @@ const AuthLayout = ({ children, title }) => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/admin/institution-settings`);
+        const res = await fetch(`${BACKEND_URL}/api/institution-settings`);
         if (res.ok) {
           const data = await res.json();
           const bg = data.fondo_institucion || data.loginBgUrl || data.login_bg_url;

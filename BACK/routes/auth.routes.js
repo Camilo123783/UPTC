@@ -314,7 +314,8 @@ router.post("/auth/forgot-password", async (req, res, next) => {
           ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.cedula = ? OR d.correo_institucional = ? LIMIT 1`
           : `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`;
 
-      const docentes = await queryDB(sqlDocente, [identifier, identifier]);
+      const paramsDocente = isEmail ? [identifier] : isNumericCedula ? [identifier, identifier] : [identifier];
+      const docentes = await queryDB(sqlDocente, paramsDocente);
       if (docentes.length > 0) {
         foundUser = docentes[0];
         foundRole = "Docente";
@@ -331,7 +332,8 @@ router.post("/auth/forgot-password", async (req, res, next) => {
           ? `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.cedula = ? OR a.correo_institucional = ? LIMIT 1`
           : `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.correo_institucional = ? LIMIT 1`;
 
-      const auditores = await queryDB(sqlAuditor, [identifier, identifier]);
+      const paramsAuditor = isEmail ? [identifier] : isNumericCedula ? [identifier, identifier] : [identifier];
+      const auditores = await queryDB(sqlAuditor, paramsAuditor);
       if (auditores.length > 0) {
         foundUser = auditores[0];
         foundRole = "Auditor";
@@ -504,6 +506,12 @@ router.post("/auth/reset-password", async (req, res, next) => {
       });
     }
 
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "La nueva contraseña debe tener al menos 6 caracteres.",
+      });
+    }
     // Verificar que el código es válido
     const verifyResult = verifyResetCode(identifier, code);
     if (!verifyResult.valid) {
@@ -550,6 +558,12 @@ router.post("/auth/change-password", async (req, res, next) => {
       });
     }
 
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "La nueva contraseña debe tener al menos 6 caracteres.",
+      });
+    }
     // 1. Buscar el usuario en todas las tablas
     let userFound = null;
     let userTable = null;

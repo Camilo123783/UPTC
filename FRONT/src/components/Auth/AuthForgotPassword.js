@@ -139,8 +139,8 @@ const AuthForgotPassword = ({ onNavigate }) => {
   // ── 3. Establecer nueva contraseña ────────────────────────────
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 4) {
-      setMessage("La nueva contraseña debe tener al menos 4 caracteres.");
+    if (!newPassword || newPassword.length < 6) {
+      setMessage("La nueva contraseña debe tener al menos 6 caracteres.");
       return;
     }
 

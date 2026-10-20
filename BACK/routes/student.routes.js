@@ -1216,6 +1216,9 @@ router.delete("/communication/messages/:id", verifyToken, async (req, res, next)
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
+    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
+    }
     await queryDB("DELETE FROM mensaje_estudiante_docente WHERE id = ?", [id]);
 
     console.log(`🗑️ Mensaje #${id} eliminado por estudiante ${studentCedula}.`);

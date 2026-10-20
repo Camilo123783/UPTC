@@ -99,13 +99,13 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
 
     // Si instSettings está vacío en localStorage, cargar desde la API pública
     if (!instSettings || Object.keys(instSettings).length === 0) {
-      fetch(`${API_BASE_URL}/api/admin/institution-settings/public`)
+      fetch(`${API_BASE_URL}/api/institution-settings`)
         .then((r) => r.json())
         .then((resData) => {
-          if (resData && resData.success && resData.data) {
-            setInstSettings(resData.data);
+          if (resData && (resData.data || resData.name || resData.nombre)) {
+            setInstSettings(resData.data || resData);
             try {
-              localStorage.setItem("institutionSettings", JSON.stringify(resData.data));
+              localStorage.setItem("institutionSettings", JSON.stringify(resData.data || resData));
             } catch (e) {}
           }
         })

@@ -548,7 +548,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
       let alertaCierre = false;
 
       if (fFin && (pr.estado === "Activa" || pr.estado === "En Curso")) {
-        const diffTime = new Date(fFin + "T23:59:59-05:00") - new Date(todayStr + "T00:00:00-05:00");
+        const diffTime = new Date(fFin + "T23:59:59-05:00") - new Date(getColombiaToday() + "T00:00:00-05:00");
         diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (diasRestantes >= 0 && diasRestantes <= 7) {
           alertaCierre = true;
@@ -801,6 +801,12 @@ router.delete("/observations/:id", async (req, res, next) => {
       });
     }
 
+    if (req.user?.role === "docent") {
+      const pracOwner = await queryDB(`SELECT docente_cedula FROM practica WHERE id = ?`, [existing[0].practica_id]);
+      if (pracOwner.length > 0 && String(pracOwner[0].docente_cedula) !== String(req.user.cedula)) {
+        return res.status(403).json({ success: false, message: "No tienes permiso para eliminar observaciones de otra práctica." });
+      }
+    }
     await queryDB(`DELETE FROM observacion_practica WHERE id = ?`, [id]);
 
     console.log(`✅ Observación #${id} eliminada.`);
@@ -1026,6 +1032,9 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Práctica formativa no encontrada." });
     }
 
+    if (req.user?.role === "docent" && existing[0].docente_cedula && String(existing[0].docente_cedula) !== String(req.user.cedula)) {
+      return res.status(403).json({ success: false, message: "No tienes permiso para modificar una práctica asignada a otro docente." });
+    }
     // Una práctica ya finalizada o cancelada no puede ser modificada
     if (existing[0].estado === "Finalizada" || existing[0].estado === "Cancelada") {
       return res.status(400).json({
@@ -1922,7 +1931,7 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
     practicesRows.forEach((p) => {
       if ((p.estado === "Activa" || p.estado === "En Curso") && p.fecha_fin) {
         const fFin = String(p.fecha_fin).substring(0, 10);
-        const diffTime = new Date(fFin + "T23:59:59-05:00") - new Date(todayStr + "T00:00:00-05:00");
+        const diffTime = new Date(fFin + "T23:59:59-05:00") - new Date(getColombiaToday() + "T00:00:00-05:00");
         const dias = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (dias >= 0 && dias <= 7) {
           closingSoon.push({
@@ -2466,6 +2475,9 @@ router.delete(["/practices/:practiceId/messages/:messageId", "/messages/:message
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
+    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
+    }
     await queryDB("DELETE FROM observacion_practica WHERE id = ?", [messageId]);
 
     console.log(`🗑️ Mensaje #${messageId} eliminado por docente ${docentId}.`);
@@ -2939,6 +2951,9 @@ router.delete("/student-communication/messages/:id", async (req, res, next) => {
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
+    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
+    }
     if (msg.grupo_envio_id) {
       await queryDB("DELETE FROM mensaje_estudiante_docente WHERE grupo_envio_id = ?", [msg.grupo_envio_id]);
     } else {

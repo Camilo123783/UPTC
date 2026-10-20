@@ -128,7 +128,7 @@ const DocentCertificateRequests = () => {
 
     // Limpiar claves locales temporales de prueba
     try {
-      localStorage.removeItem("uptc_cert_reqs_4");
+      if (docentCedula) localStorage.removeItem(`uptc_cert_reqs_${docentCedula}`);
     } catch (e) {}
 
     const token =

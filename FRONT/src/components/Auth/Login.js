@@ -426,7 +426,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
           <div className="mt-5 p-3.5 bg-amber-50 dark:bg-amber-950/40 text-center border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs rounded-xl shadow-sm">
             <p className="font-bold mb-1">⏱️ PROCESO DE GUARDADO ACTIVADO ⏱️</p>
             <p>
-              Tu sesión anterior se cerró por 5 minutos de inactividad.
+              Tu sesión anterior se cerró por 25 minutos de inactividad.
               <br />
               Tienes{" "}
               <strong className="underline text-amber-950 dark:text-amber-300">

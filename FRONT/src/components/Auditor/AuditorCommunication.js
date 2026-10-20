@@ -68,7 +68,7 @@ const AuditorCommunication = () => {
 
   // Contador en vivo para el tiempo límite de 5 minutos de eliminación
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    const timer = setInterval(() => setCurrentTime(Date.now()), 10000);
     return () => clearInterval(timer);
   }, []);
 

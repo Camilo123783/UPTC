@@ -142,8 +142,8 @@ const StudentCertifications = () => {
     }
 
     return {
-      cedula: cedula || "44",
-      nombre: nombre ? (apellido && !nombre.includes(apellido) ? `${nombre} ${apellido}`.trim() : nombre) : "Ricardo Torres",
+      cedula: cedula || "",
+      nombre: nombre ? (apellido && !nombre.includes(apellido) ? `${nombre} ${apellido}`.trim() : nombre) : "Estudiante",
       carrera,
       correo,
     };

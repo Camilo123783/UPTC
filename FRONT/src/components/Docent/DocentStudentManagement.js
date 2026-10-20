@@ -5,6 +5,7 @@
 // ============================================================
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { generateCsv, generatePdf } from '../../utils/reportGenerator';
 import { BACKEND_URL } from '../../config/api';
 import { notifyDataChanged, useDataSync } from '../../utils/dataSync';
@@ -641,12 +642,12 @@ const DocentStudentManagement = () => {
 
         {/* Botones de Acción Global */}
         <div className="flex items-center gap-2">
-          <a
-            href="/docent/hours-compliance"
+          <Link
+            to="/docent/hours-compliance"
             className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm"
           >
             <Clock className="w-3.5 h-3.5" /> Panel de Horas
-          </a>
+          </Link>
           <button
             onClick={() => handleDownloadList('csv')}
             disabled={filteredStudents.length === 0}

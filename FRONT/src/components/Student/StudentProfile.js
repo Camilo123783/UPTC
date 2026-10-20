@@ -91,7 +91,7 @@ const normalizePhotoUrl = (rawUrl, cedula) => {
   const sep = path.includes("?") ? "&" : "?";
   const tokenParam = token ? `${sep}token=${encodeURIComponent(token)}` : "";
   const sepV = tokenParam ? "&" : (path.includes("?") ? "&" : "?");
-  return `${BACKEND_URL}${path}${tokenParam}${sepV}v=${Date.now()}`;
+  return `${BACKEND_URL}${path}${tokenParam}`;
 };
 
 /**

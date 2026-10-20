@@ -72,14 +72,20 @@ const DashboardLayout = ({
   };
 
   useEffect(() => {
-    fetchInstitutionInfo();
+    if (!localStorage.getItem("institutionSettings")) fetchInstitutionInfo();
   }, []);
 
-  useDataSync(fetchInstitutionInfo);
+  // Sincronizado con institutionSettingsUpdated; no recargar en cada foco de ventana
 
   useEffect(() => {
     const handleSettingsUpdated = () => {
-      fetchInstitutionInfo();
+      try {
+        const saved = JSON.parse(localStorage.getItem("institutionSettings"));
+        if (saved) setInstitutionInfo((prev) => ({ ...prev, ...saved }));
+        else fetchInstitutionInfo();
+      } catch (e) {
+        fetchInstitutionInfo();
+      }
     };
     window.addEventListener("institutionSettingsUpdated", handleSettingsUpdated);
     return () => window.removeEventListener("institutionSettingsUpdated", handleSettingsUpdated);

@@ -52,7 +52,10 @@ function calculatePracticeStatus(fIni, fFin, estadoActual = "Planificada") {
  * Sincroniza en la base de datos el estado de todas las prácticas según la fecha actual.
  * Aplica para vistas de Estudiante, Docente, Auditor y Administrador.
  */
-async function syncPracticeStatuses() {
+let lastSyncTimestamp = 0;
+async function syncPracticeStatuses(force = false) {
+  if (!force && Date.now() - lastSyncTimestamp < 60000) return;
+  lastSyncTimestamp = Date.now();
   try {
     const todayStr = getColombiaToday();
 
