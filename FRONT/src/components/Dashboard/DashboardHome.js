@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import AuditorDashboardView from "../Auditor/AuditorDashboardView";
 import { SkeletonDashboard } from "../Shared/Skeleton";
+import RouteLink from "../Shared/RouteLink";
 
 // URL BASE para el backend
 const API_BASE_URL = BACKEND_URL;
@@ -318,7 +319,8 @@ const DashboardHome = ({ userRole, onNavigate }) => {
             {/* ─── Los 4 Menús del Estudiante en la parte superior con sus colores correctos ─── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {/* 1. Mi Perfil (Azul) */}
-              <div
+              <RouteLink
+                  to={"studentProfile"}
                 onClick={() => onNavigate("studentProfile")}
                 className="group relative bg-blue-50/80 dark:bg-blue-950/40 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
@@ -343,10 +345,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Ver mi perfil</span>
                   <span>→</span>
                 </div>
-              </div>
+              </RouteLink>
 
               {/* 2. Mis Prácticas (Verde / Emerald) */}
-              <div
+              <RouteLink
+                  to={"studentPractices"}
                 onClick={() => onNavigate("studentPractices")}
                 className="group relative bg-emerald-50/80 dark:bg-emerald-950/40 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
@@ -371,10 +374,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Ver rotaciones</span>
                   <span>→</span>
                 </div>
-              </div>
+              </RouteLink>
 
               {/* 3. Evaluaciones (Púrpura / Morado) */}
-              <div
+              <RouteLink
+                  to={"studentEvaluations"}
                 onClick={() => onNavigate("studentEvaluations")}
                 className="group relative bg-purple-50/80 dark:bg-purple-950/40 p-5 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
@@ -399,10 +403,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Consultar notas</span>
                   <span>→</span>
                 </div>
-              </div>
+              </RouteLink>
 
               {/* 4. Certificaciones (Ámbar / Naranja) */}
-              <div
+              <RouteLink
+                  to={"studentCertifications"}
                 onClick={() => onNavigate("studentCertifications")}
                 className="group relative bg-amber-50/80 dark:bg-amber-950/40 p-5 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
               >
@@ -427,7 +432,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Tramitar certificados</span>
                   <span>→</span>
                 </div>
-              </div>
+              </RouteLink>
             </div>
 
             <div className="mt-6 p-6 bg-gray-50/80 dark:bg-zinc-800/50 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm">
@@ -461,7 +466,8 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
             {/* Aviso de prácticas próximas a finalizar (7 días o menos) */}
             {docentStats.endingSoonCount > 0 && (
-              <div
+              <RouteLink
+                  to={"docentPractices"}
                 onClick={() => onNavigate("docentPractices")}
                 className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 cursor-pointer hover:shadow-md hover:border-amber-400 dark:hover:border-amber-600 transition duration-150 flex items-start gap-3.5"
               >
@@ -482,13 +488,14 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 self-center" />
-              </div>
+              </RouteLink>
             )}
 
             {/* Accesos Directos Docente: 3 en la fila superior, 3 en la fila inferior */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* 1. Mis Prácticas (Púrpura) */}
-              <div
+              <RouteLink
+                  to={"docentPractices"}
                 className="bg-purple-50/80 dark:bg-purple-950/40 p-5 rounded-2xl shadow-sm border border-purple-200 dark:border-purple-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentPractices")}
               >
@@ -503,10 +510,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-purple-700 dark:text-purple-400 mt-4 font-medium">
                   Gestionar y crear prácticas →
                 </p>
-              </div>
+              </RouteLink>
 
               {/* 2. Estudiantes (Esmeralda) */}
-              <div
+              <RouteLink
+                  to={"docentStudents"}
                 className="bg-emerald-50/80 dark:bg-emerald-950/40 p-5 rounded-2xl shadow-sm border border-emerald-200 dark:border-emerald-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentStudents")}
               >
@@ -521,10 +529,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-4 font-medium">
                   Alumnos a cargo y seguimiento →
                 </p>
-              </div>
+              </RouteLink>
 
               {/* 3. Cumplimiento de Horas (Azul) */}
-              <div
+              <RouteLink
+                  to={"docentHoursCompliance"}
                 className="bg-blue-50/80 dark:bg-blue-950/40 p-5 rounded-2xl shadow-sm border border-blue-200 dark:border-blue-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentHoursCompliance")}
               >
@@ -544,10 +553,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-blue-700 dark:text-blue-400 mt-4 font-medium">
                   Monitorear y validar horas →
                 </p>
-              </div>
+              </RouteLink>
 
               {/* 4. Solicitud de Certificados (Ámbar / Naranja) */}
-              <div
+              <RouteLink
+                  to={"docentCertificateRequests"}
                 className="bg-amber-50/80 dark:bg-amber-950/40 p-5 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentCertificateRequests")}
               >
@@ -567,10 +577,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-amber-700 dark:text-amber-400 mt-4 font-medium">
                   Revisar y avalar solicitudes →
                 </p>
-              </div>
+              </RouteLink>
 
               {/* 5. Diseñar Certificados (Rosa / Fucsia) */}
-              <div
+              <RouteLink
+                  to={"docentCertificateDesigner"}
                 className="bg-rose-50/80 dark:bg-rose-950/40 p-5 rounded-2xl shadow-sm border border-rose-200 dark:border-rose-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-rose-400 dark:hover:border-rose-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentCertificateDesigner")}
               >
@@ -585,10 +596,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-rose-700 dark:text-rose-400 mt-4 font-medium">
                   Plantillas oficiales y firmas →
                 </p>
-              </div>
+              </RouteLink>
 
               {/* 6. Reportes y Constancias (Cian / Índigo) */}
-              <div
+              <RouteLink
+                  to={"docentReports"}
                 className="bg-cyan-50/80 dark:bg-cyan-950/40 p-5 rounded-2xl shadow-sm border border-cyan-200 dark:border-cyan-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-cyan-400 dark:hover:border-cyan-500 transition-all duration-200 flex flex-col justify-between"
                 onClick={() => onNavigate("docentReports")}
               >
@@ -603,7 +615,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-cyan-700 dark:text-cyan-400 mt-4 font-medium">
                   Emitir constancias en PDF →
                 </p>
-              </div>
+              </RouteLink>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-8">
@@ -661,7 +673,8 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Tarjeta 1: Parametrización Institucional */}
-              <div
+              <RouteLink
+                  to={"adminInstitutionSettings"}
                 className="bg-amber-50/80 dark:bg-amber-950/40 p-6 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200"
                 onClick={() => onNavigate("adminInstitutionSettings")}
               >
@@ -677,10 +690,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                   Personalizar colores, nombre, logo y membrete →
                 </p>
-              </div>
+              </RouteLink>
 
               {/* Tarjeta 2: Total Administradores */}
-              <div
+              <RouteLink
+                  to={"adminUsers"}
                 className="bg-gray-100 dark:bg-zinc-800/60 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-700 cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-zinc-500 transition-all duration-200"
                 onClick={() => onNavigate("adminUsers")}
               >
@@ -711,7 +725,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                   Gestionar administradores y superadmins →
                 </p>
-              </div>
+              </RouteLink>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-8">
@@ -755,7 +769,8 @@ const DashboardHome = ({ userRole, onNavigate }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Tarjeta 1: Total Usuarios (Azul Zafiro / Cyan) */}
-              <div
+              <RouteLink
+                  to={"adminUsers"}
                 className="group relative bg-blue-50/80 dark:bg-blue-950/35 p-6 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminUsers")}
               >
@@ -803,10 +818,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Gestionar todos los usuarios</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </p>
-              </div>
+              </RouteLink>
 
               {/* Tarjeta 2: Prácticas Formativas (Verde Esmeralda) */}
-              <div
+              <RouteLink
+                  to={"adminPractices"}
                 className="group relative bg-emerald-50/80 dark:bg-emerald-950/35 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminPractices")}
               >
@@ -840,10 +856,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Crear y gestionar prácticas</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </p>
-              </div>
+              </RouteLink>
 
               {/* Tarjeta 3: Diseñar Certificados (Ámbar Dorado UPTC) */}
-              <div
+              <RouteLink
+                  to={"adminCertificateDesigner"}
                 className="group relative bg-amber-50/80 dark:bg-amber-950/35 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminCertificateDesigner")}
               >
@@ -870,10 +887,11 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Diseñar y emitir certificados</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </p>
-              </div>
+              </RouteLink>
 
               {/* Tarjeta 4: Reportes Emitidos (Púrpura / Violeta - En lugar del 15 fijo) */}
-              <div
+              <RouteLink
+                  to={"adminReports"}
                 className="group relative bg-purple-50/80 dark:bg-purple-950/35 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
                 onClick={() => onNavigate("adminReports")}
               >
@@ -904,7 +922,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
                   <span>Consultar reportes y constancias</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </p>
-              </div>
+              </RouteLink>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-8">

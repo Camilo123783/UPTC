@@ -11,11 +11,17 @@ export const useAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadUserFromToken = useCallback(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const storedData = sessionStorage.getItem(USERDATA_KEY);
+    const token =
+      localStorage.getItem(TOKEN_KEY) ||
+      sessionStorage.getItem(TOKEN_KEY) ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token");
+    const storedData =
+      sessionStorage.getItem(USERDATA_KEY) ||
+      localStorage.getItem(USERDATA_KEY);
     let sessionUser = null;
 
-    // Si existe info en sessionStorage, úsala como respaldo
+    // Si existe info de usuario, úsala como respaldo
     if (storedData) {
       try {
         sessionUser = JSON.parse(storedData);

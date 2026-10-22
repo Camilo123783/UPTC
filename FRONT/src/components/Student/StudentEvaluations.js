@@ -64,7 +64,7 @@ const StudentEvaluations = () => {
     try {
       let studentCedula = null;
       try {
-        const stored = sessionStorage.getItem("userData");
+        const stored = sessionStorage.getItem("userData") || localStorage.getItem("userData");
         if (stored) {
           const parsed = JSON.parse(stored);
           studentCedula = parsed.cedula || parsed.Cédula || null;

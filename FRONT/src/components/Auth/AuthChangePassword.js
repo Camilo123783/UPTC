@@ -18,6 +18,7 @@ import {
   GraduationCap,
   User,
 } from "lucide-react";
+import RouteLink from "../Shared/RouteLink";
 
 const CHANGE_PASSWORD_URL = `${API_URL}/auth/change-password`;
 
@@ -331,14 +332,14 @@ const AuthChangePassword = ({ onNavigate, isAdminChange = false }) => {
         </div>
 
         {!isAdminChange && onNavigate && (
-          <button
-            type="button"
+          <RouteLink
+            to="dashboard"
             onClick={() => onNavigate("dashboard")}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-gray-700 dark:text-zinc-300 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-all border border-gray-200 dark:border-zinc-700 shadow-sm cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Volver</span>
-          </button>
+          </RouteLink>
         )}
       </div>
 
@@ -600,14 +601,13 @@ const AuthChangePassword = ({ onNavigate, isAdminChange = false }) => {
             </button>
 
             {!isAdminChange && onNavigate && (
-              <button
-                type="button"
+              <RouteLink
+                to="dashboard"
                 onClick={() => onNavigate("dashboard")}
-                disabled={isLoading}
-                className="sm:w-auto bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 py-3 px-6 rounded-xl font-bold text-sm transition-colors border border-gray-200 dark:border-zinc-700 cursor-pointer text-center"
+                className="sm:w-auto bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 py-3 px-6 rounded-xl font-bold text-sm transition-colors border border-gray-200 dark:border-zinc-700 cursor-pointer text-center inline-flex items-center justify-center"
               >
                 Cancelar
-              </button>
+              </RouteLink>
             )}
           </div>
         </form>

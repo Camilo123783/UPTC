@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import AuthLayout from "./../Auth/AuthLayout";
 import AuthInput from "./../Auth/AuthInput";
 import AuthButton from "./../Auth/AuthButton";
+import RouteLink from "../Shared/RouteLink";
 
 import { BACKEND_URL } from "../../config/api";
 
@@ -336,12 +337,13 @@ const AuthForgotPassword = ({ onNavigate }) => {
       )}
 
       <p className="text-center text-sm text-gray-600 mt-6">
-        <button
-          onClick={() => onNavigate("login")}
-          className="text-blue-600 hover:text-blue-800 font-medium transition duration-200 ease-in-out"
+        <RouteLink
+          to="login"
+          onClick={() => onNavigate && onNavigate("login")}
+          className="text-blue-600 hover:text-blue-800 font-medium transition duration-200 ease-in-out cursor-pointer"
         >
           Volver al inicio de sesión
-        </button>
+        </RouteLink>
       </p>
     </AuthLayout>
   );

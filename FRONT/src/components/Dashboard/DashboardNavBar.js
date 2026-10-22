@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
+import RouteLink from "../Shared/RouteLink";
 
 // Eliminé 'userName' de las props ya que lo obtendremos de sessionStorage
 const DashboardLayout = ({
@@ -1163,6 +1164,11 @@ const DashboardLayout = ({
             </svg>
           </button>
 
+          <RouteLink
+            to="dashboard"
+            className="flex items-center gap-2 sm:gap-3 min-w-0 cursor-pointer group/brand focus:outline-none"
+            title="Ir al Dashboard"
+          >
           <img
             src={
               institutionInfo.logo_institucion ||
@@ -1193,6 +1199,7 @@ const DashboardLayout = ({
               </p>
             )}
           </div>
+          </RouteLink>
         </div>
         {/* Menú de Perfil de Usuario en la esquina superior derecha */}
         <div className="relative" ref={userMenuRef}>
@@ -1343,8 +1350,8 @@ const DashboardLayout = ({
               <div className="space-y-2">
                 {/* Botón de Mi Perfil (Foto, Firma y Datos) */}
                 {(userRole === "docent" || userRole === "student") && (
-                  <button
-                    type="button"
+                  <RouteLink
+                  to={userRole === "docent" ? "docentProfile" : "studentProfile"}
                     onClick={() => {
                       setIsUserMenuOpen(false);
                       onNavigate(userRole === "docent" ? "docentProfile" : "studentProfile");
@@ -1369,12 +1376,12 @@ const DashboardLayout = ({
                       />
                     </svg>
                     <span>Mi Perfil (Foto y Datos)</span>
-                  </button>
+                  </RouteLink>
                 )}
 
                 {/* Botón de Cambiar Contraseña */}
-                <button
-                  type="button"
+                <RouteLink
+                  to={"changePassword"}
                   onClick={() => {
                     setIsUserMenuOpen(false);
                     onNavigate("changePassword");
@@ -1399,7 +1406,7 @@ const DashboardLayout = ({
                     />
                   </svg>
                   <span>Cambiar Contraseña</span>
-                </button>
+                </RouteLink>
 
                 {/* Botón de Cambiar Modo Claro / Oscuro */}
                 <button
@@ -1643,8 +1650,8 @@ const DashboardLayout = ({
 
                     {/* Botón de la opción */}
                     <li className="list-none relative group">
-                      <button
-                        type="button"
+                      <RouteLink
+                  to={item.page}
                         onClick={() => {
                           setIsMobileMenuOpen(false);
                           onNavigate(item.page);
@@ -1702,7 +1709,7 @@ const DashboardLayout = ({
                             {badgeCount > 99 ? "99+" : badgeCount}
                           </span>
                         )}
-                      </button>
+                      </RouteLink>
 
                       {/* Tooltip flotante al pasar el cursor en modo colapsado */}
                       {(isCollapsed && !isMobileMenuOpen) && (

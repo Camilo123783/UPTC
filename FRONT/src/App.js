@@ -64,48 +64,9 @@ import {
 } from "./utils/sessionManager";
 
 // Mapa bidireccional entre identificadores de página y rutas URL del navegador
-export const PAGE_TO_ROUTE = {
-  login: "/login",
-  forgotPassword: "/forgot-password",
-  changePassword: "/change-password",
-  dashboard: "/dashboard",
-  // Estudiante
-  studentProfile: "/student/profile",
-  studentPractices: "/student/practices",
-  studentEvaluations: "/student/evaluations",
-  studentCertifications: "/student/certifications",
-  studentDocentCommunication: "/student/communication",
-  // Docente
-  docentPractices: "/docent/practices",
-  docentCertificateDesigner: "/docent/certificates",
-  docentReports: "/docent/reports",
-  docentCertificateRequests: "/docent/certificate-requests",
-  docentStudents: "/docent/students",
-  docentEvaluations: "/docent/evaluations",
-  docentHoursCompliance: "/docent/hours-compliance",
-  docentCommunication: "/docent/communication",
-  docentStudentCommunication: "/docent/communication-students",
-  docentProfile: "/docent/profile",
-  // Auditor
-  auditorReports: "/auditor/reports",
-  auditorCommunication: "/auditor/communication",
-  auditorUserViewer: "/auditor/users",
-  auditorHoursCompliance: "/auditor/hours-compliance",
-  // Administrador
-  adminUsers: "/admin/users",
-  adminPractices: "/admin/practices",
-  adminCertificateDesigner: "/admin/certificates",
-  adminReports: "/admin/reports",
-  adminInstitutionSettings: "/admin/settings",
-  // Historial
-  history: "/history",
-  certificateHistory: "/certificate-history",
-};
-
-export const ROUTE_TO_PAGE = Object.entries(PAGE_TO_ROUTE).reduce((acc, [page, route]) => {
-  acc[route] = page;
-  return acc;
-}, {});
+// (definido en ./config/routes para compartirlo con la navegación y RouteLink)
+import { PAGE_TO_ROUTE, ROUTE_TO_PAGE } from "./config/routes";
+export { PAGE_TO_ROUTE, ROUTE_TO_PAGE };
 
 // Obtener el identificador 'page' para que el DashboardNavBar resalte la opción correcta
 export const getPageKeyFromPath = (pathname) => {

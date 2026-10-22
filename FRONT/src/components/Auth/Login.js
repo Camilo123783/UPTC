@@ -7,6 +7,7 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import { BACKEND_URL } from "../../config/api";
 import { User, Lock, Eye, EyeOff, Sun, Moon, AlertTriangle } from "lucide-react";
+import RouteLink from "../Shared/RouteLink";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -413,12 +414,13 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
         </form>
 
         <div className="mt-5 text-sm">
-          <button
-            onClick={() => onNavigate("forgotPassword")}
-            className="text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 dark:hover:text-blue-300 transition text-xs font-semibold"
+          <RouteLink
+            to="forgotPassword"
+            onClick={() => onNavigate && onNavigate("forgotPassword")}
+            className="text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-700 dark:hover:text-blue-300 transition text-xs font-semibold cursor-pointer"
           >
             ¿Olvidaste tu contraseña?
-          </button>
+          </RouteLink>
         </div>
 
         {/* Banner de inactividad / progreso guardado */}

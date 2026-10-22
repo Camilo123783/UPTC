@@ -224,6 +224,26 @@ export const loadActiveSession = () => {
     }
   } catch (e) {}
 
+  // Sincronizar hacia sessionStorage para que cualquier nueva pestaña o ventana
+  // abierta con "Abrir enlace en nueva pestaña" tenga acceso inmediato a todas las claves
+  try {
+    if (userRole && !sessionStorage.getItem(KEYS.USER_ROLE)) {
+      sessionStorage.setItem(KEYS.USER_ROLE, userRole);
+    }
+    const tokenVal = token || localStorage.getItem(KEYS.AUTH_TOKEN) || localStorage.getItem("token");
+    if (tokenVal) {
+      if (!sessionStorage.getItem(KEYS.AUTH_TOKEN)) sessionStorage.setItem(KEYS.AUTH_TOKEN, tokenVal);
+      if (!sessionStorage.getItem("token")) sessionStorage.setItem("token", tokenVal);
+    }
+    const userDataStr = localStorage.getItem(KEYS.USER_DATA);
+    if (userDataStr && !sessionStorage.getItem(KEYS.USER_DATA)) {
+      sessionStorage.setItem(KEYS.USER_DATA, userDataStr);
+    }
+    if (currentPage && !sessionStorage.getItem(KEYS.CURRENT_PAGE)) {
+      sessionStorage.setItem(KEYS.CURRENT_PAGE, currentPage);
+    }
+  } catch (e) {}
+
   return {
     userRole,
     currentPage: currentPage || "dashboard",

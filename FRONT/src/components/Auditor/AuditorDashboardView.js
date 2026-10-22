@@ -22,6 +22,7 @@ import {
   Building2,
   Calendar,
 } from "lucide-react";
+import RouteLink from "../Shared/RouteLink";
 
 const AuditorDashboardView = ({ onNavigate }) => {
   const [stats, setStats] = useState(null);
@@ -161,7 +162,8 @@ const AuditorDashboardView = ({ onNavigate }) => {
       {/* ─── Fila Principal de los 3 Accesos Directos con Colores y Formas ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 1. Prácticas Supervisadas (Azul Zafiro / Cyan) */}
-        <div
+        <RouteLink
+                  to={"auditorHoursCompliance"}
           className="group relative bg-blue-50/80 dark:bg-blue-950/35 p-6 rounded-2xl border border-blue-200 dark:border-blue-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
           onClick={() => onNavigate("auditorHoursCompliance")}
         >
@@ -192,10 +194,11 @@ const AuditorDashboardView = ({ onNavigate }) => {
             <span>Supervisar rotaciones clínicas</span>
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </p>
-        </div>
+        </RouteLink>
 
         {/* 2. Visualizar Usuarios (Púrpura / Violeta) */}
-        <div
+        <RouteLink
+                  to={"auditorUserViewer"}
           className="group relative bg-purple-50/80 dark:bg-purple-950/35 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
           onClick={() => onNavigate("auditorUserViewer")}
         >
@@ -226,10 +229,11 @@ const AuditorDashboardView = ({ onNavigate }) => {
             <span>Consultar estudiantes y docentes</span>
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </p>
-        </div>
+        </RouteLink>
 
         {/* 3. Comunicación con Docentes (Ámbar / Naranja UPTC) */}
-        <div
+        <RouteLink
+                  to={"auditorCommunication"}
           className="group relative bg-amber-50/80 dark:bg-amber-950/35 p-6 rounded-2xl border border-amber-200 dark:border-amber-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between"
           onClick={() => onNavigate("auditorCommunication")}
         >
@@ -260,7 +264,7 @@ const AuditorDashboardView = ({ onNavigate }) => {
             <span>Enviar mensajes y novedades</span>
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </p>
-        </div>
+        </RouteLink>
       </div>
 
       {/* ─── SECCIÓN: COSAS PENDIENTES Y ACTIVIDADES DEL AUDITOR ─── */}
@@ -308,13 +312,14 @@ const AuditorDashboardView = ({ onNavigate }) => {
                       {item.description}
                     </p>
                   </div>
-                  <button
+                  <RouteLink
+                  to={item.actionPage}
                     onClick={() => onNavigate(item.actionPage)}
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors flex-shrink-0 shadow-sm cursor-pointer"
                   >
                     <span>{item.actionText}</span>
                     <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+                  </RouteLink>
                 </div>
               ))}
               {pendingList.length > 5 && (
@@ -406,13 +411,14 @@ const AuditorDashboardView = ({ onNavigate }) => {
             )}
           </div>
 
-          <button
+          <RouteLink
+                  to={"auditorHoursCompliance"}
             onClick={() => onNavigate("auditorHoursCompliance")}
             className="w-full mt-4 py-2 text-xs font-bold rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <span>Ir a Control de Horas</span>
             <span>→</span>
-          </button>
+          </RouteLink>
         </div>
       </div>
     </>
