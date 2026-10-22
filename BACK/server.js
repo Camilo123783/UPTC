@@ -2,6 +2,7 @@
 // server.js — Punto de entrada del backend UPTC
 // ============================================================
 "use strict";
+process.env.TZ = "America/Bogota";
 
 // ── 1. Variables de entorno (siempre primero) ───────────────
 const path = require("path");

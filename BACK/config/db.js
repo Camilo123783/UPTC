@@ -2,6 +2,7 @@
 // config/db.js — Conexión a MySQL con mysql2/promise (Pool)
 // ============================================================
 "use strict";
+process.env.TZ = "America/Bogota";
 
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });

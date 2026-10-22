@@ -1656,9 +1656,9 @@ router.get(["/students", "/students/:docentId"], async (req, res, next) => {
         evaluationStatus: r.estado_evaluacion || (r.calificacion !== null ? "Completada" : "Pendiente"),
         score: r.calificacion !== null ? Number(r.calificacion) : null,
         feedback: r.retroalimentacion || null,
-        evaluationDate: r.fecha_evaluacion ? new Date(r.fecha_evaluacion).toISOString().substring(0, 10) : null,
-        practiceStartDate: r.fecha_inicio ? new Date(r.fecha_inicio).toISOString().substring(0, 10) : "2024-02-01",
-        practiceEndDate: r.fecha_fin ? new Date(r.fecha_fin).toISOString().substring(0, 10) : "2024-06-30",
+        evaluationDate: r.fecha_evaluacion ? String(r.fecha_evaluacion).substring(0, 10) : null,
+        practiceStartDate: r.fecha_inicio ? String(r.fecha_inicio).substring(0, 10) : "2024-02-01",
+        practiceEndDate: r.fecha_fin ? String(r.fecha_fin).substring(0, 10) : "2024-06-30",
         practiceStatus: r.practica_estado || "Activa",
         criterios: criteriosParsed,
         likertScores: criteriosParsed || (auditorReport ? auditorReport.likert : null),
@@ -2329,6 +2329,7 @@ router.get("/practices/:practiceId/messages", async (req, res, next) => {
         op.observacion AS mensaje,
         op.tipo,
         op.created_at,
+        TIMESTAMPDIFF(SECOND, op.created_at, NOW()) AS elapsed_seconds,
         CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, '')) AS estudiante_nombre,
         COALESCE(
           NULLIF(op.autor_nombre, ''),
@@ -2488,7 +2489,7 @@ router.delete(["/practices/:practiceId/messages/:messageId", "/messages/:message
     const docentId = getEffectiveDocentId(req);
 
     const msgRows = await queryDB(
-      "SELECT id, autor_rol, autor_cedula, created_at FROM observacion_practica WHERE id = ?",
+      "SELECT id, autor_rol, autor_cedula, created_at, TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds FROM observacion_practica WHERE id = ?",
       [messageId]
     );
 
@@ -2503,7 +2504,7 @@ router.delete(["/practices/:practiceId/messages/:messageId", "/messages/:message
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
-    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+    if (msg.elapsed_seconds !== undefined && msg.elapsed_seconds !== null && Number(msg.elapsed_seconds) > 305) {
       return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
     }
     await queryDB("DELETE FROM observacion_practica WHERE id = ?", [messageId]);
@@ -2540,6 +2541,7 @@ router.get("/all-messages", async (req, res, next) => {
         op.tipo,
         op.estudiante_cedula,
         op.created_at,
+        TIMESTAMPDIFF(SECOND, op.created_at, NOW()) AS elapsed_seconds,
         CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, '')) AS estudiante_nombre,
         COALESCE(
           NULLIF(op.autor_nombre, ''),
@@ -2766,6 +2768,7 @@ router.get("/student-communication/practices/:practiceId/messages", async (req, 
         med.leido_por_docente,
         med.leido_por_estudiante,
         med.created_at,
+        TIMESTAMPDIFF(SECOND, med.created_at, NOW()) AS elapsed_seconds,
         CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, '')) AS estudiante_nombre_completo,
         e.codigo AS estudiante_codigo,
         e.correo_institucional AS estudiante_correo
@@ -2964,7 +2967,7 @@ router.delete("/student-communication/messages/:id", async (req, res, next) => {
     const docentId = getEffectiveDocentId(req);
 
     const msgRows = await queryDB(
-      "SELECT id, remitente_rol, remitente_cedula, grupo_envio_id, created_at FROM mensaje_estudiante_docente WHERE id = ?",
+      "SELECT id, remitente_rol, remitente_cedula, grupo_envio_id, created_at, TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds FROM mensaje_estudiante_docente WHERE id = ?",
       [id]
     );
 
@@ -2979,7 +2982,7 @@ router.delete("/student-communication/messages/:id", async (req, res, next) => {
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
-    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+    if (msg.elapsed_seconds !== undefined && msg.elapsed_seconds !== null && Number(msg.elapsed_seconds) > 305) {
       return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
     }
     if (msg.grupo_envio_id) {

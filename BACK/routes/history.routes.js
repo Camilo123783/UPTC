@@ -567,7 +567,7 @@ router.post("/certificates/register", verifyToken, requireRole("docent", "admin"
         if (diffDays > 30) {
           return res.status(400).json({
             success: false,
-            message: `El plazo máximo de 30 días posteriores a la finalización de la práctica ha expirado (${Math.floor(diffDays)} días transcurridos desde ${pr.fecha_fin.toISOString().split("T")[0]}). Ya no es posible emitir nuevos certificados.`,
+            message: `El plazo máximo de 30 días posteriores a la finalización de la práctica ha expirado (${Math.floor(diffDays)} días transcurridos desde ${String(pr.fecha_fin).split("T")[0]}). Ya no es posible emitir nuevos certificados.`,
           });
         }
       }
@@ -607,10 +607,18 @@ router.post("/certificates/register", verifyToken, requireRole("docent", "admin"
 
     // Para certificados oficiales, es OBLIGATORIO que exista una calificación aprobatoria real
     if (!isReport) {
-      if (finalGrade === null || finalGrade === undefined || Number(finalGrade) <= 0) {
+      if (pr.estado !== "Finalizada") {
         return res.status(400).json({
           success: false,
-          message: "No es posible emitir un Certificado Oficial sin una calificación final registrada y aprobatoria.",
+          message: `La práctica formativa aún no ha finalizado (Estado actual: ${pr.estado || "En curso"}). Por normativa institucional, no se pueden emitir certificados hasta que la práctica haya finalizado.`,
+        });
+      }
+      if (finalGrade === null || finalGrade === undefined || Number(finalGrade) < 3.0) {
+        return res.status(400).json({
+          success: false,
+          message: finalGrade !== null && finalGrade !== undefined && Number(finalGrade) > 0
+            ? `No es posible emitir el certificado: el estudiante no aprobó la práctica formativa (calificación: ${Number(finalGrade).toFixed(1)} / 5.0; nota mínima requerida: 3.0).`
+            : "No es posible emitir un Certificado Oficial sin una calificación final registrada y aprobatoria (mínimo 3.0).",
         });
       }
     }

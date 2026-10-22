@@ -709,7 +709,7 @@ router.get(["/evaluations", "/evaluations/:studentId"], verifyToken, async (req,
         status: r.status || (r.score !== null ? "Completada" : "Pendiente"),
         score: r.score !== null ? Number(r.score) : null,
         feedback: r.feedback || null,
-        date: r.date ? new Date(r.date).toISOString().substring(0, 10) : null,
+        date: r.date ? String(r.date).substring(0, 10) : null,
         likertScores: criteriosParsed,
         rubrica_criterios: r.rubrica_criterios || null,
       };
@@ -1053,6 +1053,7 @@ router.get("/communication/practices/:practiceId/messages", verifyToken, async (
         med.tipo,
         med.leido_por_estudiante,
         med.created_at,
+        TIMESTAMPDIFF(SECOND, med.created_at, NOW()) AS elapsed_seconds,
         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS docente_nombre,
         d.correo_institucional AS docente_correo
       FROM mensaje_estudiante_docente med
@@ -1231,7 +1232,7 @@ router.delete("/communication/messages/:id", verifyToken, async (req, res, next)
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.query.studentId || req.user.cedula);
 
     const msgRows = await queryDB(
-      "SELECT id, remitente_rol, remitente_cedula, created_at FROM mensaje_estudiante_docente WHERE id = ?",
+      "SELECT id, remitente_rol, remitente_cedula, created_at, TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds FROM mensaje_estudiante_docente WHERE id = ?",
       [id]
     );
 
@@ -1246,7 +1247,7 @@ router.delete("/communication/messages/:id", verifyToken, async (req, res, next)
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
     }
 
-    if (msg.created_at && Date.now() - new Date(msg.created_at).getTime() > 5 * 60 * 1000) {
+    if (msg.elapsed_seconds !== undefined && msg.elapsed_seconds !== null && Number(msg.elapsed_seconds) > 305) {
       return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
     }
     await queryDB("DELETE FROM mensaje_estudiante_docente WHERE id = ?", [id]);

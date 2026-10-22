@@ -57,17 +57,47 @@ const StudentDocentCommunication = () => {
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 10000);
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   const messagesEndRef = useRef(null);
 
+  // Helper para calcular segundos transcurridos desde la creación del mensaje (inmune a zona horaria)
+  const getMessageElapsedSeconds = useCallback((msg, nowMs = Date.now()) => {
+    if (!msg) return 0;
+    if (msg.elapsed_seconds !== undefined && msg.elapsed_seconds !== null) {
+      const baseElapsed = Math.max(0, Number(msg.elapsed_seconds) || 0);
+      const clientDelta = msg._clientLoadedAt
+        ? Math.max(0, Math.floor((nowMs - msg._clientLoadedAt) / 1000))
+        : 0;
+      return baseElapsed + clientDelta;
+    }
+    if (!msg.created_at) return 0;
+    const rawStr = String(msg.created_at).trim().replace(" ", "T");
+    const localMs = new Date(rawStr).getTime();
+    const colMs = !/[Zz]|[+-]\d{2}:?\d{2}$/.test(rawStr)
+      ? new Date(`${rawStr}-05:00`).getTime()
+      : localMs;
+    const candidates = [localMs, colMs]
+      .filter((ms) => !Number.isNaN(ms) && ms > 0)
+      .map((ms) => Math.floor((nowMs - ms) / 1000));
+    if (candidates.length === 0) return 0;
+    return Math.max(0, Math.min(...candidates.map((s) => Math.max(0, s))));
+  }, []);
+
+  const formatDeleteCountdown = (remainingSecs) => {
+    const safeSecs = Math.max(0, Math.floor(remainingSecs));
+    const mins = Math.floor(safeSecs / 60);
+    const secs = safeSecs % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  };
+
   // 0. Eliminar Mensaje (Límite estricto de 5 minutos)
   const handleDeleteMessage = async (msg) => {
     if (!msg || !msg.id) return;
-    const createdAt = new Date(msg.created_at).getTime();
-    const diffMinutes = (Date.now() - createdAt) / (1000 * 60);
+    if (!msg || !msg.id) return;
+    const diffMinutes = getMessageElapsedSeconds(msg, Date.now()) / 60;
 
     if (diffMinutes > 5) {
       toast.warning("El tiempo límite de 5 minutos para eliminar este mensaje ha expirado.");
@@ -152,7 +182,8 @@ const StudentDocentCommunication = () => {
       const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();
-        setMessages(Array.isArray(data) ? data : []);
+        const loadedAt = Date.now();
+        setMessages(Array.isArray(data) ? data.map((m) => ({ ...m, _clientLoadedAt: loadedAt })) : []);
 
         // Actualizar conteo de no leídos a 0 en la práctica seleccionada
         setPractices((prev) =>
@@ -504,10 +535,11 @@ const StudentDocentCommunication = () => {
                     const isDocent = m.remitente_rol === "docente";
                     const isBroadcast = m.destinatario_tipo === "todos" || !m.estudiante_cedula;
 
-                    const createdAtTime = m.created_at ? new Date(m.created_at).getTime() : 0;
-                    const elapsedMs = currentTime - createdAtTime;
-                    const isAuthor = !isDocent && (!m.remitente_cedula || String(m.remitente_cedula) === String(studentCedula));
-                    const canDelete = isAuthor;
+                    const elapsedSeconds = getMessageElapsedSeconds(m, currentTime);
+                    const remainingDeleteSeconds = Math.max(0, 300 - elapsedSeconds);
+
+
+                    const canDelete = (!isDocent && (!m.remitente_cedula || String(m.remitente_cedula) === String(studentCedula))) && remainingDeleteSeconds > 0;
 
                     return (
                       <div
@@ -554,7 +586,7 @@ const StudentDocentCommunication = () => {
                                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/20 hover:bg-rose-600 text-white text-[10px] font-bold shadow-sm transition cursor-pointer"
                                 >
                                   <Trash2 className="w-2.5 h-2.5" />
-                                  <span>Eliminar</span>
+                                  <span>Eliminar ({formatDeleteCountdown(remainingDeleteSeconds)})</span>
                                 </button>
                               )}
                               <span
@@ -563,7 +595,7 @@ const StudentDocentCommunication = () => {
                                 }`}
                               >
                                 {m.created_at
-                                  ? new Date(m.created_at).toLocaleString("es-CO", {
+                                  ? new Date(String(m.created_at).replace(" ", "T")).toLocaleString("es-CO", {
                                       dateStyle: "short",
                                       timeStyle: "short",
                                     })
