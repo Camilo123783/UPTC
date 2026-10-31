@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme, compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 
 const API_BASE_URL = BACKEND_URL;
 
@@ -275,7 +275,10 @@ const AdminInstitutionSettings = () => {
           color_texto_dark: data.color_texto_dark || prev.color_texto_dark || "#f8fafc",
         }));
         try {
-          localStorage.setItem("institutionSettings", JSON.stringify({ ...data, logo_institucion: logo, logo_facultad: facultyLogo, fondo_institucion: bg }));
+          localStorage.setItem(
+            "institutionSettings",
+            JSON.stringify(compactInstitutionSettingsForStorage({ ...data, logo_institucion: logo, logo_facultad: facultyLogo, fondo_institucion: bg }))
+          );
         } catch (e) {}
       }
     } catch (err) {
@@ -365,7 +368,7 @@ const AdminInstitutionSettings = () => {
         const currentStored = JSON.parse(localStorage.getItem("institutionSettings")) || {};
         localStorage.setItem(
           "institutionSettings",
-          JSON.stringify({ ...currentStored, logo_institucion: savedLogo, logoPreview: savedLogo, logo_url: savedLogo })
+          JSON.stringify(compactInstitutionSettingsForStorage({ ...currentStored, logo_institucion: savedLogo }))
         );
       } catch (err) {}
 
@@ -470,7 +473,7 @@ const AdminInstitutionSettings = () => {
         const currentStored = JSON.parse(localStorage.getItem("institutionSettings")) || {};
         localStorage.setItem(
           "institutionSettings",
-          JSON.stringify({ ...currentStored, fondo_institucion: savedBg, loginBgUrl: savedBg, login_bg_url: savedBg })
+          JSON.stringify(compactInstitutionSettingsForStorage({ ...currentStored, fondo_institucion: savedBg }))
         );
       } catch (err) {}
 
@@ -568,7 +571,7 @@ const AdminInstitutionSettings = () => {
         const currentStored = JSON.parse(localStorage.getItem("institutionSettings")) || {};
         localStorage.setItem(
           "institutionSettings",
-          JSON.stringify({ ...currentStored, logo_facultad: savedLogo })
+          JSON.stringify(compactInstitutionSettingsForStorage({ ...currentStored, logo_facultad: savedLogo }))
         );
       } catch (err) {}
 
@@ -721,7 +724,7 @@ const AdminInstitutionSettings = () => {
       }
 
       try {
-        localStorage.setItem("institutionSettings", JSON.stringify(payload));
+        localStorage.setItem("institutionSettings", JSON.stringify(compactInstitutionSettingsForStorage(payload)));
       } catch (e) {}
 
       updateInstitutionSettings(payload);
@@ -733,7 +736,7 @@ const AdminInstitutionSettings = () => {
     } catch (err) {
       console.error("Error al guardar en backend:", err);
       try {
-        localStorage.setItem("institutionSettings", JSON.stringify(payload));
+        localStorage.setItem("institutionSettings", JSON.stringify(compactInstitutionSettingsForStorage(payload)));
       } catch (e) {}
 
       updateInstitutionSettings(payload);

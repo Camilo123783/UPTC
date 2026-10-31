@@ -24,6 +24,7 @@ import {
   formatCertificateNarrative,
 } from "../../utils/certificateGenerator";
 import { BACKEND_URL } from "../../config/api";
+import { compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 import { useDataSync } from "../../utils/dataSync";
 import { useAuth } from "../../utils/useAuth";
 import toast from "../../utils/toast";
@@ -144,7 +145,7 @@ const AdminCertificateDesigner = () => {
           if (data && (data.name || data.nombre)) {
             setInstSettings(data);
             try {
-              localStorage.setItem("institutionSettings", JSON.stringify(data));
+              localStorage.setItem("institutionSettings", JSON.stringify(compactInstitutionSettingsForStorage(data)));
             } catch (e) {}
             if (data.director_nombre || data.representante) {
               setDirectorName((prev) => (prev === "?????" || prev === "Dirección de Escuela" ? (data.director_nombre || data.representante) : prev));

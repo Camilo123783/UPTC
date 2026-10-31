@@ -1,5 +1,5 @@
 // ============================================================
-// sessionManager.js — Gestión de persisencia e inactividad
+// sessionManager.js — Gestión de persistencia e inactividad
 // ============================================================
 "use strict";
 
@@ -18,20 +18,82 @@ const KEYS = {
 };
 
 /**
- * Guarda o actualiza la sesión activa en el almacenamiento local con protección contra QuotaExceededError.
+ * Escritura segura en localStorage que libera cachés pesados (como institutionSettings)
+ * si la cuota de 5MB del navegador fue alcanzada, evitando errores no controlados o cierres de sesión.
+ */
+const safeSetLocalStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    try {
+      localStorage.removeItem("institutionSettings");
+      localStorage.removeItem("uptc_cert_signature");
+      if (key !== KEYS.SAVED_PROGRESS) {
+        localStorage.removeItem(KEYS.SAVED_PROGRESS);
+      }
+      if (key !== KEYS.INACTIVITY_NOTICE) {
+        localStorage.removeItem(KEYS.INACTIVITY_NOTICE);
+      }
+      localStorage.setItem(key, value);
+      return true;
+    } catch (retryErr) {
+      return false;
+    }
+  }
+};
+
+/**
+ * Normaliza una ruta o clave de página para impedir que "/login" o "/forgot-password"
+ * se guarden como página activa de la sesión autenticada.
+ */
+export const sanitizeSessionPage = (page, role = null) => {
+  if (!page || typeof page !== "string") return "dashboard";
+  const trimmed = page.trim();
+  if (
+    !trimmed ||
+    trimmed === "/" ||
+    trimmed === "login" ||
+    trimmed === "/login" ||
+    trimmed === "forgotPassword" ||
+    trimmed === "/forgot-password"
+  ) {
+    return "dashboard";
+  }
+  if (
+    role === "superadmin" &&
+    (trimmed === "history" ||
+      trimmed === "/history" ||
+      trimmed === "/admin/history" ||
+      trimmed === "certificateHistory" ||
+      trimmed === "/certificate-history" ||
+      trimmed === "/admin/certificate-history" ||
+      trimmed.startsWith("/student") ||
+      trimmed.startsWith("/docent") ||
+      trimmed.startsWith("/auditor"))
+  ) {
+    return "dashboard";
+  }
+  return trimmed;
+};
+
+/**
+ * Guarda o actualiza la sesión activa en el almacenamiento local y de sesión con protección contra QuotaExceededError.
  */
 export const saveActiveSession = (userRole, currentPage, userData, token) => {
   try {
     if (userRole) {
       try {
-        localStorage.setItem(KEYS.USER_ROLE, userRole);
         sessionStorage.setItem(KEYS.USER_ROLE, userRole);
       } catch (e) {}
+      safeSetLocalStorage(KEYS.USER_ROLE, userRole);
     }
     if (currentPage) {
+      const safePage = sanitizeSessionPage(currentPage, userRole);
       try {
-        localStorage.setItem(KEYS.CURRENT_PAGE, currentPage);
+        sessionStorage.setItem(KEYS.CURRENT_PAGE, safePage);
       } catch (e) {}
+      safeSetLocalStorage(KEYS.CURRENT_PAGE, safePage);
     }
     if (userData) {
       let cleanData = userData;
@@ -49,41 +111,44 @@ export const saveActiveSession = (userRole, currentPage, userData, token) => {
       const strData = typeof cleanData === "string" ? cleanData : JSON.stringify(cleanData);
 
       try {
-        localStorage.setItem(KEYS.USER_DATA, strData);
-      } catch (quotaErr) {
-        console.warn("⚠️ localStorage quota excedida al guardar userData. Guardando versión compacta:", quotaErr);
+        sessionStorage.setItem(KEYS.USER_DATA, strData);
+      } catch (e) {}
+
+      if (!safeSetLocalStorage(KEYS.USER_DATA, strData)) {
         try {
           const minimalData = {
             id: userData.id || userData.cedula,
             cedula: userData.cedula || userData.id,
             nombre: userData.nombre,
-            apellidos: userData.apellidos,
+            apellidos: userData.apellidos || userData.apellido || "",
             role: userRole || userData.role,
             correo_institucional: userData.correo_institucional || userData.email,
             foto_url: userData.foto_url || null,
             has_photo: Boolean(userData.has_photo || userData.foto_perfil),
           };
-          localStorage.setItem(KEYS.USER_DATA, JSON.stringify(minimalData));
+          const minStr = JSON.stringify(minimalData);
+          safeSetLocalStorage(KEYS.USER_DATA, minStr);
+          try {
+            sessionStorage.setItem(KEYS.USER_DATA, minStr);
+          } catch (e) {}
         } catch (minErr) {
           console.error("No se pudo guardar datos mínimos en localStorage:", minErr);
         }
       }
-
-      try {
-        sessionStorage.setItem(KEYS.USER_DATA, strData);
-      } catch (e) {}
     }
     if (token) {
       try {
-        try { localStorage.setItem(KEYS.AUTH_TOKEN, token); } catch (q) { try { localStorage.removeItem("institutionSettings"); localStorage.removeItem("uptc_cert_signature"); localStorage.setItem(KEYS.AUTH_TOKEN, token); } catch (e2) {} }
-        try { localStorage.setItem("token", token); } catch (q) {}
         sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
         sessionStorage.setItem("token", token);
       } catch (e) {}
+      safeSetLocalStorage(KEYS.AUTH_TOKEN, token);
+      safeSetLocalStorage("token", token);
     }
+    const nowStr = String(Date.now());
     try {
-      localStorage.setItem(KEYS.LAST_ACTIVITY, String(Date.now()));
+      sessionStorage.setItem(KEYS.LAST_ACTIVITY, nowStr);
     } catch (e) {}
+    safeSetLocalStorage(KEYS.LAST_ACTIVITY, nowStr);
   } catch (err) {
     console.error("Error general en saveActiveSession:", err);
   }
@@ -92,16 +157,23 @@ export const saveActiveSession = (userRole, currentPage, userData, token) => {
 let lastTouchTime = 0;
 
 /**
- * Comprueba si la sesión ha expirado por inactividad (>5 min) o por token inválido/expirado.
+ * Comprueba si la sesión ha expirado por inactividad (>25 min) o por token inválido/expirado.
  */
 export const isSessionExpired = () => {
-  const userRole = localStorage.getItem(KEYS.USER_ROLE) || sessionStorage.getItem(KEYS.USER_ROLE);
-  const token = localStorage.getItem(KEYS.AUTH_TOKEN) || localStorage.getItem("token");
+  const userRole =
+    localStorage.getItem(KEYS.USER_ROLE) || sessionStorage.getItem(KEYS.USER_ROLE);
+  const token =
+    localStorage.getItem(KEYS.AUTH_TOKEN) ||
+    sessionStorage.getItem(KEYS.AUTH_TOKEN) ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token");
 
   if (!userRole || !token) return true;
 
   // 1. Verificar tiempo de inactividad
-  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
+  const lastActivityStr =
+    localStorage.getItem(KEYS.LAST_ACTIVITY) ||
+    sessionStorage.getItem(KEYS.LAST_ACTIVITY);
   const now = Date.now();
   if (lastActivityStr) {
     const lastActivity = parseInt(lastActivityStr, 10);
@@ -140,7 +212,9 @@ export const isSessionExpired = () => {
  */
 export const touchLastActivity = () => {
   const now = Date.now();
-  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
+  const lastActivityStr =
+    localStorage.getItem(KEYS.LAST_ACTIVITY) ||
+    sessionStorage.getItem(KEYS.LAST_ACTIVITY);
 
   if (lastActivityStr) {
     const lastActivity = parseInt(lastActivityStr, 10);
@@ -151,7 +225,11 @@ export const touchLastActivity = () => {
 
   if (now - lastTouchTime > 1000) {
     lastTouchTime = now;
-    localStorage.setItem(KEYS.LAST_ACTIVITY, String(now));
+    const nowStr = String(now);
+    try {
+      sessionStorage.setItem(KEYS.LAST_ACTIVITY, nowStr);
+    } catch (e) {}
+    safeSetLocalStorage(KEYS.LAST_ACTIVITY, nowStr);
   }
   return true;
 };
@@ -160,7 +238,9 @@ export const touchLastActivity = () => {
  * Retorna los milisegundos restantes antes de que la sesión expire por inactividad.
  */
 export const getInactivityRemainingMs = () => {
-  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
+  const lastActivityStr =
+    localStorage.getItem(KEYS.LAST_ACTIVITY) ||
+    sessionStorage.getItem(KEYS.LAST_ACTIVITY);
   if (!lastActivityStr) return INACTIVITY_TIMEOUT_MS;
   const lastActivity = parseInt(lastActivityStr, 10);
   if (isNaN(lastActivity)) return INACTIVITY_TIMEOUT_MS;
@@ -174,17 +254,31 @@ export const getInactivityRemainingMs = () => {
 export const resetInactivityTimer = () => {
   const now = Date.now();
   lastTouchTime = now;
-  localStorage.setItem(KEYS.LAST_ACTIVITY, String(now));
+  const nowStr = String(now);
+  try {
+    sessionStorage.setItem(KEYS.LAST_ACTIVITY, nowStr);
+  } catch (e) {}
+  safeSetLocalStorage(KEYS.LAST_ACTIVITY, nowStr);
 };
 
 /**
  * Verifica y recupera la sesión activa actual.
  */
 export const loadActiveSession = () => {
-  const userRole = localStorage.getItem(KEYS.USER_ROLE) || sessionStorage.getItem(KEYS.USER_ROLE);
-  const currentPage = localStorage.getItem(KEYS.CURRENT_PAGE);
-  const lastActivityStr = localStorage.getItem(KEYS.LAST_ACTIVITY);
-  const token = localStorage.getItem(KEYS.AUTH_TOKEN) || localStorage.getItem("token");
+  const userRole =
+    localStorage.getItem(KEYS.USER_ROLE) || sessionStorage.getItem(KEYS.USER_ROLE);
+  const rawPage =
+    localStorage.getItem(KEYS.CURRENT_PAGE) ||
+    sessionStorage.getItem(KEYS.CURRENT_PAGE);
+  const currentPage = sanitizeSessionPage(rawPage, userRole);
+  const lastActivityStr =
+    localStorage.getItem(KEYS.LAST_ACTIVITY) ||
+    sessionStorage.getItem(KEYS.LAST_ACTIVITY);
+  const token =
+    localStorage.getItem(KEYS.AUTH_TOKEN) ||
+    sessionStorage.getItem(KEYS.AUTH_TOKEN) ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token");
 
   if (!userRole || !token) {
     if (userRole && !token) {
@@ -197,8 +291,8 @@ export const loadActiveSession = () => {
   const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : now;
   const elapsed = now - lastActivity;
 
-  // Si superó los 5 minutos de inactividad
-  if (elapsed > INACTIVITY_TIMEOUT_MS) {
+  // Si superó los 25 minutos de inactividad
+  if (!isNaN(lastActivity) && elapsed > INACTIVITY_TIMEOUT_MS) {
     saveInactivityProgress(userRole, currentPage);
     clearActiveSession();
     return { expiredDueToInactivity: true };
@@ -224,18 +318,20 @@ export const loadActiveSession = () => {
     }
   } catch (e) {}
 
-  // Sincronizar hacia sessionStorage para que cualquier nueva pestaña o ventana
-  // abierta con "Abrir enlace en nueva pestaña" tenga acceso inmediato a todas las claves
+  // Sincronizar hacia sessionStorage y localStorage para mantener coherencia entre pestañas
   try {
-    if (userRole && !sessionStorage.getItem(KEYS.USER_ROLE)) {
-      sessionStorage.setItem(KEYS.USER_ROLE, userRole);
+    if (userRole) {
+      if (!sessionStorage.getItem(KEYS.USER_ROLE)) sessionStorage.setItem(KEYS.USER_ROLE, userRole);
+      if (!localStorage.getItem(KEYS.USER_ROLE)) safeSetLocalStorage(KEYS.USER_ROLE, userRole);
     }
-    const tokenVal = token || localStorage.getItem(KEYS.AUTH_TOKEN) || localStorage.getItem("token");
-    if (tokenVal) {
-      if (!sessionStorage.getItem(KEYS.AUTH_TOKEN)) sessionStorage.setItem(KEYS.AUTH_TOKEN, tokenVal);
-      if (!sessionStorage.getItem("token")) sessionStorage.setItem("token", tokenVal);
+    if (token) {
+      if (!sessionStorage.getItem(KEYS.AUTH_TOKEN)) sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
+      if (!sessionStorage.getItem("token")) sessionStorage.setItem("token", token);
+      if (!localStorage.getItem(KEYS.AUTH_TOKEN)) safeSetLocalStorage(KEYS.AUTH_TOKEN, token);
+      if (!localStorage.getItem("token")) safeSetLocalStorage("token", token);
     }
-    const userDataStr = localStorage.getItem(KEYS.USER_DATA);
+    const userDataStr =
+      localStorage.getItem(KEYS.USER_DATA) || sessionStorage.getItem(KEYS.USER_DATA);
     if (userDataStr && !sessionStorage.getItem(KEYS.USER_DATA)) {
       sessionStorage.setItem(KEYS.USER_DATA, userDataStr);
     }
@@ -252,28 +348,37 @@ export const loadActiveSession = () => {
 };
 
 /**
- * Guarda el progreso actual durante la ventana de 5 minutos post-cierre por inactividad.
+ * Guarda el progreso actual durante la ventana de 15 minutos post-cierre por inactividad.
  */
 export const saveInactivityProgress = (userRole, currentPage) => {
   if (!userRole) return;
-  const userDataStr = localStorage.getItem(KEYS.USER_DATA) || sessionStorage.getItem(KEYS.USER_DATA);
+  try {
+    const userDataStr =
+      localStorage.getItem(KEYS.USER_DATA) || sessionStorage.getItem(KEYS.USER_DATA);
+    let parsedUser = null;
+    if (userDataStr) {
+      try {
+        parsedUser = JSON.parse(userDataStr);
+      } catch (e) {}
+    }
 
-  const progress = {
-    userRole,
-    currentPage: currentPage || "dashboard",
-    userData: userDataStr ? JSON.parse(userDataStr) : null,
-    logoutTimestamp: Date.now(),
-  };
+    const progress = {
+      userRole,
+      currentPage: sanitizeSessionPage(currentPage, userRole),
+      userData: parsedUser,
+      logoutTimestamp: Date.now(),
+    };
 
-  localStorage.setItem(KEYS.SAVED_PROGRESS, JSON.stringify(progress));
-  localStorage.setItem(
-    KEYS.INACTIVITY_NOTICE,
-    "La sesión se cerró automáticamente por 25 minutos de inactividad. Tu progreso estará disponible por 15 minutos si vuelves a ingresar."
-  );
+    safeSetLocalStorage(KEYS.SAVED_PROGRESS, JSON.stringify(progress));
+    safeSetLocalStorage(
+      KEYS.INACTIVITY_NOTICE,
+      "La sesión se cerró automáticamente por 25 minutos de inactividad. Tu progreso estará disponible por 15 minutos si vuelves a ingresar."
+    );
+  } catch (e) {}
 };
 
 /**
- * Consulta si existe un progreso guardado reciente (dentro de los 5 min tras el cierre).
+ * Consulta si existe un progreso guardado reciente (dentro de los 15 min tras el cierre).
  */
 export const getSavedProgress = () => {
   const progressStr = localStorage.getItem(KEYS.SAVED_PROGRESS);
@@ -287,12 +392,12 @@ export const getSavedProgress = () => {
       const remainingMs = PROGRESS_GRACE_PERIOD_MS - elapsedSinceLogout;
       return {
         ...progress,
+        currentPage: sanitizeSessionPage(progress.currentPage, progress.userRole),
         remainingMs,
         remainingMinutes: Math.ceil(remainingMs / 60000),
         isValid: true,
       };
     } else {
-      // Han pasado más de 5 minutos tras el cierre -> El progreso expira definitivamente
       clearSavedProgress();
       return null;
     }
@@ -306,25 +411,32 @@ export const getSavedProgress = () => {
  * Borra cualquier progreso guardado.
  */
 export const clearSavedProgress = () => {
-  localStorage.removeItem(KEYS.SAVED_PROGRESS);
-  localStorage.removeItem(KEYS.INACTIVITY_NOTICE);
+  try {
+    localStorage.removeItem(KEYS.SAVED_PROGRESS);
+    localStorage.removeItem(KEYS.INACTIVITY_NOTICE);
+  } catch (e) {}
 };
 
 /**
  * Borra la sesión activa completamente en localStorage y sessionStorage.
  */
 export const clearActiveSession = () => {
-  localStorage.removeItem(KEYS.USER_ROLE);
-  localStorage.removeItem(KEYS.CURRENT_PAGE);
-  localStorage.removeItem(KEYS.AUTH_TOKEN);
-  localStorage.removeItem("token");
-  localStorage.removeItem(KEYS.LAST_ACTIVITY);
-  localStorage.removeItem(KEYS.USER_DATA);
-  sessionStorage.removeItem(KEYS.USER_ROLE);
-  sessionStorage.removeItem(KEYS.USER_DATA);
-  sessionStorage.removeItem(KEYS.AUTH_TOKEN);
-  sessionStorage.removeItem("token");
-  sessionStorage.removeItem(KEYS.CURRENT_PAGE);
+  try {
+    localStorage.removeItem(KEYS.USER_ROLE);
+    localStorage.removeItem(KEYS.CURRENT_PAGE);
+    localStorage.removeItem(KEYS.AUTH_TOKEN);
+    localStorage.removeItem("token");
+    localStorage.removeItem(KEYS.LAST_ACTIVITY);
+    localStorage.removeItem(KEYS.USER_DATA);
+  } catch (e) {}
+  try {
+    sessionStorage.removeItem(KEYS.USER_ROLE);
+    sessionStorage.removeItem(KEYS.USER_DATA);
+    sessionStorage.removeItem(KEYS.AUTH_TOKEN);
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem(KEYS.CURRENT_PAGE);
+    sessionStorage.removeItem(KEYS.LAST_ACTIVITY);
+  } catch (e) {}
 };
 
 /**

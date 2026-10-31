@@ -4,6 +4,34 @@ import { BACKEND_URL } from "../config/api";
 
 const ThemeContext = createContext();
 
+/**
+ * Compacta la configuración institucional antes de guardarla en localStorage
+ * para evitar que imágenes Base64 duplicadas o mayores a 250KB agoten la cuota de 5MB
+ * del navegador y bloqueen el inicio de sesión.
+ */
+export const compactInstitutionSettingsForStorage = (settings) => {
+  if (!settings || typeof settings !== "object") return settings;
+  const compact = { ...settings };
+  const MAX_BASE64_LEN = 250000;
+
+  // Eliminar duplicados redundantes de imágenes en el almacenamiento local
+  delete compact.logoPreview;
+  delete compact.logo_url;
+  delete compact.loginBgUrl;
+  delete compact.login_bg_url;
+
+  for (const key of ["logo_institucion", "logo_facultad", "fondo_institucion"]) {
+    if (
+      typeof compact[key] === "string" &&
+      compact[key].startsWith("data:") &&
+      compact[key].length > MAX_BASE64_LEN
+    ) {
+      delete compact[key];
+    }
+  }
+  return compact;
+};
+
 export const applyInstitutionColors = (settings, currentTheme) => {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -29,10 +57,12 @@ export const applyInstitutionColors = (settings, currentTheme) => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem("appTheme");
-    if (savedTheme === "light" || savedTheme === "dark") {
-      return savedTheme;
-    }
+    try {
+      const savedTheme = localStorage.getItem("appTheme");
+      if (savedTheme === "light" || savedTheme === "dark") {
+        return savedTheme;
+      }
+    } catch (e) {}
     return "dark"; // Por defecto modo oscuro como en la vista actual
   });
 
@@ -55,7 +85,8 @@ export const ThemeProvider = ({ children }) => {
             setInstitutionSettings(data);
             applyInstitutionColors(data, theme);
             try {
-              localStorage.setItem("institutionSettings", JSON.stringify(data));
+              const compact = compactInstitutionSettingsForStorage(data);
+              localStorage.setItem("institutionSettings", JSON.stringify(compact));
               window.dispatchEvent(new Event("institutionSettingsUpdated"));
             } catch (e) {}
           }
@@ -71,7 +102,9 @@ export const ThemeProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("appTheme", theme);
+    try {
+      localStorage.setItem("appTheme", theme);
+    } catch (e) {}
     const root = document.documentElement;
     if (theme === "dark") {
       root.classList.add("dark");
@@ -92,7 +125,7 @@ export const ThemeProvider = ({ children }) => {
       try {
         const saved = JSON.parse(localStorage.getItem("institutionSettings"));
         if (saved) {
-          setInstitutionSettings(saved);
+          setInstitutionSettings((prev) => ({ ...(prev || {}), ...saved }));
           applyInstitutionColors(saved, theme);
         }
       } catch (e) {}
@@ -107,15 +140,19 @@ export const ThemeProvider = ({ children }) => {
         handleStorageChange,
       );
     };
-  }, []);
+  }, [theme]);
 
   const updateInstitutionSettings = (newSettings) => {
-    setInstitutionSettings(newSettings);
-    applyInstitutionColors(newSettings, theme);
-    try {
-      localStorage.setItem("institutionSettings", JSON.stringify(newSettings));
-      window.dispatchEvent(new Event("institutionSettingsUpdated"));
-    } catch (e) {}
+    setInstitutionSettings((prev) => {
+      const merged = { ...(prev || {}), ...(newSettings || {}) };
+      applyInstitutionColors(merged, theme);
+      try {
+        const compact = compactInstitutionSettingsForStorage(merged);
+        localStorage.setItem("institutionSettings", JSON.stringify(compact));
+        window.dispatchEvent(new Event("institutionSettingsUpdated"));
+      } catch (e) {}
+      return merged;
+    });
   };
 
   const toggleTheme = () => {

@@ -3,8 +3,9 @@ import {
   saveActiveSession,
   getSavedProgress,
   clearSavedProgress,
+  sanitizeSessionPage,
 } from "../../utils/sessionManager";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme, compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 import { BACKEND_URL } from "../../config/api";
 import { User, Lock, Eye, EyeOff, Sun, Moon, AlertTriangle } from "lucide-react";
 import RouteLink from "../Shared/RouteLink";
@@ -61,10 +62,12 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
       return clean;
     };
 
-    const savedData = JSON.parse(localStorage.getItem("institutionSettings"));
-    if (savedData) {
-      setInstitutionInfo((prev) => ({ ...prev, ...sanitizeUrls(savedData) }));
-    }
+    try {
+      const savedData = JSON.parse(localStorage.getItem("institutionSettings"));
+      if (savedData) {
+        setInstitutionInfo((prev) => ({ ...prev, ...sanitizeUrls(savedData) }));
+      }
+    } catch (e) {}
 
     // Consultar al backend para tener los datos y colores más recientes
     fetch(`${API_BASE_URL}/api/institution-settings`)
@@ -73,7 +76,10 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
         if (data && data.name) {
           const cleanData = sanitizeUrls(data);
           setInstitutionInfo((prev) => ({ ...prev, ...cleanData }));
-          localStorage.setItem("institutionSettings", JSON.stringify(cleanData));
+          try {
+            const compact = compactInstitutionSettingsForStorage(cleanData);
+            localStorage.setItem("institutionSettings", JSON.stringify(compact));
+          } catch (e) {}
         }
       })
       .catch((e) => {
@@ -171,7 +177,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
           (!savedProg.userRole || savedProg.userRole === userRole) &&
           (!savedProg.userData?.cedula || String(savedProg.userData.cedula) === String(userData.cedula))
         ) {
-          targetPage = savedProg.currentPage || "dashboard";
+          targetPage = sanitizeSessionPage(savedProg.currentPage, userRole);
         }
 
         // Breve pausa para que el usuario aprecie el 100% completado

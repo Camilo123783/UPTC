@@ -35,8 +35,16 @@ function invalidateUserAuthCache(cedula) {
 }
 
 async function checkUserActiveInDB(role, cedula) {
-  const table = ROLE_TO_TABLE[String(role || "").trim().toLowerCase()];
-  if (!table || !cedula) return { exists: false, active: false };
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  // El superadministrador siempre permanece activo por regla de negocio institucional
+  if (normalizedRole === "superadmin") {
+    return { exists: true, active: true };
+  }
+
+  const table = ROLE_TO_TABLE[normalizedRole];
+  if (!table || cedula === undefined || cedula === null || String(cedula).trim() === "") {
+    return { exists: true, active: true };
+  }
 
   const cleanCedula = String(cedula).trim();
   const cacheKey = `${table}:${cleanCedula}`;
@@ -46,32 +54,29 @@ async function checkUserActiveInDB(role, cedula) {
     return cached.value;
   }
 
-  let rows = [];
-  if (table === "superadmin") {
-    rows = await queryDB(`SELECT id, 1 AS activo FROM superadmin WHERE cedula = ? LIMIT 1`, [cleanCedula]);
-  } else {
-    try {
-      rows = await queryDB(`SELECT id, COALESCE(activo, 1) AS activo FROM ${table} WHERE cedula = ? LIMIT 1`, [cleanCedula]);
-    } catch (err) {
-      if (err && err.code === "ER_BAD_FIELD_ERROR") {
-        rows = await queryDB(`SELECT id, 1 AS activo FROM ${table} WHERE cedula = ? LIMIT 1`, [cleanCedula]);
-      } else {
-        throw err;
-      }
+  try {
+    const rows = await queryDB(`SELECT * FROM ${table} WHERE cedula = ? LIMIT 1`, [cleanCedula]);
+    const value =
+      rows.length === 0
+        ? { exists: false, active: false }
+        : {
+            exists: true,
+            active:
+              rows[0].activo === undefined || rows[0].activo === null
+                ? true
+                : Number(rows[0].activo) !== 0,
+          };
+
+    if (userStatusCache.size > 1000) {
+      const oldestKey = userStatusCache.keys().next().value;
+      if (oldestKey) userStatusCache.delete(oldestKey);
     }
+    userStatusCache.set(cacheKey, { value, expiresAt: now + USER_STATUS_TTL_MS });
+    return value;
+  } catch (err) {
+    console.warn(`⚠️ [AUTH] Aviso al verificar estado activo en ${table}:`, err.message);
+    return { exists: true, active: true };
   }
-
-  const value =
-    rows.length === 0
-      ? { exists: false, active: false }
-      : { exists: true, active: Number(rows[0].activo) === 1 };
-
-  if (userStatusCache.size > 1000) {
-    const oldestKey = userStatusCache.keys().next().value;
-    if (oldestKey) userStatusCache.delete(oldestKey);
-  }
-  userStatusCache.set(cacheKey, { value, expiresAt: now + USER_STATUS_TTL_MS });
-  return value;
 }
 
 /**

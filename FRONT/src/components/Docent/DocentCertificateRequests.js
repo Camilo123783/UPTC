@@ -34,6 +34,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
+import { compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 import { useAuth } from "../../utils/useAuth";
 import { useDataSync, notifyDataChanged } from "../../utils/dataSync";
 import { generateProfessionalCertificate } from "../../utils/certificateGenerator";
@@ -94,7 +95,7 @@ const DocentCertificateRequests = () => {
           if (data && (data.name || data.nombre)) {
             setInstSettings(data);
             try {
-              localStorage.setItem("institutionSettings", JSON.stringify(data));
+              localStorage.setItem("institutionSettings", JSON.stringify(compactInstitutionSettingsForStorage(data)));
             } catch (e) {}
           }
         }

@@ -32,6 +32,7 @@ import {
   Archive,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
+import { compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 import { useAuth } from "../../utils/useAuth";
 import { useTheme } from "../../context/ThemeContext";
 import toast from "../../utils/toast";
@@ -105,7 +106,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
           if (resData && (resData.data || resData.name || resData.nombre)) {
             setInstSettings(resData.data || resData);
             try {
-              localStorage.setItem("institutionSettings", JSON.stringify(resData.data || resData));
+              localStorage.setItem("institutionSettings", JSON.stringify(compactInstitutionSettingsForStorage(resData.data || resData)));
             } catch (e) {}
           }
         })

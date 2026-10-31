@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme, compactInstitutionSettingsForStorage } from '../../context/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
 import { BACKEND_URL } from '../../config/api';
 
@@ -36,7 +36,8 @@ const AuthLayout = ({ children, title }) => {
           if (logo) setLogoUrl(logo);
           try {
             const current = JSON.parse(localStorage.getItem("institutionSettings") || "{}");
-            localStorage.setItem("institutionSettings", JSON.stringify({ ...current, ...data }));
+            const compact = compactInstitutionSettingsForStorage({ ...current, ...data });
+            localStorage.setItem("institutionSettings", JSON.stringify(compact));
           } catch (e) { }
         }
       } catch (e) {

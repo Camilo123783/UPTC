@@ -33,6 +33,7 @@ import {
   Check,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
+import { compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 import { useDataSync, notifyDataChanged } from "../../utils/dataSync";
 import { useAuth } from "../../utils/useAuth";
 import {
@@ -100,7 +101,7 @@ const StudentCertifications = () => {
           if (data && (data.name || data.nombre)) {
             setInstSettings(data);
             try {
-              localStorage.setItem("institutionSettings", JSON.stringify(data));
+              localStorage.setItem("institutionSettings", JSON.stringify(compactInstitutionSettingsForStorage(data)));
             } catch (e) {}
           }
         }

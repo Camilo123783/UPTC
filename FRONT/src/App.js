@@ -61,6 +61,7 @@ import {
   INACTIVITY_WARNING_MS,
   getInactivityRemainingMs,
   resetInactivityTimer,
+  sanitizeSessionPage,
 } from "./utils/sessionManager";
 
 // Mapa bidireccional entre identificadores de página y rutas URL del navegador
@@ -308,10 +309,9 @@ const App = () => {
         setUserRole(session.userRole);
         // Si el usuario ingresa a la raíz "/" o a "/login" teniendo sesión activa válida:
         if (location.pathname === "/" || location.pathname === "/login") {
-          const target = session.currentPage
-            ? PAGE_TO_ROUTE[session.currentPage] || session.currentPage
-            : "/dashboard";
-          navigate(target, { replace: true });
+          const safePage = sanitizeSessionPage(session.currentPage, session.userRole);
+          const target = PAGE_TO_ROUTE[safePage] || (safePage.startsWith("/") ? safePage : "/dashboard");
+          navigate(target === "/login" || target === "/" ? "/dashboard" : target, { replace: true });
         }
       }
     } else {
@@ -434,11 +434,14 @@ const App = () => {
   }, [userRole, location.pathname, navigate]);
 
   const handleLoginSuccess = (role, restoredPage, userData, token) => {
-    const target = restoredPage
-      ? PAGE_TO_ROUTE[restoredPage] || restoredPage
-      : "/dashboard";
-    setUserRole(role);
+    const safePage = sanitizeSessionPage(restoredPage, role);
+    const rawTarget = PAGE_TO_ROUTE[safePage] || (safePage.startsWith("/") ? safePage : "/dashboard");
+    const target =
+      rawTarget === "/login" || rawTarget === "/forgot-password" || rawTarget === "/"
+        ? "/dashboard"
+        : rawTarget;
     saveActiveSession(role, target, userData, token);
+    setUserRole(role);
     navigate(target, { replace: true });
   };
 

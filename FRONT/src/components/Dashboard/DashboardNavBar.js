@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme, compactInstitutionSettingsForStorage } from "../../context/ThemeContext";
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
 import RouteLink from "../Shared/RouteLink";
@@ -12,11 +12,15 @@ const DashboardLayout = ({
   onLogout,
   onNavigate,
 }) => {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme, toggleTheme, isDark, institutionSettings } = useTheme();
 
   // Estado para controlar si el sidebar está colapsado (guardado) o expandido
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    return localStorage.getItem("sidebarCollapsed") === "true";
+    try {
+      return localStorage.getItem("sidebarCollapsed") === "true";
+    } catch (e) {
+      return false;
+    }
   });
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -26,7 +30,9 @@ const DashboardLayout = ({
   }, [currentPage]);
 
   useEffect(() => {
-    localStorage.setItem("sidebarCollapsed", String(isCollapsed));
+    try {
+      localStorage.setItem("sidebarCollapsed", String(isCollapsed));
+    } catch (e) {}
   }, [isCollapsed]);
 
   const [institutionInfo, setInstitutionInfo] = useState(() => {
@@ -59,7 +65,8 @@ const DashboardLayout = ({
         setInstitutionInfo((prev) => ({ ...prev, ...data }));
         try {
           const current = JSON.parse(localStorage.getItem("institutionSettings") || "{}");
-          localStorage.setItem("institutionSettings", JSON.stringify({ ...current, ...data }));
+          const compact = compactInstitutionSettingsForStorage({ ...current, ...data });
+          localStorage.setItem("institutionSettings", JSON.stringify(compact));
         } catch (e) { }
       }
     } catch (e) {
@@ -73,8 +80,14 @@ const DashboardLayout = ({
   };
 
   useEffect(() => {
-    if (!localStorage.getItem("institutionSettings")) fetchInstitutionInfo();
+    fetchInstitutionInfo();
   }, []);
+
+  useEffect(() => {
+    if (institutionSettings) {
+      setInstitutionInfo((prev) => ({ ...prev, ...institutionSettings }));
+    }
+  }, [institutionSettings]);
 
   // Sincronizado con institutionSettingsUpdated; no recargar en cada foco de ventana
 

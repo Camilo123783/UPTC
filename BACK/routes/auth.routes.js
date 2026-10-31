@@ -107,8 +107,12 @@ async function verifyAndMigratePassword(tableName, user, inputPassword) {
   if (isMatch) {
     try {
       const newHash = await bcrypt.hash(pwdStr, 10);
-      await queryDB(`UPDATE ${tableName} SET password = ? WHERE id = ?`, [newHash, user.id]);
-      console.log(`✅ [AUTH] Contraseña de usuario id=${user.id} (${tableName}) migrada automáticamente a hash bcrypt.`);
+      if (user.id !== undefined && user.id !== null) {
+        await queryDB(`UPDATE ${tableName} SET password = ? WHERE id = ?`, [newHash, user.id]);
+      } else {
+        await queryDB(`UPDATE ${tableName} SET password = ? WHERE cedula = ?`, [newHash, user.cedula]);
+      }
+      console.log(`✅ [AUTH] Contraseña de usuario cedula=${user.cedula} (${tableName}) migrada automáticamente a hash bcrypt.`);
     } catch (migErr) {
       console.error("⚠️ [AUTH] Error al migrar hash a bcrypt:", migErr.message);
     }
@@ -122,9 +126,10 @@ async function verifyAndMigratePassword(tableName, user, inputPassword) {
 // Helper: buscar y autenticar en una tabla
 // ──────────────────────────────────────────────
 async function authenticateUser(tableName, cedula, password, roleName) {
+  const cleanCedula = String(cedula).trim();
   const rows = await queryDB(
     `SELECT * FROM ${tableName} WHERE cedula = ? LIMIT 1`,
-    [cedula]
+    [cleanCedula]
   );
 
   if (rows.length === 0) return null;
@@ -167,6 +172,10 @@ async function authenticateUser(tableName, cedula, password, roleName) {
   if (user.foto_firma) {
     user.has_signature = true;
     delete user.foto_firma;
+  }
+
+  if (!user.apellidos && user.apellido) {
+    user.apellidos = user.apellido;
   }
 
   return { ...user, role: roleName };
@@ -233,6 +242,7 @@ router.post("/login", async (req, res, next) => {
     // ✅ Generar JWT real
     const token = jwt.sign(
       {
+        id: authenticatedUser.id,
         cedula: authenticatedUser.cedula,
         role: authenticatedUser.role,
       },
