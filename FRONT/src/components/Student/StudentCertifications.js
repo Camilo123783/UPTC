@@ -198,7 +198,7 @@ const StudentCertifications = () => {
 
       // 3. Cargar Certificados Emitidos (ÚNICAMENTE Reales Avalados por Docente)
       const realIssued = reqList
-        .filter((r) => r.estado === "Aprobado")
+        .filter((r) => r.estado === "Aprobado" && r.categoria_solicitud !== "reporte" && !(r.tipo_certificado || "").toLowerCase().includes("reporte") && !(r.tipo_certificado || "").toLowerCase().includes("constancia"))
         .map((r) => {
           const matchPr = studentPractices.find((p) => p.id === r.practica_id);
           const issueYear = r.fecha_respuesta ? new Date(r.fecha_respuesta).getFullYear() : new Date().getFullYear();
@@ -220,6 +220,15 @@ const StudentCertifications = () => {
             directorRole: DEFAULT_DIRECTOR_ROLE,
             period: r.practica_periodo || matchPr?.periodo || "2026-1",
             state: "Emitido Oficial",
+            calificacion: r.calificacion ?? matchPr?.calificacion ?? null,
+            grade: r.calificacion ?? matchPr?.calificacion ?? null,
+            startDate: r.fecha_inicio || matchPr?.fecha_inicio || null,
+            endDate: r.fecha_fin || matchPr?.fecha_fin || null,
+            fecha_inicio: r.fecha_inicio || matchPr?.fecha_inicio || null,
+            fecha_fin: r.fecha_fin || matchPr?.fecha_fin || null,
+            docente_foto_firma: r.docente_foto_firma || null,
+            signatureImage: r.docente_foto_firma || null,
+            categoria_solicitud: r.categoria_solicitud || "certificado",
           };
         });
 
@@ -306,6 +315,7 @@ const StudentCertifications = () => {
         toast.warning(
           "La práctica formativa aún no ha finalizado. No puedes solicitar el Certificado Oficial todavía; en su lugar, te recomendamos solicitar un Reporte de Práctica."
         );
+        return;
       } else {
         const hasGrade =
           practice.calificacion !== null &&
@@ -320,21 +330,6 @@ const StudentCertifications = () => {
           );
           return;
         }
-      }
-      if (false) {
-      const hasGrade =
-        practice.calificacion !== null &&
-        practice.calificacion !== undefined &&
-        practice.calificacion !== "" &&
-        Number(practice.calificacion) > 0;
-      if (!hasGrade || Number(practice.calificacion) < 3.0) {
-        toast.error(
-          hasGrade
-            ? `No puedes solicitar el certificado porque no aprobaste la práctica formativa (tu nota final fue ${Number(practice.calificacion).toFixed(1)} / 5.0 y la nota mínima aprobatoria es 3.0).`
-            : "No puedes solicitar el certificado porque la práctica finalizó y no aprobaste con la calificación mínima requerida (3.0)."
-        );
-        return;
-      }
       }
     }
     if (practice.estado === "Cancelada") {
@@ -932,7 +927,7 @@ const StudentCertifications = () => {
                             Pendiente
                           </span>
                         </div>
-                      ) : canRequestCertificate || !isFinalizada ? (
+                      ) : canRequestCertificate ? (
                         <button
                           onClick={() => handleOpenRequestModal(pr, "certificado")}
                           className="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition duration-150"

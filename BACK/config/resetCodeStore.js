@@ -8,13 +8,18 @@ const codeStore = new Map();
 
 /**
  * Almacena un código de 6 dígitos para un identificador.
- * Expiración por defecto: 10 minutos con límite de 5 intentos fallidos.
+ * Expiración por defecto: 15 minutos con límite de 5 intentos fallidos.
  */
 function saveResetCode(identifier, code, cedula, userTable, userEmail) {
   const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutos
+  const cleanIdentifier = identifier !== undefined && identifier !== null ? String(identifier).toLowerCase().trim() : "";
+  const cleanCedula = cedula !== undefined && cedula !== null ? String(cedula).toLowerCase().trim() : "";
+  const cleanEmail = userEmail !== undefined && userEmail !== null ? String(userEmail).toLowerCase().trim() : "";
+
   const entry = {
     code: String(code).trim(),
     expiresAt,
+    identifier: cleanIdentifier,
     cedula,
     userTable,
     userEmail,
@@ -22,15 +27,9 @@ function saveResetCode(identifier, code, cedula, userTable, userEmail) {
     verified: false,
   };
 
-  if (identifier !== undefined && identifier !== null && String(identifier).trim() !== "") {
-    codeStore.set(String(identifier).toLowerCase().trim(), entry);
-  }
-  if (cedula !== undefined && cedula !== null && String(cedula).trim() !== "") {
-    codeStore.set(String(cedula).toLowerCase().trim(), entry);
-  }
-  if (userEmail !== undefined && userEmail !== null && String(userEmail).trim() !== "") {
-    codeStore.set(String(userEmail).toLowerCase().trim(), entry);
-  }
+  if (cleanIdentifier) codeStore.set(cleanIdentifier, entry);
+  if (cleanCedula) codeStore.set(cleanCedula, entry);
+  if (cleanEmail) codeStore.set(cleanEmail, entry);
 }
 
 /**
@@ -95,17 +94,23 @@ function getVerifiedEntry(identifier) {
 }
 
 /**
- * Limpia el código usado.
+ * Limpia el código usado en todas las llaves asociadas.
  */
 function clearResetCode(identifier) {
   const key = String(identifier || "").toLowerCase().trim();
   const entry = codeStore.get(key);
   if (entry) {
+    if (entry.identifier) codeStore.delete(String(entry.identifier).toLowerCase().trim());
     if (entry.cedula !== undefined && entry.cedula !== null) {
       codeStore.delete(String(entry.cedula).toLowerCase().trim());
     }
     if (entry.userEmail) {
       codeStore.delete(String(entry.userEmail).toLowerCase().trim());
+    }
+    for (const [k, v] of codeStore.entries()) {
+      if (v === entry) {
+        codeStore.delete(k);
+      }
     }
   }
   codeStore.delete(key);

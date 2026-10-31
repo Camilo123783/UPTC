@@ -51,7 +51,6 @@ window.fetch = async (input, init = {}) => {
     }
   }
 
-
   const response = await originalFetch(input, init);
 
   // Si el servidor responde 401 en una ruta protegida
@@ -61,7 +60,8 @@ window.fetch = async (input, init = {}) => {
     !url.includes("/api/login") &&
     !url.includes("/api/auth/forgot-password") &&
     !url.includes("/api/auth/verify-reset-code") &&
-    !url.includes("/api/auth/reset-password")
+    !url.includes("/api/auth/reset-password") &&
+    !url.includes("/api/auth/change-password")
   ) {
     console.warn(`[Auth] Error 401 en ruta protegida: ${url}`);
     const hadToken = localStorage.getItem("authToken") || localStorage.getItem("token");

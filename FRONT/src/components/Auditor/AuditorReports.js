@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { BACKEND_URL } from "../../config/api";
 import { useDataSync } from "../../utils/dataSync";
+import toast from "../../utils/toast";
 import { generateCsv, generateXls } from "../../utils/reportGenerator";
 import ClinicalReportModal from "./ClinicalReportModal";
 import { PracticeScheduleViewer } from "../Shared/PracticeSchedule";
@@ -679,7 +680,7 @@ const AuditorReports = () => {
                                       </button>
                                       <button
                                         onClick={() =>
-                                          setReportModal({
+                                          pr.estado === "Finalizada" || pr.estado === "Cancelada" ? toast.warning(`Esta práctica ya se encuentra ${pr.estado.toLowerCase()}. Los informes clínicos cerrados no admiten edición.`) : setReportModal({
                                             isOpen: true,
                                             student: st,
                                             practice: pr,
@@ -691,7 +692,7 @@ const AuditorReports = () => {
                                             : "bg-amber-500 hover:bg-amber-600 text-gray-900 shadow-amber-500/20"
                                         }`}
                                       >
-                                        {hasReport ? "Editar Informe" : "Emitir Informe"}
+                                        {pr.estado === "Finalizada" || pr.estado === "Cancelada" ? "Práctica Cerrada" : hasReport ? "Editar Informe" : "Emitir Informe"}
                                       </button>
                                     </div>
                                   </td>

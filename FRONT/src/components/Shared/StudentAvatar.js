@@ -71,7 +71,7 @@ const StudentAvatar = ({
   const initial = (name && typeof name === "string" ? name.trim().charAt(0) : "E").toUpperCase();
   const effectiveHasPhoto = forceHasPhoto !== null ? forceHasPhoto : hasPhoto;
   const shouldFetchPhoto = effectiveHasPhoto !== false && Boolean(cedula);
-  const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken")) : null;
+  const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("token") || sessionStorage.getItem("token")) : null;
   const photoUrl = shouldFetchPhoto
     ? `${API_BASE_URL}/api/student/photo/${cedula}?v=${version}${token ? `&token=${encodeURIComponent(token)}` : ""}`
     : null;

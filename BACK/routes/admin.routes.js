@@ -9,8 +9,8 @@ const multer = require("multer");
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const { queryDB, getColombiaToday } = require("../config/db");
-const { verifyToken, requireRole } = require("../middleware/auth");
+const { queryDB, withTransaction, getColombiaToday } = require("../config/db");
+const { verifyToken, requireRole, invalidateUserAuthCache } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
 const { syncPracticeStatuses, calculatePracticeStatus } = require("../services/practiceSync.service");
 const { validateRubricCriteriaSelection, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
@@ -21,23 +21,17 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || ".png";
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${file.fieldname}_${uniqueSuffix}${ext}`);
-  },
-});
+const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 
 const uploadInstitutionFile = multer({
-  storage,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Solo se permiten archivos de imagen"), false);
+    const mime = String(file.mimetype || "").toLowerCase();
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    if (!ALLOWED_IMAGE_MIMES.has(mime) || (ext && !ALLOWED_IMAGE_EXTS.has(ext))) {
+      return cb(new Error("Solo se permiten archivos de imagen seguros (PNG, JPG, WEBP o GIF). No se permiten archivos SVG."), false);
     }
     cb(null, true);
   },
@@ -310,14 +304,20 @@ router.post("/docente", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Faltan campos obligatorios." });
     }
 
-    if (!/^\d+$/.test(String(cedula).trim())) {
+    const cleanCedula = String(cedula).trim();
+    if (!/^\d+$/.test(cleanCedula)) {
       return res.status(400).json({ success: false, message: "La cédula solo debe contener números." });
+    }
+
+    const existingUser = await findUserTable(cleanCedula);
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "Ya existe un usuario registrado en el sistema con esa cédula." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await queryDB(
       `INSERT INTO docente (rol_id, cedula, password, nombre, apellidos, correo_institucional, programa_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [rol_id, cedula, hashedPassword, nombre, apellidos, correo_institucional || null, programa_id]
+      [rol_id, cleanCedula, hashedPassword, nombre, apellidos, correo_institucional || null, programa_id]
     );
 
     console.log(`✅ Docente creado: ${cedula}`);
@@ -348,14 +348,20 @@ router.post("/auditor", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Faltan campos obligatorios." });
     }
 
-    if (!/^\d+$/.test(String(cedula).trim())) {
+    const cleanCedula = String(cedula).trim();
+    if (!/^\d+$/.test(cleanCedula)) {
       return res.status(400).json({ success: false, message: "La cédula solo debe contener números." });
+    }
+
+    const existingUser = await findUserTable(cleanCedula);
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "Ya existe un usuario registrado en el sistema con esa cédula." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await queryDB(
       `INSERT INTO auditor (rol_id, cedula, password, nombre, apellidos, correo_institucional, institucion_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [rol_id, cedula, hashedPassword, nombre, apellidos, correo_institucional || null, institucion_id]
+      [rol_id, cleanCedula, hashedPassword, nombre, apellidos, correo_institucional || null, institucion_id]
     );
 
     console.log(`✅ Auditor creado: ${cedula}`);
@@ -379,15 +385,21 @@ const handleCreateAdmin = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Faltan campos obligatorios." });
     }
 
-    if (!/^\d+$/.test(String(cedula).trim())) {
+    const cleanCedula = String(cedula).trim();
+    if (!/^\d+$/.test(cleanCedula)) {
       return res.status(400).json({ success: false, message: "La cédula solo debe contener números." });
+    }
+
+    const existingUser = await findUserTable(cleanCedula);
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "Ya existe un usuario registrado en el sistema con esa cédula." });
     }
 
     const effectiveRolId = rol_id || 2;
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await queryDB(
       `INSERT INTO administrador (rol_id, nombre, apellidos, cedula, password, correo_institucional) VALUES (?, ?, ?, ?, ?, ?)`,
-      [effectiveRolId, nombre, apellidos, cedula, hashedPassword, correo_institucional || null]
+      [effectiveRolId, nombre, apellidos, cleanCedula, hashedPassword, correo_institucional || null]
     );
 
     console.log(`✅ Administrador creado: ${cedula}`);
@@ -415,15 +427,21 @@ router.post("/superadmin", requireRole("superadmin"), async (req, res, next) => 
       return res.status(400).json({ success: false, message: "Faltan campos obligatorios (cédula, nombre, apellidos, contraseña)." });
     }
 
-    if (!/^\d+$/.test(String(cedula).trim())) {
+    const cleanCedula = String(cedula).trim();
+    if (!/^\d+$/.test(cleanCedula)) {
       return res.status(400).json({ success: false, message: "La cédula solo debe contener números." });
+    }
+
+    const existingUser = await findUserTable(cleanCedula);
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "Ya existe un usuario registrado en el sistema con esa cédula." });
     }
 
     const effectiveRolId = rol_id || 1;
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await queryDB(
       `INSERT INTO superadmin (rol_id, nombre, apellidos, cedula, correo_institucional, password) VALUES (?, ?, ?, ?, ?, ?)`,
-      [effectiveRolId, nombre, effectiveApellido, cedula, correo_institucional || null, hashedPassword]
+      [effectiveRolId, nombre, effectiveApellido, cleanCedula, correo_institucional || null, hashedPassword]
     );
 
     console.log(`✅ Superadmin creado: ${cedula}`);
@@ -454,7 +472,8 @@ router.post("/estudiante", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Faltan campos obligatorios." });
     }
 
-    if (!/^\d+$/.test(String(cedula).trim())) {
+    const cleanCedula = String(cedula).trim();
+    if (!/^\d+$/.test(cleanCedula)) {
       return res.status(400).json({ success: false, message: "La cédula solo debe contener números." });
     }
 
@@ -462,10 +481,15 @@ router.post("/estudiante", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "El código estudiantil solo debe contener números." });
     }
 
+    const existingUser = await findUserTable(cleanCedula);
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "Ya existe un usuario registrado en el sistema con esa cédula." });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await queryDB(
       `INSERT INTO estudiante (rol_id, cedula, codigo, password, nombre, apellidos, correo_institucional, programa_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [rol_id, cedula, codigo ? String(codigo).trim() : null, hashedPassword, nombre, apellidos, correo_institucional || null, programa_id]
+      [rol_id, cleanCedula, codigo ? String(codigo).trim() : null, hashedPassword, nombre, apellidos, correo_institucional || null, programa_id]
     );
 
     console.log(`✅ Estudiante creado: ${cedula} (Código: ${codigo || "Sin código"})`);
@@ -714,6 +738,15 @@ router.post("/bulk-import", verifyToken, requireRole("admin", "superadmin"), asy
 
           if (!cedula || !nombre || !apellidos) {
             throw new Error("Cédula, nombre y apellidos son campos obligatorios.");
+          }
+
+          if (!/^\d+$/.test(cedula)) {
+            throw new Error("La cédula solo debe contener números.");
+          }
+
+          const existingGlobalUser = await findUserTable(cedula);
+          if (existingGlobalUser) {
+            throw new Error(`Ya existe un usuario registrado en el sistema con la cédula ${cedula}.`);
           }
 
           const passwordHash = plainPassword ? await bcrypt.hash(plainPassword, 10) : await getDefaultHash();
@@ -1042,7 +1075,7 @@ const USER_TABLE_BY_ROLE = {
   administrador: "administrador",
   superadmin: "superadmin",
 };
-const USER_TABLES_LOOKUP_ORDER = ["estudiante", "docente", "auditor", "administrador", "superadmin"];
+const USER_TABLES_LOOKUP_ORDER = ["superadmin", "administrador", "auditor", "docente", "estudiante"];
 
 async function findUserTable(identifier, roleHint) {
   const hinted = USER_TABLE_BY_ROLE[String(roleHint || "").trim().toLowerCase()];
@@ -1106,23 +1139,64 @@ router.delete(["/users/:id", "/user/:id"], async (req, res, next) => {
           });
         }
 
-        // 2. Solo un superadministrador puede eliminar cuentas de superadministrador
-        if (role.roleName === "superadmin" && req.user?.role !== "superadmin") {
+        // 2. Solo un superadministrador puede eliminar cuentas de superadministrador o administrador
+        if ((role.roleName === "superadmin" || role.roleName === "admin") && req.user?.role !== "superadmin") {
           return res.status(403).json({
             success: false,
-            message: "Solo un superadministrador puede eliminar cuentas de superadministrador.",
+            message: "Solo un superadministrador puede eliminar cuentas de superadministrador o administrador.",
           });
         }
 
-        try {
-          if (role.dataTable && role.dataCedulaCol) {
-            await queryDB(`DELETE FROM ${role.dataTable} WHERE ${role.dataCedulaCol} = ?`, [userCedula]);
+        // 3. Verificar dependencias explícitas antes de tocar datos_estudiante
+        if (role.tableName === "estudiante") {
+          const [peCount] = await queryDB(`SELECT COUNT(*) AS cnt FROM practica_estudiante WHERE estudiante_cedula = ?`, [userCedula]);
+          const [scCount] = await queryDB(`SELECT COUNT(*) AS cnt FROM solicitud_certificado WHERE estudiante_cedula = ?`, [userCedula]);
+          if (Number(peCount?.cnt || 0) > 0 || Number(scCount?.cnt || 0) > 0) {
+            return res.status(409).json({
+              success: false,
+              hasDependencies: true,
+              entityType: "Usuario",
+              entityName: userName,
+              message: `No se puede eliminar al usuario "${userName}" porque cuenta con registros asociados en el sistema (prácticas, evaluaciones, bitácoras o certificaciones).`,
+            });
           }
-          const resDel = await queryDB(
-            `DELETE FROM ${role.tableName} WHERE id = ?`,
-            [userId]
-          );
-          if (resDel.affectedRows > 0) {
+        } else if (role.tableName === "docente") {
+          const [prCount] = await queryDB(`SELECT COUNT(*) AS cnt FROM practica WHERE docente_cedula = ?`, [userCedula]);
+          if (Number(prCount?.cnt || 0) > 0) {
+            return res.status(409).json({
+              success: false,
+              hasDependencies: true,
+              entityType: "Usuario",
+              entityName: userName,
+              message: `No se puede eliminar al docente "${userName}" porque tiene prácticas formativas asociadas en el sistema.`,
+            });
+          }
+        } else if (role.tableName === "auditor") {
+          const [prCount] = await queryDB(`SELECT COUNT(*) AS cnt FROM practica WHERE auditor_cedula = ?`, [userCedula]);
+          if (Number(prCount?.cnt || 0) > 0) {
+            return res.status(409).json({
+              success: false,
+              hasDependencies: true,
+              entityType: "Usuario",
+              entityName: userName,
+              message: `No se puede eliminar al auditor "${userName}" porque tiene prácticas formativas asociadas en el sistema.`,
+            });
+          }
+        }
+
+        try {
+          const affected = await withTransaction(async (conn) => {
+            if (role.dataTable && role.dataCedulaCol) {
+              await conn.execute(`DELETE FROM ${role.dataTable} WHERE ${role.dataCedulaCol} = ?`, [userCedula]);
+            }
+            const [resDel] = await conn.execute(
+              `DELETE FROM ${role.tableName} WHERE id = ?`,
+              [userId]
+            );
+            return resDel.affectedRows;
+          });
+          if (affected > 0) {
+            invalidateUserAuthCache(userCedula);
             deleted = true;
             break;
           }
@@ -1236,7 +1310,15 @@ router.patch("/users/:cedula/status", async (req, res, next) => {
       });
     }
 
-    // 1. El superadministrador NUNCA puede ser desactivado
+    // 1. No permitir que el usuario desactive su propia cuenta activa
+    if (req.user?.cedula && String(target.cedula).trim() === String(req.user.cedula).trim()) {
+      return res.status(403).json({
+        success: false,
+        message: "No puedes desactivar o modificar el estado de tu propia cuenta mientras tu sesión esté activa.",
+      });
+    }
+
+    // 2. El superadministrador NUNCA puede ser desactivado
     if (target.table === "superadmin") {
       return res.status(403).json({
         success: false,
@@ -1244,7 +1326,7 @@ router.patch("/users/:cedula/status", async (req, res, next) => {
       });
     }
 
-    // 2. Solo el superadministrador puede activar/desactivar administradores
+    // 3. Solo el superadministrador puede activar/desactivar administradores
     if (target.table === "administrador") {
       if (req.user?.role !== "superadmin") {
         return res.status(403).json({
@@ -1254,7 +1336,7 @@ router.patch("/users/:cedula/status", async (req, res, next) => {
       }
     }
 
-    // 3. Los administradores pueden activar y desactivar auditores, docentes, estudiantes
+    // 4. Los administradores pueden activar y desactivar auditores, docentes, estudiantes
     const newStatus =
       activo === true || activo === 1 || activo === "1" || activo === "true" ? 1 : 0;
 
@@ -1262,6 +1344,8 @@ router.patch("/users/:cedula/status", async (req, res, next) => {
       newStatus,
       target.id,
     ]);
+
+    invalidateUserAuthCache(target.cedula);
 
     console.log(
       `✅ Estado de usuario ${cedula} (${target.table}) cambiado a ${
@@ -1310,6 +1394,10 @@ router.put("/users/:cedula", async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Usuario no encontrado para actualización." });
     }
 
+    const nombreParam = nombre !== undefined ? String(nombre).trim() : null;
+    const apellidosParam = apellidos !== undefined ? String(apellidos).trim() : null;
+    const correoInstParam = correo_institucional !== undefined ? (correo_institucional ? String(correo_institucional).trim() : null) : undefined;
+
     // Actualizar estudiante
     if (target.table === "estudiante") {
       const targetCedula = target.cedula;
@@ -1317,33 +1405,77 @@ router.put("/users/:cedula", async (req, res, next) => {
       const progParam = (programa_id !== undefined && programa_id !== null && String(programa_id).trim() !== "" && !isNaN(programa_id) && Number(programa_id) > 0)
         ? Number(programa_id)
         : null;
+      const codigoParam = codigo !== undefined ? (codigo ? String(codigo).trim() : null) : undefined;
 
-      if (statusParam !== null) {
-        await queryDB(
-          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id), activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, progParam, statusParam, targetCedula]
+      await queryDB(
+        `UPDATE estudiante SET
+           nombre = COALESCE(?, nombre),
+           apellidos = COALESCE(?, apellidos),
+           codigo = CASE WHEN ? = 1 THEN ? ELSE codigo END,
+           correo_institucional = CASE WHEN ? = 1 THEN ? ELSE correo_institucional END,
+           programa_id = COALESCE(?, programa_id),
+           activo = COALESCE(?, activo)
+         WHERE cedula = ?`,
+        [
+          nombreParam,
+          apellidosParam,
+          codigoParam !== undefined ? 1 : 0,
+          codigoParam !== undefined ? codigoParam : null,
+          correoInstParam !== undefined ? 1 : 0,
+          correoInstParam !== undefined ? correoInstParam : null,
+          progParam,
+          statusParam,
+          targetCedula,
+        ]
+      );
+
+      // Actualizar en datos_estudiante solo los campos que fueron enviados explícitamente en req.body
+      const hasExtraFields =
+        biografia !== undefined ||
+        direccion !== undefined ||
+        telefono !== undefined ||
+        correo_personal !== undefined ||
+        nombre_familiar !== undefined ||
+        telefono_familiar !== undefined;
+
+      if (hasExtraFields) {
+        const existingDatos = await queryDB(
+          `SELECT cedula_estudiante FROM datos_estudiante WHERE cedula_estudiante = ? LIMIT 1`,
+          [targetCedula]
         );
-      } else {
-        await queryDB(
-          `UPDATE estudiante SET nombre = ?, apellidos = ?, codigo = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id) WHERE cedula = ?`,
-          [nombre, apellidos, codigo ? String(codigo).trim() : null, correo_institucional || null, progParam, targetCedula]
-        );
+        if (existingDatos.length > 0) {
+          const setClauses = [];
+          const setParams = [];
+          if (biografia !== undefined) { setClauses.push("biografia = ?"); setParams.push(biografia || null); }
+          if (direccion !== undefined) { setClauses.push("direccion = ?"); setParams.push(direccion || null); }
+          if (telefono !== undefined) { setClauses.push("telefono = ?"); setParams.push(telefono || null); }
+          if (correo_personal !== undefined) { setClauses.push("correo_personal = ?"); setParams.push(correo_personal || null); }
+          if (nombre_familiar !== undefined) { setClauses.push("nombre_familiar = ?"); setParams.push(nombre_familiar || null); }
+          if (telefono_familiar !== undefined) { setClauses.push("telefono_familiar = ?"); setParams.push(telefono_familiar || null); }
+          if (setClauses.length > 0) {
+            await queryDB(
+              `UPDATE datos_estudiante SET ${setClauses.join(", ")} WHERE cedula_estudiante = ?`,
+              [...setParams, targetCedula]
+            ).catch((e) => console.log("Nota al actualizar datos_estudiante:", e.message));
+          }
+        } else {
+          await queryDB(
+            `INSERT INTO datos_estudiante (cedula_estudiante, biografia, direccion, telefono, correo_personal, nombre_familiar, telefono_familiar)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              targetCedula,
+              biografia || null,
+              direccion || null,
+              telefono || null,
+              correo_personal || null,
+              nombre_familiar || null,
+              telefono_familiar || null,
+            ]
+          ).catch((e) => console.log("Nota al insertar datos_estudiante:", e.message));
+        }
       }
 
-      // Actualizar o insertar en datos_estudiante (sin columna codigo)
-      await queryDB(
-        `INSERT INTO datos_estudiante (cedula_estudiante, biografia, direccion, telefono, correo_personal, nombre_familiar, telefono_familiar)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           biografia = VALUES(biografia),
-           direccion = VALUES(direccion),
-           telefono = VALUES(telefono),
-           correo_personal = VALUES(correo_personal),
-           nombre_familiar = VALUES(nombre_familiar),
-           telefono_familiar = VALUES(telefono_familiar)`,
-        [targetCedula, biografia || null, direccion || null, telefono || null, correo_personal || null, nombre_familiar || null, telefono_familiar || null]
-      ).catch((e) => console.log("Nota al guardar datos_estudiante:", e.message));
-
+      invalidateUserAuthCache(targetCedula);
       console.log(`✅ Estudiante ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1356,17 +1488,25 @@ router.put("/users/:cedula", async (req, res, next) => {
         ? Number(programa_id)
         : null;
 
-      if (statusParam !== null) {
-        await queryDB(
-          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id), activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, progParam, statusParam, targetCedula]
-        );
-      } else {
-        await queryDB(
-          `UPDATE docente SET nombre = ?, apellidos = ?, correo_institucional = ?, programa_id = COALESCE(?, programa_id) WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, progParam, targetCedula]
-        );
-      }
+      await queryDB(
+        `UPDATE docente SET
+           nombre = COALESCE(?, nombre),
+           apellidos = COALESCE(?, apellidos),
+           correo_institucional = CASE WHEN ? = 1 THEN ? ELSE correo_institucional END,
+           programa_id = COALESCE(?, programa_id),
+           activo = COALESCE(?, activo)
+         WHERE cedula = ?`,
+        [
+          nombreParam,
+          apellidosParam,
+          correoInstParam !== undefined ? 1 : 0,
+          correoInstParam !== undefined ? correoInstParam : null,
+          progParam,
+          statusParam,
+          targetCedula,
+        ]
+      );
+      invalidateUserAuthCache(targetCedula);
       console.log(`✅ Docente ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1379,17 +1519,25 @@ router.put("/users/:cedula", async (req, res, next) => {
         ? Number(institucion_id)
         : null;
 
-      if (statusParam !== null) {
-        await queryDB(
-          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = COALESCE(?, institucion_id), activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, instParam, statusParam, targetCedula]
-        );
-      } else {
-        await queryDB(
-          `UPDATE auditor SET nombre = ?, apellidos = ?, correo_institucional = ?, institucion_id = COALESCE(?, institucion_id) WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, instParam, targetCedula]
-        );
-      }
+      await queryDB(
+        `UPDATE auditor SET
+           nombre = COALESCE(?, nombre),
+           apellidos = COALESCE(?, apellidos),
+           correo_institucional = CASE WHEN ? = 1 THEN ? ELSE correo_institucional END,
+           institucion_id = COALESCE(?, institucion_id),
+           activo = COALESCE(?, activo)
+         WHERE cedula = ?`,
+        [
+          nombreParam,
+          apellidosParam,
+          correoInstParam !== undefined ? 1 : 0,
+          correoInstParam !== undefined ? correoInstParam : null,
+          instParam,
+          statusParam,
+          targetCedula,
+        ]
+      );
+      invalidateUserAuthCache(targetCedula);
       console.log(`✅ Auditor ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1397,19 +1545,32 @@ router.put("/users/:cedula", async (req, res, next) => {
     // Actualizar administrador
     if (target.table === "administrador") {
       const targetCedula = target.cedula;
-      // Solo superadmin puede modificar activo de administrador
-      if (activo !== undefined && req.user?.role === "superadmin") {
-        const statusParam = activo ? 1 : 0;
-        await queryDB(
-          `UPDATE administrador SET nombre = ?, apellidos = ?, correo_institucional = ?, activo = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, statusParam, targetCedula]
-        );
-      } else {
-        await queryDB(
-          `UPDATE administrador SET nombre = ?, apellidos = ?, correo_institucional = ? WHERE cedula = ?`,
-          [nombre, apellidos, correo_institucional || null, targetCedula]
-        );
+      const isSelfAdmin = req.user?.cedula && String(req.user.cedula).trim() === String(targetCedula).trim();
+      if (req.user?.role !== "superadmin" && !isSelfAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: "Solo un superadministrador puede modificar cuentas de otros administradores.",
+        });
       }
+
+      const statusParam = (activo !== undefined && req.user?.role === "superadmin" && !isSelfAdmin) ? (activo ? 1 : 0) : null;
+      await queryDB(
+        `UPDATE administrador SET
+           nombre = COALESCE(?, nombre),
+           apellidos = COALESCE(?, apellidos),
+           correo_institucional = CASE WHEN ? = 1 THEN ? ELSE correo_institucional END,
+           activo = COALESCE(?, activo)
+         WHERE cedula = ?`,
+        [
+          nombreParam,
+          apellidosParam,
+          correoInstParam !== undefined ? 1 : 0,
+          correoInstParam !== undefined ? correoInstParam : null,
+          statusParam,
+          targetCedula,
+        ]
+      );
+      invalidateUserAuthCache(targetCedula);
       console.log(`✅ Administrador ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1424,9 +1585,20 @@ router.put("/users/:cedula", async (req, res, next) => {
       }
       const targetCedula = target.cedula;
       await queryDB(
-        `UPDATE superadmin SET nombre = ?, apellidos = ?, correo_institucional = ? WHERE cedula = ?`,
-        [nombre, apellidos || nombre, correo_institucional || null, targetCedula]
+        `UPDATE superadmin SET
+           nombre = COALESCE(?, nombre),
+           apellidos = COALESCE(?, apellidos),
+           correo_institucional = CASE WHEN ? = 1 THEN ? ELSE correo_institucional END
+         WHERE cedula = ?`,
+        [
+          nombreParam,
+          apellidosParam,
+          correoInstParam !== undefined ? 1 : 0,
+          correoInstParam !== undefined ? correoInstParam : null,
+          targetCedula,
+        ]
       );
+      invalidateUserAuthCache(targetCedula);
       console.log(`✅ Superadmin ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });
     }
@@ -1817,27 +1989,62 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       }
     }
 
-    // Validar que todos los estudiantes pertenezcan al programa
-    if (programa_id && Array.isArray(estudiantes) && estudiantes.length > 0) {
-      const cedulas = estudiantes
-        .map((item) => (typeof item === "object" ? item.cedula || item.estudiante_cedula : item))
-        .filter(Boolean);
-      if (cedulas.length > 0) {
-        const ph = cedulas.map(() => "?").join(",");
-        const invalidStudents = await queryDB(
-          `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma
-           FROM estudiante e
-           LEFT JOIN programa p ON e.programa_id = p.id
-           WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
-          [...cedulas, programa_id]
-        );
-        if (invalidStudents.length > 0) {
-          const names = invalidStudents.map((s) => `${s.nombre} ${s.apellidos} (${s.cedula})`).join(", ");
-          return res.status(400).json({
-            success: false,
-            message: `Los siguientes estudiantes no pertenecen al programa seleccionado: ${names}`,
-          });
-        }
+    // Validar que el servicio pertenezca a la institución seleccionada
+    if (institucion_id && servicio_id) {
+      const servCheck = await queryDB(
+        `SELECT id, institucion_id FROM servicio WHERE id = ? LIMIT 1`,
+        [servicio_id]
+      );
+      if (servCheck.length > 0 && servCheck[0].institucion_id && Number(servCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El servicio asistencial seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
+
+    // Validar que el auditor pertenezca a la institución seleccionada
+    if (institucion_id && auditor_cedula) {
+      const audCheck = await queryDB(
+        `SELECT cedula, institucion_id FROM auditor WHERE cedula = ? LIMIT 1`,
+        [auditor_cedula]
+      );
+      if (audCheck.length > 0 && audCheck[0].institucion_id && Number(audCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El auditor clínico seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
+
+    // Validar cupos máximos y que todos los estudiantes pertenezcan al programa
+    const maxCupos = parseInt(cupos, 10) || 10;
+    const uniqueStudentCedulas = Array.isArray(estudiantes)
+      ? [...new Set(estudiantes.map((item) => String((typeof item === "object" ? item.cedula || item.estudiante_cedula : item) || "").trim()).filter(Boolean))]
+      : [];
+
+    if (uniqueStudentCedulas.length > maxCupos) {
+      return res.status(400).json({
+        success: false,
+        message: `No se pueden asignar ${uniqueStudentCedulas.length} estudiantes porque supera el límite de cupos configurado (${maxCupos}).`,
+      });
+    }
+
+    if (programa_id && uniqueStudentCedulas.length > 0) {
+      const ph = uniqueStudentCedulas.map(() => "?").join(",");
+      const invalidStudents = await queryDB(
+        `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma
+         FROM estudiante e
+         LEFT JOIN programa p ON e.programa_id = p.id
+         WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
+        [...uniqueStudentCedulas, programa_id]
+      );
+      if (invalidStudents.length > 0) {
+        const names = invalidStudents.map((s) => `${s.nombre} ${s.apellidos} (${s.cedula})`).join(", ");
+        return res.status(400).json({
+          success: false,
+          message: `Los siguientes estudiantes no pertenecen al programa seleccionado: ${names}`,
+        });
       }
     }
 
@@ -1882,7 +2089,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       fecha_inicio || null,
       fecha_fin || null,
       horas_totales ? parseInt(horas_totales, 10) : 120,
-      cupos ? parseInt(cupos, 10) : 10,
+      maxCupos,
       finalEstado,
       descripcion || null,
       horario || null,
@@ -1893,15 +2100,20 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
 
     const practicaId = insertResult.insertId;
 
-    if (Array.isArray(estudiantes) && estudiantes.length > 0) {
-      for (const item of estudiantes) {
-        const cedula = typeof item === "object" ? item.cedula : item;
-        if (cedula) {
-          await queryDB(`
-            INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
-            VALUES (?, ?, 'Asignado')
-          `, [practicaId, cedula]);
-        }
+    if (uniqueStudentCedulas.length > 0) {
+      for (const cedula of uniqueStudentCedulas) {
+        await queryDB(`
+          INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
+          VALUES (?, ?, 'Asignado')
+        `, [practicaId, cedula]);
+      }
+    }
+
+    if (finalEstado === "Finalizada" || finalEstado === "Cancelada") {
+      try {
+        await archivePractice(practicaId, null);
+      } catch (archErr) {
+        console.error(`Error archivando práctica #${practicaId} al crear:`, archErr.message);
       }
     }
 
@@ -2059,27 +2271,62 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       }
     }
 
+    // Validar que el servicio pertenezca a la institución seleccionada
+    if (institucion_id && servicio_id) {
+      const servCheck = await queryDB(
+        `SELECT id, institucion_id FROM servicio WHERE id = ? LIMIT 1`,
+        [servicio_id]
+      );
+      if (servCheck.length > 0 && servCheck[0].institucion_id && Number(servCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El servicio asistencial seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
+
+    // Validar que el auditor pertenezca a la institución seleccionada
+    if (institucion_id && auditor_cedula) {
+      const audCheck = await queryDB(
+        `SELECT cedula, institucion_id FROM auditor WHERE cedula = ? LIMIT 1`,
+        [auditor_cedula]
+      );
+      if (audCheck.length > 0 && audCheck[0].institucion_id && Number(audCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El auditor clínico seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
+
+    const maxCupos = parseInt(cupos, 10) || 10;
+    const uniqueStudentCedulas = Array.isArray(estudiantes)
+      ? [...new Set(estudiantes.map((item) => String((typeof item === "object" ? item.cedula || item.estudiante_cedula : item) || "").trim()).filter(Boolean))]
+      : null;
+
+    if (uniqueStudentCedulas && uniqueStudentCedulas.length > maxCupos) {
+      return res.status(400).json({
+        success: false,
+        message: `No se pueden asignar ${uniqueStudentCedulas.length} estudiantes porque supera el límite de cupos configurado (${maxCupos}).`,
+      });
+    }
+
     // Validar que todos los estudiantes pertenezcan al programa
-    if (effectiveProgramaId && Array.isArray(estudiantes) && estudiantes.length > 0) {
-      const cedulas = estudiantes
-        .map((item) => (typeof item === "object" ? item.cedula || item.estudiante_cedula : item))
-        .filter(Boolean);
-      if (cedulas.length > 0) {
-        const ph = cedulas.map(() => "?").join(",");
-        const invalidStudents = await queryDB(
-          `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma
-           FROM estudiante e
-           LEFT JOIN programa p ON e.programa_id = p.id
-           WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
-          [...cedulas, effectiveProgramaId]
-        );
-        if (invalidStudents.length > 0) {
-          const names = invalidStudents.map((s) => `${s.nombre} ${s.apellidos} (${s.cedula})`).join(", ");
-          return res.status(400).json({
-            success: false,
-            message: `Los siguientes estudiantes no pertenecen al programa seleccionado: ${names}`,
-          });
-        }
+    if (effectiveProgramaId && uniqueStudentCedulas && uniqueStudentCedulas.length > 0) {
+      const ph = uniqueStudentCedulas.map(() => "?").join(",");
+      const invalidStudents = await queryDB(
+        `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma
+         FROM estudiante e
+         LEFT JOIN programa p ON e.programa_id = p.id
+         WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
+        [...uniqueStudentCedulas, effectiveProgramaId]
+      );
+      if (invalidStudents.length > 0) {
+        const names = invalidStudents.map((s) => `${s.nombre} ${s.apellidos} (${s.cedula})`).join(", ");
+        return res.status(400).json({
+          success: false,
+          message: `Los siguientes estudiantes no pertenecen al programa seleccionado: ${names}`,
+        });
       }
     }
 
@@ -2102,59 +2349,68 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       finalEstado = calculatePracticeStatus(fIni, fFin, finalEstado);
     }
 
-    await queryDB(`
-      UPDATE practica SET
-        titulo = COALESCE(?, titulo),
-        programa_id = ?,
-        asignatura_id = ?,
-        institucion_id = ?,
-        servicio_id = ?,
-        docente_cedula = ?,
-        auditor_cedula = ?,
-        periodo = COALESCE(?, periodo),
-        fecha_inicio = ?,
-        fecha_fin = ?,
-        horas_totales = COALESCE(?, horas_totales),
-        cupos = COALESCE(?, cupos),
-        estado = COALESCE(?, estado),
-        motivo_cancelacion = ?,
-        descripcion = ?,
-        horario = ?,
-        rubrica_criterios = ?
-      WHERE id = ?
-    `, [
-      titulo || null,
-      programa_id || null,
-      asignatura_id || null,
-      institucion_id || null,
-      servicio_id || null,
-      docente_cedula || null,
-      auditor_cedula || null,
-      periodo || null,
-      fecha_inicio || null,
-      fecha_fin || null,
-      horas_totales ? parseInt(horas_totales, 10) : null,
-      cupos ? parseInt(cupos, 10) : null,
-      finalEstado || null,
-      finalMotivo || null,
-      descripcion || null,
-      horario !== undefined ? (horario || null) : null,
-      finalRubricaJson || null,
-      id,
-    ]);
+    await withTransaction(async (conn) => {
+      await conn.execute(`
+        UPDATE practica SET
+          titulo = COALESCE(?, titulo),
+          programa_id = ?,
+          asignatura_id = ?,
+          institucion_id = ?,
+          servicio_id = ?,
+          docente_cedula = ?,
+          auditor_cedula = ?,
+          periodo = COALESCE(?, periodo),
+          fecha_inicio = ?,
+          fecha_fin = ?,
+          horas_totales = COALESCE(?, horas_totales),
+          cupos = COALESCE(?, cupos),
+          estado = COALESCE(?, estado),
+          motivo_cancelacion = ?,
+          descripcion = ?,
+          horario = ?,
+          rubrica_criterios = ?
+        WHERE id = ?
+      `, [
+        titulo || null,
+        programa_id || null,
+        asignatura_id || null,
+        institucion_id || null,
+        servicio_id || null,
+        docente_cedula || null,
+        auditor_cedula || null,
+        periodo || null,
+        fecha_inicio || null,
+        fecha_fin || null,
+        horas_totales ? parseInt(horas_totales, 10) : null,
+        maxCupos,
+        finalEstado || null,
+        finalMotivo || null,
+        descripcion || null,
+        horario !== undefined ? (horario || null) : null,
+        finalRubricaJson || null,
+        id,
+      ]);
 
-    if (Array.isArray(estudiantes)) {
-      await queryDB(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
-      for (const item of estudiantes) {
-        const cedula = typeof item === "object" ? item.cedula : item;
-        if (cedula) {
-          await queryDB(`
-            INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
-            VALUES (?, ?, 'Asignado')
-          `, [id, cedula]);
+      // Sincronización diferencial de estudiantes: preserva calificaciones, rúbricas, horas y aval 'Activo'
+      if (uniqueStudentCedulas !== null) {
+        if (uniqueStudentCedulas.length === 0) {
+          await conn.execute(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
+        } else {
+          const ph = uniqueStudentCedulas.map(() => "?").join(",");
+          await conn.execute(
+            `DELETE FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula NOT IN (${ph})`,
+            [id, ...uniqueStudentCedulas]
+          );
+          for (const cedula of uniqueStudentCedulas) {
+            await conn.execute(
+              `INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
+               VALUES (?, ?, 'Asignado')`,
+              [id, cedula]
+            );
+          }
         }
       }
-    }
+    });
 
     // Si la práctica quedó Finalizada o Cancelada, archivar inmediatamente en el Historial
     if (finalEstado === "Finalizada" || finalEstado === "Cancelada") {
@@ -2163,6 +2419,11 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       } catch (archErr) {
         console.error(`Error archivando práctica #${id} tras actualización:`, archErr.message);
       }
+    } else {
+      try {
+        await queryDB(`DELETE FROM historial_practica_estudiante WHERE practica_id = ?`, [id]);
+        await queryDB(`DELETE FROM historial_practica WHERE practica_id = ?`, [id]);
+      } catch (cleanErr) {}
     }
 
     console.log(`✅ Práctica #${id} actualizada (Estado: ${finalEstado}).`);
@@ -2182,13 +2443,15 @@ router.delete(["/practices/:id", "/practice/:id"], async (req, res, next) => {
     }
     const titulo = pract[0].titulo;
 
-    try { await queryDB(`DELETE FROM asistencia_estudiante WHERE practica_id = ?`, [id]); } catch (e) {}
-    try { await queryDB(`DELETE FROM observacion_practica WHERE practica_id = ?`, [id]); } catch (e) {}
-    try { await queryDB(`DELETE FROM reporte_auditor WHERE practica_id = ?`, [id]); } catch (e) {}
-    try { await queryDB(`DELETE FROM mensaje_estudiante_docente WHERE practica_id = ?`, [id]); } catch (e) {}
-    try { await queryDB(`DELETE FROM solicitud_certificado WHERE practica_id = ?`, [id]); } catch (e) {}
-    await queryDB(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
-    await queryDB(`DELETE FROM practica WHERE id = ?`, [id]);
+    await withTransaction(async (conn) => {
+      try { await conn.execute(`DELETE FROM asistencia_estudiante WHERE practica_id = ?`, [id]); } catch (e) {}
+      try { await conn.execute(`DELETE FROM observacion_practica WHERE practica_id = ?`, [id]); } catch (e) {}
+      try { await conn.execute(`DELETE FROM reporte_auditor WHERE practica_id = ?`, [id]); } catch (e) {}
+      try { await conn.execute(`DELETE FROM mensaje_estudiante_docente WHERE practica_id = ?`, [id]); } catch (e) {}
+      try { await conn.execute(`DELETE FROM solicitud_certificado WHERE practica_id = ?`, [id]); } catch (e) {}
+      await conn.execute(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
+      await conn.execute(`DELETE FROM practica WHERE id = ?`, [id]);
+    });
 
     console.log(`✅ Práctica #${id} "${titulo}" eliminada.`);
     res.status(200).json({ success: true, message: `Práctica "${titulo}" eliminada correctamente.` });
@@ -2523,8 +2786,12 @@ async function uploadInstitutionLogoHandler(req, res) {
     }
 
     const mime = req.file.mimetype || "image/png";
-    const base64Data = fs.readFileSync(req.file.path).toString("base64");
-    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    const base64Data = req.file.buffer
+      ? req.file.buffer.toString("base64")
+      : fs.readFileSync(req.file.path).toString("base64");
+    if (req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
     const fullUrl = `data:${mime};base64,${base64Data}`;
 
     const existing = await queryDB("SELECT id FROM institucion_educativa ORDER BY id DESC LIMIT 1");
@@ -2555,8 +2822,12 @@ async function uploadFacultyLogoHandler(req, res) {
     }
 
     const mime = req.file.mimetype || "image/png";
-    const base64Data = fs.readFileSync(req.file.path).toString("base64");
-    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    const base64Data = req.file.buffer
+      ? req.file.buffer.toString("base64")
+      : fs.readFileSync(req.file.path).toString("base64");
+    if (req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
     const fullUrl = `data:${mime};base64,${base64Data}`;
 
     const existing = await queryDB("SELECT id FROM institucion_educativa ORDER BY id DESC LIMIT 1");
@@ -2602,8 +2873,12 @@ async function uploadLoginBgHandler(req, res) {
     }
 
     const mime = req.file.mimetype || "image/jpeg";
-    const base64Data = fs.readFileSync(req.file.path).toString("base64");
-    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    const base64Data = req.file.buffer
+      ? req.file.buffer.toString("base64")
+      : fs.readFileSync(req.file.path).toString("base64");
+    if (req.file.path) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
     const fullUrl = `data:${mime};base64,${base64Data}`;
 
     const existing = await queryDB("SELECT id FROM institucion_educativa ORDER BY id DESC LIMIT 1");

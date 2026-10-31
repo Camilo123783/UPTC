@@ -60,23 +60,25 @@ async function syncPracticeStatuses(force = false) {
     const todayStr = getColombiaToday();
 
     // 1. Prácticas cuya fecha final ya pasó estrictamente -> 'Finalizada'
-    const newlyFinished = await queryDB(`
-      SELECT id FROM practica 
-      WHERE estado != 'Cancelada' 
-        AND estado != 'Finalizada' 
-        AND fecha_fin IS NOT NULL 
-        AND ? > fecha_fin
-    `, [todayStr]);
+    const newlyFinished = await queryDB(
+      `SELECT id FROM practica
+       WHERE estado != 'Cancelada'
+         AND estado != 'Finalizada'
+         AND fecha_fin IS NOT NULL
+         AND ? > fecha_fin`,
+      [todayStr]
+    );
 
     if (newlyFinished.length > 0) {
-      await queryDB(`
-        UPDATE practica 
-        SET estado = 'Finalizada' 
-        WHERE estado != 'Cancelada' 
-          AND estado != 'Finalizada' 
-          AND fecha_fin IS NOT NULL 
-          AND ? > fecha_fin
-      `, [todayStr]);
+      await queryDB(
+        `UPDATE practica
+         SET estado = 'Finalizada'
+         WHERE estado != 'Cancelada'
+           AND estado != 'Finalizada'
+           AND fecha_fin IS NOT NULL
+           AND ? > fecha_fin`,
+        [todayStr]
+      );
 
       for (const nf of newlyFinished) {
         try {
@@ -87,32 +89,53 @@ async function syncPracticeStatuses(force = false) {
       }
     }
 
+    // 1b. Prácticas ya marcadas como 'Finalizada' o 'Cancelada' que aún no estén en historial_practica
+    const unarchivedFinished = await queryDB(`
+      SELECT p.id, p.motivo_cancelacion
+      FROM practica p
+      LEFT JOIN historial_practica hp ON hp.practica_id = p.id
+      WHERE p.estado IN ('Finalizada', 'Cancelada') AND hp.id IS NULL
+    `);
+    for (const uf of unarchivedFinished) {
+      try {
+        await archivePractice(uf.id, uf.motivo_cancelacion);
+      } catch (e) {
+        console.error(`Error archivando práctica pendiente #${uf.id}:`, e.message);
+      }
+    }
+
     // 2. Prácticas que deben estar 'Activa' (llegó la fecha de inicio y no ha vencido la fecha de fin)
     // Se incluye a aquellas que estaban erróneamente en 'Finalizada' o 'Planificada'
-    const newlyActive = await queryDB(`
-      SELECT id FROM practica 
-      WHERE estado != 'Cancelada' 
-        AND estado != 'Activa' 
-        AND fecha_inicio IS NOT NULL 
-        AND ? >= fecha_inicio 
-        AND (fecha_fin IS NULL OR ? <= fecha_fin)
-    `, [todayStr, todayStr]);
+    const newlyActive = await queryDB(
+      `SELECT id FROM practica
+       WHERE estado != 'Cancelada'
+         AND estado != 'Activa'
+         AND fecha_inicio IS NOT NULL
+         AND ? >= fecha_inicio
+         AND (fecha_fin IS NULL OR ? <= fecha_fin)`,
+      [todayStr, todayStr]
+    );
 
     if (newlyActive.length > 0) {
-      await queryDB(`
-        UPDATE practica 
-        SET estado = 'Activa' 
-        WHERE estado != 'Cancelada' 
-          AND estado != 'Activa' 
-          AND fecha_inicio IS NOT NULL 
-          AND ? >= fecha_inicio 
-          AND (fecha_fin IS NULL OR ? <= fecha_fin)
-      `, [todayStr, todayStr]);
+      await queryDB(
+        `UPDATE practica
+         SET estado = 'Activa'
+         WHERE estado != 'Cancelada'
+           AND estado != 'Activa'
+           AND fecha_inicio IS NOT NULL
+           AND ? >= fecha_inicio
+           AND (fecha_fin IS NULL OR ? <= fecha_fin)`,
+        [todayStr, todayStr]
+      );
 
       // Si habían sido archivadas prematuramente a historial_practica, eliminarlas del historial
       const activeIds = newlyActive.map((p) => p.id);
       if (activeIds.length > 0) {
         const placeholders = activeIds.map(() => "?").join(",");
+        await queryDB(
+          `DELETE FROM historial_practica_estudiante WHERE practica_id IN (${placeholders})`,
+          activeIds
+        );
         await queryDB(
           `DELETE FROM historial_practica WHERE practica_id IN (${placeholders})`,
           activeIds
@@ -121,27 +144,33 @@ async function syncPracticeStatuses(force = false) {
     }
 
     // 3. Prácticas cuya fecha de inicio es futura -> 'Planificada'
-    const newlyPlanned = await queryDB(`
-      SELECT id FROM practica 
-      WHERE estado != 'Cancelada' 
-        AND estado != 'Planificada' 
-        AND fecha_inicio IS NOT NULL 
-        AND ? < fecha_inicio
-    `, [todayStr]);
+    const newlyPlanned = await queryDB(
+      `SELECT id FROM practica
+       WHERE estado != 'Cancelada'
+         AND estado != 'Planificada'
+         AND fecha_inicio IS NOT NULL
+         AND ? < fecha_inicio`,
+      [todayStr]
+    );
 
     if (newlyPlanned.length > 0) {
-      await queryDB(`
-        UPDATE practica 
-        SET estado = 'Planificada' 
-        WHERE estado != 'Cancelada' 
-          AND estado != 'Planificada' 
-          AND fecha_inicio IS NOT NULL 
-          AND ? < fecha_inicio
-      `, [todayStr]);
+      await queryDB(
+        `UPDATE practica
+         SET estado = 'Planificada'
+         WHERE estado != 'Cancelada'
+           AND estado != 'Planificada'
+           AND fecha_inicio IS NOT NULL
+           AND ? < fecha_inicio`,
+        [todayStr]
+      );
 
       const plannedIds = newlyPlanned.map((p) => p.id);
       if (plannedIds.length > 0) {
         const placeholders = plannedIds.map(() => "?").join(",");
+        await queryDB(
+          `DELETE FROM historial_practica_estudiante WHERE practica_id IN (${placeholders})`,
+          plannedIds
+        );
         await queryDB(
           `DELETE FROM historial_practica WHERE practica_id IN (${placeholders})`,
           plannedIds

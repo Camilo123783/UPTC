@@ -304,6 +304,10 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
 
   // ─── Manejadores de Edición de Horas ───
   const handleHoursChange = (key, field, value) => {
+    if (currentPractice && (currentPractice.estado === "Finalizada" || currentPractice.estado === "Cancelada")) {
+      toast.warning(`La práctica está ${currentPractice.estado.toLowerCase()} y sus horas ya no pueden modificarse.`);
+      return;
+    }
     const numericVal = Math.max(0, parseInt(value, 10) || 0);
     setEditedHours((prev) => {
       const current = prev[key] || {};
@@ -324,6 +328,10 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
 
   // Botón de turno rápido (+4h, +8h, +12h, o reset a 0)
   const handleQuickAddShift = (key, delta) => {
+    if (currentPractice && (currentPractice.estado === "Finalizada" || currentPractice.estado === "Cancelada")) {
+      toast.warning(`La práctica está ${currentPractice.estado.toLowerCase()} y sus horas ya no pueden modificarse.`);
+      return;
+    }
     const currentStudent = practiceStudents.find((s) => s.key === key);
     if (!currentStudent) return;
 
@@ -344,6 +352,10 @@ const HoursCompliancePanel = ({ role = "docent" }) => {
 
   // ─── Guardar Horas de un Estudiante en el Backend ───
   const handleSaveStudentHours = async (st) => {
+    if (currentPractice && (currentPractice.estado === "Finalizada" || currentPractice.estado === "Cancelada")) {
+      toast.warning(`La práctica está ${currentPractice.estado.toLowerCase()} y sus horas ya no pueden modificarse.`);
+      return;
+    }
     const key = st.key;
     const edits = editedHours[key];
     if (!edits && !st.isModified) {

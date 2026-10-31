@@ -8,11 +8,25 @@ const nodemailer = require("nodemailer");
 const { Resend } = require("resend");
 
 /**
- * Crea el transporter de Nodemailer con timeouts estrictos para entorno local.
+ * Escapa caracteres HTML especiales para prevenir inyección HTML en plantillas de correo.
+ */
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Crea el transporter de Nodemailer con timeouts estrictos.
  */
 function createTransporter() {
   const user = (process.env.SMTP_USER || "enfermeriauptc2026@gmail.com").trim();
   const pass = (process.env.SMTP_PASS || "").trim();
+  const rejectUnauthorized = process.env.SMTP_ALLOW_INSECURE_TLS === "true" ? false : true;
 
   const timeoutOptions = {
     connectionTimeout: 4000,
@@ -24,7 +38,7 @@ function createTransporter() {
     return nodemailer.createTransport({
       service: "gmail",
       auth: { user, pass },
-      tls: { rejectUnauthorized: false },
+      tls: { rejectUnauthorized },
       ...timeoutOptions,
     });
   }
@@ -38,7 +52,7 @@ function createTransporter() {
     port,
     secure: port === 465,
     auth: { user, pass },
-    tls: { rejectUnauthorized: false },
+    tls: { rejectUnauthorized },
     ...timeoutOptions,
   });
 }
@@ -50,7 +64,9 @@ function createTransporter() {
  */
 async function sendUserVerificationCodeEmail({ recipientEmail, fullName, code }) {
   const senderEmail = (process.env.SMTP_USER || "enfermeriauptc2026@gmail.com").trim();
-  const subject = `🔑 Tu código de verificación UPTC es: ${code}`;
+  const safeCode = escapeHtml(code);
+  const safeFullName = escapeHtml(fullName || "Usuario UPTC");
+  const subject = `🔑 Tu código de verificación UPTC es: ${safeCode}`;
 
   const maskedEmail = recipientEmail.includes("@")
     ? recipientEmail.split("@")[0].slice(0, 2) + "***@" + recipientEmail.split("@")[1]
@@ -63,13 +79,13 @@ async function sendUserVerificationCodeEmail({ recipientEmail, fullName, code })
         <p style="color: #64748b; font-size: 14px; margin-top: 6px;">Gestión de Prácticas Universitarias</p>
       </div>
       
-      <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola <strong>${fullName}</strong>,</p>
+      <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hola <strong>${safeFullName}</strong>,</p>
       <p style="color: #334155; font-size: 14px; line-height: 1.5;">
         Hemos recibido una solicitud para restablecer la contraseña de tu cuenta. Utiliza el siguiente código de verificación de 6 dígitos:
       </p>
 
       <div style="text-align: center; margin: 28px 0; padding: 18px; background-color: #f1f5f9; border-radius: 10px; border: 1px solid #cbd5e1;">
-        <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #2563eb;">${code}</span>
+        <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #2563eb;">${safeCode}</span>
       </div>
 
       <p style="color: #64748b; font-size: 13px; text-align: center; margin-bottom: 20px;">
@@ -178,10 +194,12 @@ async function sendAdminForgotPasswordNotification({
   code,
 }) {
   const adminEmail = (process.env.ADMIN_EMAIL || "enfermeriauptc2026@gmail.com").trim();
-  const fullName = `${userInfo.nombre || ""} ${userInfo.apellidos || ""}`.trim() || "Usuario UPTC";
-  const cedula = userInfo.cedula !== undefined && userInfo.cedula !== null ? userInfo.cedula : "N/A";
-  const userEmail = userInfo.correo_institucional || requestEmail;
-  const program = programaOrInstitucion || "No especificado";
+  const rawFullName = `${userInfo.nombre || ""} ${userInfo.apellidos || ""}`.trim() || "Usuario UPTC";
+  const safeFullName = escapeHtml(rawFullName);
+  const safeCedula = escapeHtml(userInfo.cedula !== undefined && userInfo.cedula !== null ? userInfo.cedula : "N/A");
+  const safeUserEmail = escapeHtml(userInfo.correo_institucional || requestEmail || "");
+  const safeProgram = escapeHtml(programaOrInstitucion || "No especificado");
+  const safeRole = escapeHtml(role || "");
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 24px; background-color: #ffffff;">
@@ -195,23 +213,23 @@ async function sendAdminForgotPasswordNotification({
       <table style="width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px;">
         <tr style="background-color: #f8fafc;">
           <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0; width: 35%;">Nombre Completo:</td>
-          <td style="padding: 8px; border: 1px solid #e2e8f0;">${fullName}</td>
+          <td style="padding: 8px; border: 1px solid #e2e8f0;">${safeFullName}</td>
         </tr>
         <tr>
           <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Cédula:</td>
-          <td style="padding: 8px; border: 1px solid #e2e8f0;">${cedula}</td>
+          <td style="padding: 8px; border: 1px solid #e2e8f0;">${safeCedula}</td>
         </tr>
         <tr style="background-color: #f8fafc;">
           <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Rol:</td>
-          <td style="padding: 8px; border: 1px solid #e2e8f0; text-transform: capitalize;">${role}</td>
+          <td style="padding: 8px; border: 1px solid #e2e8f0; text-transform: capitalize;">${safeRole}</td>
         </tr>
         <tr>
           <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Programa / Institución:</td>
-          <td style="padding: 8px; border: 1px solid #e2e8f0;">${program}</td>
+          <td style="padding: 8px; border: 1px solid #e2e8f0;">${safeProgram}</td>
         </tr>
         <tr style="background-color: #f8fafc;">
           <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Correo de Envío:</td>
-          <td style="padding: 8px; border: 1px solid #e2e8f0;"><a href="mailto:${userEmail}">${userEmail}</a></td>
+          <td style="padding: 8px; border: 1px solid #e2e8f0;"><a href="mailto:${safeUserEmail}">${safeUserEmail}</a></td>
         </tr>
         <tr>
           <td style="padding: 8px; font-weight: bold; border: 1px solid #e2e8f0;">Estado del Código:</td>
@@ -231,7 +249,7 @@ async function sendAdminForgotPasswordNotification({
       await resend.emails.send({
         from: fromFormatted,
         to: [adminEmail],
-        subject: `🚨 [Copia Registro] Recuperación de Clave: ${fullName} (${cedula})`,
+        subject: `🚨 [Copia Registro] Recuperación de Clave: ${rawFullName} (${safeCedula})`,
         html: htmlContent,
       });
       return;
@@ -256,7 +274,7 @@ async function sendAdminForgotPasswordNotification({
             email: (process.env.MAIL_FROM || "enfermeriauptc2026@gmail.com").trim(),
           },
           to: [{ email: adminEmail, name: "Administrador UPTC" }],
-          subject: `🚨 [Copia Registro] Recuperación de Clave: ${fullName} (${cedula})`,
+          subject: `🚨 [Copia Registro] Recuperación de Clave: ${rawFullName} (${safeCedula})`,
           htmlContent,
         }),
       });
@@ -272,7 +290,7 @@ async function sendAdminForgotPasswordNotification({
     await transporter.sendMail({
       from: `"Sistema UPTC" <${process.env.SMTP_USER || "enfermeriauptc2026@gmail.com"}>`,
       to: adminEmail,
-      subject: `🚨 [Copia Registro] Recuperación de Clave: ${fullName} (${cedula})`,
+      subject: `🚨 [Copia Registro] Recuperación de Clave: ${rawFullName} (${safeCedula})`,
       html: htmlContent,
     });
   } catch (err) {

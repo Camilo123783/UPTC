@@ -49,28 +49,45 @@ const ROLE_TABLES_MAP = [
   { tableName: "estudiante", roleName: "student" },
 ];
 
+const ROLE_TO_TABLE = {
+  superadmin: "superadmin",
+  admin: "administrador",
+  administrador: "administrador",
+  auditor: "auditor",
+  docent: "docente",
+  docente: "docente",
+  student: "estudiante",
+  estudiante: "estudiante",
+};
+
 // ──────────────────────────────────────────────
 // Helper: verificación resiliente de contraseña
 // Soporta bcrypt estándar, texto plano y funciones hash comunes (SHA-512, SHA-256, MD5, SHA-1).
-// Si coincide por cualquier método no-bcrypt, se auto-migra de inmediato a hash seguro bcrypt en MySQL.
+// Si el valor almacenado ya es un hash bcrypt ($2a$, $2b$, $2y$), NUNCA se compara en texto plano
+// (evita ataques Pass-the-Hash y corrupción del hash).
 // ──────────────────────────────────────────────
 async function verifyAndMigratePassword(tableName, user, inputPassword) {
   if (!user || user.password === undefined || user.password === null) return false;
   const pwdStr = String(inputPassword);
   const stored = String(user.password);
+  const trimmedStored = stored.trim();
 
-  // 1. Verificación estándar con bcrypt
-  let isMatch = await bcrypt.compare(pwdStr, stored).catch(() => false);
-  if (isMatch) return true;
+  // Si ya es un hash bcrypt válido ($2a$, $2b$, $2y$), solo aceptar bcrypt.compare
+  const isBcryptStored = /^\$2[aby]\$\d{2}\$/.test(trimmedStored);
+  if (isBcryptStored) {
+    return await bcrypt.compare(pwdStr, trimmedStored).catch(() => false);
+  }
 
-  // 2. Comparación en texto plano (ej. escrito directamente en la base de datos)
-  if (stored === pwdStr || stored.trim() === pwdStr.trim()) {
+  let isMatch = false;
+
+  // 1. Comparación en texto plano (solo cuando no es un hash bcrypt)
+  if (stored === pwdStr || trimmedStored === pwdStr.trim()) {
     isMatch = true;
   }
 
-  // 3. Comparación con hashes de phpMyAdmin / MySQL (SHA-512, SHA-256, MD5, SHA-1)
-  if (!isMatch && stored.length >= 32) {
-    const lowerStored = stored.toLowerCase().trim();
+  // 2. Comparación con hashes de phpMyAdmin / MySQL (SHA-512, SHA-256, MD5, SHA-1)
+  if (!isMatch && /^[a-fA-F0-9]{32,128}$/.test(trimmedStored)) {
+    const lowerStored = trimmedStored.toLowerCase();
     const sha512 = crypto.createHash("sha512").update(pwdStr).digest("hex").toLowerCase();
     const sha256 = crypto.createHash("sha256").update(pwdStr).digest("hex").toLowerCase();
     const md5 = crypto.createHash("md5").update(pwdStr).digest("hex").toLowerCase();
@@ -86,7 +103,7 @@ async function verifyAndMigratePassword(tableName, user, inputPassword) {
     }
   }
 
-  // Si coincidió con texto plano o función hash, migrar a hash seguro bcrypt de 10 rondas
+  // Si coincidió con texto plano o función hash legada, migrar a hash seguro bcrypt de 10 rondas
   if (isMatch) {
     try {
       const newHash = await bcrypt.hash(pwdStr, 10);
@@ -189,8 +206,7 @@ router.post("/login", async (req, res, next) => {
       );
       if (authResult) {
         if (authResult.isDeactivated) {
-          deactivatedUser = authResult;
-          break;
+          if (!deactivatedUser) deactivatedUser = authResult;
         } else {
           authenticatedUser = authResult;
           break;
@@ -198,7 +214,7 @@ router.post("/login", async (req, res, next) => {
       }
     }
 
-    if (deactivatedUser) {
+    if (!authenticatedUser && deactivatedUser) {
       return res.status(403).json({
         success: false,
         isDeactivated: true,
@@ -259,9 +275,6 @@ router.post("/auth/forgot-password", async (req, res, next) => {
     const isValidEmail = (str) =>
       typeof str === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
 
-    // ⚠️ Estas dos variables eran usadas más abajo pero no estaban
-    // declaradas en el archivo original — sin ellas, la ruta lanzaba
-    // un error antes de llegar a enviar el correo.
     const isEmail = isValidEmail(identifier);
     const isNumericCedula = /^\d+$/.test(identifier);
 
@@ -270,67 +283,46 @@ router.post("/auth/forgot-password", async (req, res, next) => {
     let userTableName = "";
     let programaOrInstitucion = "No especificado";
 
-    // 1. Buscar en estudiante (con programa y datos_estudiante)
-    let sqlEstudiante = isEmail
-      ? `SELECT e.*, p.nombreprograma, de.correo_personal 
-         FROM estudiante e 
-         LEFT JOIN programa p ON e.programa_id = p.id 
-         LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante 
-         WHERE e.correo_institucional = ? OR de.correo_personal = ? 
-         LIMIT 1`
-      : isNumericCedula
-        ? `SELECT e.*, p.nombreprograma, de.correo_personal 
-         FROM estudiante e 
-         LEFT JOIN programa p ON e.programa_id = p.id 
-         LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante 
-         WHERE e.cedula = ? 
-         LIMIT 1`
-        : `SELECT e.*, p.nombreprograma, de.correo_personal 
-         FROM estudiante e 
-         LEFT JOIN programa p ON e.programa_id = p.id 
-         LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante 
-         WHERE e.correo_institucional = ? OR de.correo_personal = ? 
-         LIMIT 1`;
+    // Buscar siguiendo el mismo orden jerárquico de ROLE_TABLES_MAP:
+    // 1. superadmin -> 2. administrador -> 3. auditor -> 4. docente -> 5. estudiante
 
-    const paramsEstudiante = isEmail
-      ? [identifier, identifier]
-      : isNumericCedula
-        ? [identifier]
-        : [identifier, identifier];
-    const estudiantes = await queryDB(sqlEstudiante, paramsEstudiante);
-
-    if (estudiantes.length > 0) {
-      foundUser = estudiantes[0];
-      foundRole = "Estudiante";
-      userTableName = "estudiante";
-      programaOrInstitucion = foundUser.nombreprograma || "Programa no asignado";
+    // 1. Buscar en superadmin
+    {
+      const sqlSuper = isEmail
+        ? `SELECT * FROM superadmin WHERE correo_institucional = ? LIMIT 1`
+        : `SELECT * FROM superadmin WHERE cedula = ? OR correo_institucional = ? LIMIT 1`;
+      const superParams = isEmail ? [identifier] : [identifier, identifier];
+      const superadmins = await queryDB(sqlSuper, superParams);
+      if (superadmins.length > 0) {
+        foundUser = superadmins[0];
+        foundRole = "Super Administrador";
+        userTableName = "superadmin";
+        programaOrInstitucion = "Administración General UPTC";
+      }
     }
 
-    // 2. Buscar en docente (con programa)
+    // 2. Buscar en administrador
     if (!foundUser) {
-      let sqlDocente = isEmail
-        ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`
-        : isNumericCedula
-          ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.cedula = ? OR d.correo_institucional = ? LIMIT 1`
-          : `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`;
-
-      const paramsDocente = isEmail ? [identifier] : isNumericCedula ? [identifier, identifier] : [identifier];
-      const docentes = await queryDB(sqlDocente, paramsDocente);
-      if (docentes.length > 0) {
-        foundUser = docentes[0];
-        foundRole = "Docente";
-        userTableName = "docente";
-        programaOrInstitucion = foundUser.nombreprograma || "Programa no asignado";
+      const sqlAdmin = isEmail
+        ? `SELECT * FROM administrador WHERE correo_institucional = ? LIMIT 1`
+        : `SELECT * FROM administrador WHERE cedula = ? OR correo_institucional = ? LIMIT 1`;
+      const adminParams = isEmail ? [identifier] : [identifier, identifier];
+      const admins = await queryDB(sqlAdmin, adminParams);
+      if (admins.length > 0) {
+        foundUser = admins[0];
+        foundRole = "Administrador";
+        userTableName = "administrador";
+        programaOrInstitucion = "Administración UPTC";
       }
     }
 
     // 3. Buscar en auditor (con institucion)
     if (!foundUser) {
-      let sqlAuditor = isEmail
+      const sqlAuditor = isEmail
         ? `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.correo_institucional = ? LIMIT 1`
         : isNumericCedula
-          ? `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.cedula = ? OR a.correo_institucional = ? LIMIT 1`
-          : `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.correo_institucional = ? LIMIT 1`;
+        ? `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.cedula = ? OR a.correo_institucional = ? LIMIT 1`
+        : `SELECT a.*, i.nombreinstitucion FROM auditor a LEFT JOIN institucion i ON a.institucion_id = i.id WHERE a.correo_institucional = ? LIMIT 1`;
 
       const paramsAuditor = isEmail ? [identifier] : isNumericCedula ? [identifier, identifier] : [identifier];
       const auditores = await queryDB(sqlAuditor, paramsAuditor);
@@ -342,32 +334,59 @@ router.post("/auth/forgot-password", async (req, res, next) => {
       }
     }
 
-    // 4. Buscar en administrador y superadmin
+    // 4. Buscar en docente (con programa)
     if (!foundUser) {
-      let sqlAdmin = isEmail
-        ? `SELECT * FROM administrador WHERE correo_institucional = ? LIMIT 1`
-        : `SELECT * FROM administrador WHERE cedula = ? OR correo_institucional = ? LIMIT 1`;
-      const adminParams = isEmail ? [identifier] : [identifier, identifier];
-      const admins = await queryDB(sqlAdmin, adminParams);
+      const sqlDocente = isEmail
+        ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`
+        : isNumericCedula
+        ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.cedula = ? OR d.correo_institucional = ? LIMIT 1`
+        : `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`;
 
-      if (admins.length > 0) {
-        foundUser = admins[0];
-        foundRole = "Administrador";
-        userTableName = "administrador";
-        programaOrInstitucion = "Administración UPTC";
-      } else {
-        let sqlSuper = isEmail
-          ? `SELECT * FROM superadmin WHERE correo_institucional = ? LIMIT 1`
-          : `SELECT * FROM superadmin WHERE cedula = ? OR correo_institucional = ? LIMIT 1`;
-        const superParams = isEmail ? [identifier] : [identifier, identifier];
-        const superadmins = await queryDB(sqlSuper, superParams);
+      const paramsDocente = isEmail ? [identifier] : isNumericCedula ? [identifier, identifier] : [identifier];
+      const docentes = await queryDB(sqlDocente, paramsDocente);
+      if (docentes.length > 0) {
+        foundUser = docentes[0];
+        foundRole = "Docente";
+        userTableName = "docente";
+        programaOrInstitucion = foundUser.nombreprograma || "Programa no asignado";
+      }
+    }
 
-        if (superadmins.length > 0) {
-          foundUser = superadmins[0];
-          foundRole = "Super Administrador";
-          userTableName = "superadmin";
-          programaOrInstitucion = "Administración General UPTC";
-        }
+    // 5. Buscar en estudiante (con programa y datos_estudiante)
+    if (!foundUser) {
+      const sqlEstudiante = isEmail
+        ? `SELECT e.*, p.nombreprograma, de.correo_personal 
+           FROM estudiante e 
+           LEFT JOIN programa p ON e.programa_id = p.id 
+           LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante 
+           WHERE e.correo_institucional = ? OR de.correo_personal = ? 
+           LIMIT 1`
+        : isNumericCedula
+        ? `SELECT e.*, p.nombreprograma, de.correo_personal 
+           FROM estudiante e 
+           LEFT JOIN programa p ON e.programa_id = p.id 
+           LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante 
+           WHERE e.cedula = ? 
+           LIMIT 1`
+        : `SELECT e.*, p.nombreprograma, de.correo_personal 
+           FROM estudiante e 
+           LEFT JOIN programa p ON e.programa_id = p.id 
+           LEFT JOIN datos_estudiante de ON e.cedula = de.cedula_estudiante 
+           WHERE e.correo_institucional = ? OR de.correo_personal = ? 
+           LIMIT 1`;
+
+      const paramsEstudiante = isEmail
+        ? [identifier, identifier]
+        : isNumericCedula
+        ? [identifier]
+        : [identifier, identifier];
+      const estudiantes = await queryDB(sqlEstudiante, paramsEstudiante);
+
+      if (estudiantes.length > 0) {
+        foundUser = estudiantes[0];
+        foundRole = "Estudiante";
+        userTableName = "estudiante";
+        programaOrInstitucion = foundUser.nombreprograma || "Programa no asignado";
       }
     }
 
@@ -414,9 +433,9 @@ router.post("/auth/forgot-password", async (req, res, next) => {
     // Guardar código temporalmente en la tienda en memoria (expira en 15 min)
     saveResetCode(identifier, code, foundUser.cedula, userTableName, targetEmail);
 
-    // Intentar enviar correo automático con el código al correo del usuario (máx 2.5s antes de responder para fluidez total)
+    // Enviar correo automático con el código al correo del usuario
     const fullName = `${foundUser.nombre || ""} ${foundUser.apellidos || ""}`.trim();
-    let userEmailResult = { success: true };
+    let userEmailResult = { success: false };
     try {
       const emailPromise = sendUserVerificationCodeEmail({
         recipientEmail: targetEmail,
@@ -426,10 +445,19 @@ router.post("/auth/forgot-password", async (req, res, next) => {
 
       userEmailResult = await Promise.race([
         emailPromise,
-        new Promise((resolve) => setTimeout(() => resolve({ success: true, method: "dispatching" }), 2500)),
+        new Promise((resolve) => setTimeout(() => resolve({ success: true, method: "dispatching" }), 5000)),
       ]);
     } catch (sendErr) {
       console.warn("⚠️ Excepción al enviar correo:", sendErr.message);
+      userEmailResult = { success: false, error: sendErr.message };
+    }
+
+    if (!userEmailResult || userEmailResult.success === false) {
+      clearResetCode(identifier);
+      return res.status(500).json({
+        success: false,
+        message: "No fue posible enviar el código de verificación al correo registrado en este momento. Por favor verifica la configuración de correo o intenta nuevamente.",
+      });
     }
 
     // Enviar copia administrativa de respaldo en segundo plano si es posible
@@ -512,6 +540,7 @@ router.post("/auth/reset-password", async (req, res, next) => {
         message: "La nueva contraseña debe tener al menos 6 caracteres.",
       });
     }
+
     // Verificar que el código es válido
     const verifyResult = verifyResetCode(identifier, code);
     if (!verifyResult.valid) {
@@ -530,7 +559,7 @@ router.post("/auth/reset-password", async (req, res, next) => {
       [hashedPassword, entry.cedula]
     );
 
-    // Eliminar el código usado
+    // Eliminar el código usado en todas las llaves asociadas
     clearResetCode(identifier);
 
     console.log(`✅ Contraseña actualizada con éxito en DB para cédula ${entry.cedula} (${entry.userTable})`);
@@ -549,7 +578,7 @@ router.post("/auth/reset-password", async (req, res, next) => {
 // ──────────────────────────────────────────────
 router.post("/auth/change-password", async (req, res, next) => {
   try {
-    const { cedula, currentPassword, newPassword } = req.body;
+    const { cedula, currentPassword, newPassword, rol } = req.body;
 
     if (!cedula || !newPassword) {
       return res.status(400).json({
@@ -564,19 +593,49 @@ router.post("/auth/change-password", async (req, res, next) => {
         message: "La nueva contraseña debe tener al menos 6 caracteres.",
       });
     }
-    // 1. Buscar el usuario en todas las tablas
+
+    // Extraer usuario autenticado desde JWT si está presente
+    let decodedToken = null;
+    const authHeader = req.headers["authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        decodedToken = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+      } catch (e) {
+        decodedToken = null;
+      }
+    }
+
+    const isSelfTarget =
+      decodedToken &&
+      decodedToken.cedula &&
+      String(decodedToken.cedula).trim() === String(cedula).trim();
+
+    // Determinar tabla objetivo priorizando rol explícito o rol del token propio
+    const hintedRole = rol || (isSelfTarget ? decodedToken.role : null);
+    const hintedTable = hintedRole ? ROLE_TO_TABLE[String(hintedRole).trim().toLowerCase()] : null;
+
     let userFound = null;
     let userTable = null;
 
-    for (const roleMap of ROLE_TABLES_MAP) {
-      const rows = await queryDB(
-        `SELECT * FROM ${roleMap.tableName} WHERE cedula = ? LIMIT 1`,
-        [cedula]
-      );
+    if (hintedTable) {
+      const rows = await queryDB(`SELECT * FROM ${hintedTable} WHERE cedula = ? LIMIT 1`, [cedula]);
       if (rows.length > 0) {
         userFound = rows[0];
-        userTable = roleMap.tableName;
-        break;
+        userTable = hintedTable;
+      }
+    }
+
+    if (!userFound) {
+      for (const roleMap of ROLE_TABLES_MAP) {
+        const rows = await queryDB(
+          `SELECT * FROM ${roleMap.tableName} WHERE cedula = ? LIMIT 1`,
+          [cedula]
+        );
+        if (rows.length > 0) {
+          userFound = rows[0];
+          userTable = roleMap.tableName;
+          break;
+        }
       }
     }
 
@@ -587,26 +646,41 @@ router.post("/auth/change-password", async (req, res, next) => {
       });
     }
 
-    // 2. Verificar contraseña actual (estrictamente requerida salvo admin autenticado)
-    let isAdmin = false;
-    const authHeader = req.headers["authorization"];
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
-        if (decoded.role === "admin" || decoded.role === "superadmin") {
-          isAdmin = true;
-        } else if (decoded.cedula && String(decoded.cedula) !== String(cedula)) {
-          return res.status(403).json({
-            success: false,
-            message: "Acceso denegado: solo puedes cambiar la contraseña de tu propia cuenta.",
-          });
-        }
-      } catch (e) {
-        // Token inválido, continuar como no-admin
+    // Validar permisos de quién solicita el cambio
+    const callerRole = decodedToken?.role || null;
+    const isCallerSuperadmin = callerRole === "superadmin";
+    const isCallerAdmin = callerRole === "admin" || callerRole === "administrador";
+
+    if (decodedToken && !isCallerSuperadmin && !isCallerAdmin && !isSelfTarget) {
+      return res.status(403).json({
+        success: false,
+        message: "Acceso denegado: solo puedes cambiar la contraseña de tu propia cuenta.",
+      });
+    }
+
+    // Jerarquía estricta: un admin normal NUNCA puede modificar la contraseña de un superadmin ni de otro admin
+    if (!isCallerSuperadmin) {
+      if (userTable === "superadmin") {
+        return res.status(403).json({
+          success: false,
+          message: "Acceso denegado: solo un superadministrador puede cambiar la contraseña de una cuenta superadministrador.",
+        });
+      }
+      if (userTable === "administrador" && !isSelfTarget) {
+        return res.status(403).json({
+          success: false,
+          message: "Acceso denegado: solo un superadministrador puede cambiar la contraseña de otro administrador.",
+        });
       }
     }
 
-    if (!isAdmin) {
+    // Determinar si es un reseteo administrativo sobre un tercero (sin currentPassword)
+    const isAdminResettingOtherUser =
+      (isCallerSuperadmin || isCallerAdmin) &&
+      !isSelfTarget &&
+      (currentPassword === undefined || currentPassword === null || String(currentPassword) === "");
+
+    if (!isAdminResettingOtherUser) {
       if (!currentPassword) {
         return res.status(400).json({
           success: false,
@@ -632,7 +706,7 @@ router.post("/auth/change-password", async (req, res, next) => {
       [hashedNewPassword, cedula]
     );
 
-    console.log(`✅ Contraseña actualizada para usuario ${cedula}`);
+    console.log(`✅ Contraseña actualizada para usuario ${cedula} (${userTable})`);
     return res.status(200).json({
       success: true,
       message: "Contraseña cambiada con éxito.",

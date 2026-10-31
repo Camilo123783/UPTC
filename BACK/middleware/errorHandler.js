@@ -8,10 +8,24 @@
  * Debe registrarse como el ÚLTIMO middleware de la app (4 parámetros).
  *
  * - En desarrollo: incluye el stack trace completo en la respuesta.
- * - En producción: solo devuelve un mensaje genérico seguro.
+ * - En producción: oculta detalles internos de SQL o sistema en errores 500.
  */
 function errorHandler(err, req, res, next) {
   const isDev = process.env.NODE_ENV === "development";
+
+  // Manejo específico de errores de Multer (tamaño o formato de archivo)
+  if (err && err.name === "MulterError") {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: "El archivo adjunto excede el tamaño máximo permitido de 10 MB.",
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: `Error al procesar archivo adjunto: ${err.message}`,
+    });
+  }
 
   // Código de estado: usa el del error si existe, sino 500
   const statusCode = err.statusCode || err.status || 500;
@@ -24,10 +38,15 @@ function errorHandler(err, req, res, next) {
     console.error(`   Stack: ${err.stack}`);
   }
 
-  // Respuesta al cliente
+  // En producción, nunca exponer mensajes internos de MySQL o del sistema en errores 500
+  const safeMessage =
+    statusCode >= 500 && !isDev
+      ? "Error interno del servidor. Por favor intenta nuevamente más tarde."
+      : err.message || "Error interno del servidor.";
+
   const response = {
     success: false,
-    message: err.message || "Error interno del servidor.",
+    message: safeMessage,
   };
 
   // Solo en desarrollo se añaden detalles técnicos

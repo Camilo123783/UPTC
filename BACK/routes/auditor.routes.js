@@ -7,7 +7,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { queryDB, getColombiaToday } = require("../config/db");
+const { queryDB, withTransaction, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const { syncPracticeStatuses } = require("../services/practiceSync.service");
 const { calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
@@ -24,6 +24,63 @@ function getAuditorCedula(req) {
     return req.user.cedula;
   }
   return req.query.auditorId || req.user?.cedula;
+}
+
+/**
+ * Verifica que la práctica exista, pertenezca al auditor o a su institución asignada
+ * y (cuando requireEditable = true) no esté 'Finalizada' ni 'Cancelada'.
+ */
+async function verifyAuditorPracticeAccess(practiceId, req, { requireEditable = false, studentCedula = null } = {}) {
+  const prRows = await queryDB(
+    `SELECT id, titulo, estado, docente_cedula, auditor_cedula, institucion_id, rubrica_criterios
+     FROM practica WHERE id = ? LIMIT 1`,
+    [practiceId]
+  );
+  if (prRows.length === 0) {
+    return { ok: false, status: 404, message: "Práctica formativa no encontrada." };
+  }
+  const practice = prRows[0];
+
+  if (req.user?.role === "auditor") {
+    const auditorCedula = String(req.user.cedula || "").trim();
+    const isDirectAuditor = practice.auditor_cedula && String(practice.auditor_cedula).trim() === auditorCedula;
+    if (!isDirectAuditor) {
+      const audInstRows = await queryDB("SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1", [auditorCedula]);
+      const audInstId = audInstRows[0]?.institucion_id;
+      const isSameInstitution = audInstId && practice.institucion_id && Number(audInstId) === Number(practice.institucion_id);
+      if (!isSameInstitution) {
+        return {
+          ok: false,
+          status: 403,
+          message: "No tienes permisos para acceder o modificar esta práctica formativa (pertenece a otro auditor o institución).",
+        };
+      }
+    }
+  }
+
+  if (requireEditable && (practice.estado === "Finalizada" || practice.estado === "Cancelada")) {
+    return {
+      ok: false,
+      status: 400,
+      message: "Esta práctica ya se encuentra finalizada o cancelada y su historial es inmutable.",
+    };
+  }
+
+  if (studentCedula) {
+    const enrolled = await queryDB(
+      "SELECT id FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula = ? LIMIT 1",
+      [practiceId, studentCedula]
+    );
+    if (enrolled.length === 0) {
+      return {
+        ok: false,
+        status: 404,
+        message: "El estudiante no se encuentra inscrito en esta práctica formativa.",
+      };
+    }
+  }
+
+  return { ok: true, practice };
 }
 
 // ──────────────────────────────────────────────
@@ -484,51 +541,67 @@ router.post("/practices/:practiceId/students/:cedula/attendance", async (req, re
     const auditorCedula = getAuditorCedula(req);
     const { fecha, turno, horas, estado, observaciones } = req.body;
 
+    const access = await verifyAuditorPracticeAccess(practiceId, req, {
+      requireEditable: true,
+      studentCedula: cedula,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
+
     const sessionDate = fecha || getColombiaToday();
-    const sessionHours = parseInt(horas, 10) || 8;
     const sessionStatus = estado || "Presente";
     const sessionShift = turno || "Turno Completo (8h)";
 
-    // 1. Guardar en bitácora de asistencia
-    const insertRes = await queryDB(`
-      INSERT INTO asistencia_estudiante 
-        (practica_id, estudiante_cedula, auditor_cedula, fecha, turno, horas, estado, observaciones)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [practiceId, cedula, auditorCedula, sessionDate, sessionShift, sessionHours, sessionStatus, observaciones || null]);
+    const isAbsent = String(sessionStatus).toLowerCase().startsWith("ausente");
+    const parsedHours = horas !== undefined && horas !== null && String(horas).trim() !== "" ? Number(horas) : NaN;
+    const sessionHours = isAbsent
+      ? 0
+      : Number.isFinite(parsedHours)
+      ? Math.max(0, Math.round(parsedHours))
+      : 8;
 
-    // 2. Si asistió o llegó con tardanza, sumar las horas de inmediato
-    let addedHours = 0;
-    if (sessionStatus === "Presente" || sessionStatus === "Tardanza") {
-      addedHours = Math.max(0, sessionHours);
-      await queryDB(`
-        UPDATE practica_estudiante 
-        SET horas_cumplidas = horas_cumplidas + ?
-        WHERE practica_id = ? AND estudiante_cedula = ?
-      `, [addedHours, practiceId, cedula]);
-    }
+    const addedHours = sessionStatus === "Presente" || sessionStatus === "Tardanza" ? sessionHours : 0;
 
-    // 3. Registrar notificación / observación para que el docente lo vea
     const audRow = await queryDB("SELECT nombre, apellidos FROM auditor WHERE cedula = ?", [auditorCedula]);
     const audName = audRow.length > 0 ? `${audRow[0].nombre} ${audRow[0].apellidos}`.trim() : "Auditor Clínico";
+    const docCed = access.practice.docente_cedula || null;
 
-    const prDoc = await queryDB("SELECT docente_cedula, titulo FROM practica WHERE id = ?", [practiceId]);
-    const docCed = prDoc[0]?.docente_cedula || null;
-    const prTitle = prDoc[0]?.titulo || "";
+    const insertId = await withTransaction(async (conn) => {
+      // 1. Guardar en bitácora de asistencia
+      const [insertRes] = await conn.execute(`
+        INSERT INTO asistencia_estudiante 
+          (practica_id, estudiante_cedula, auditor_cedula, fecha, turno, horas, estado, observaciones)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [practiceId, cedula, auditorCedula, sessionDate, sessionShift, sessionHours, sessionStatus, observaciones || null]);
 
-    await queryDB(`
-      INSERT INTO observacion_practica 
-        (practica_id, autor_rol, autor_cedula, autor_nombre, auditor_cedula, docente_cedula, estudiante_cedula, titulo, observacion, tipo)
-      VALUES (?, 'auditor', ?, ?, ?, ?, ?, ?, ?, 'Asistencia')
-    `, [
-      practiceId,
-      auditorCedula,
-      audName,
-      auditorCedula,
-      docCed,
-      cedula,
-      `Asistencia Confirmada: ${sessionDate}`,
-      `El auditor ${audName} confirmó asistencia (${sessionStatus} - ${sessionShift}) registrando +${addedHours} horas asistenciales para el estudiante. Observaciones: ${observaciones || "Sin novedad"}`,
-    ]);
+      // 2. Si asistió o llegó con tardanza, sumar las horas de inmediato
+      if (addedHours > 0) {
+        await conn.execute(`
+          UPDATE practica_estudiante 
+          SET horas_cumplidas = horas_cumplidas + ?
+          WHERE practica_id = ? AND estudiante_cedula = ?
+        `, [addedHours, practiceId, cedula]);
+      }
+
+      // 3. Registrar notificación / observación para que el docente lo vea
+      await conn.execute(`
+        INSERT INTO observacion_practica 
+          (practica_id, autor_rol, autor_cedula, autor_nombre, auditor_cedula, docente_cedula, estudiante_cedula, titulo, observacion, tipo)
+        VALUES (?, 'auditor', ?, ?, ?, ?, ?, ?, ?, 'Asistencia')
+      `, [
+        practiceId,
+        auditorCedula,
+        audName,
+        auditorCedula,
+        docCed,
+        cedula,
+        `Asistencia Confirmada: ${sessionDate}`,
+        `El auditor ${audName} confirmó asistencia (${sessionStatus} - ${sessionShift}) registrando +${addedHours} horas asistenciales para el estudiante. Observaciones: ${observaciones || "Sin novedad"}`,
+      ]);
+
+      return insertRes.insertId;
+    });
 
     // 4. Retornar nuevo total y progreso
     const updated = await queryDB(`
@@ -548,7 +621,7 @@ router.post("/practices/:practiceId/students/:cedula/attendance", async (req, re
     res.status(201).json({
       success: true,
       message: `Asistencia confirmada exitosamente (+${addedHours}h registradas). Progreso actual: ${progreso}%.`,
-      attendanceId: insertRes.insertId,
+      attendanceId: insertId,
       horas_cumplidas: currentHours,
       horas_asignadas: totalRequired,
       progreso,
@@ -565,6 +638,11 @@ router.post("/practices/:practiceId/students/:cedula/attendance", async (req, re
 router.get("/practices/:practiceId/students/:cedula/attendance", async (req, res, next) => {
   try {
     const { practiceId, cedula } = req.params;
+
+    const access = await verifyAuditorPracticeAccess(practiceId, req, { requireEditable: false });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
 
     const rows = await queryDB(`
       SELECT 
@@ -596,6 +674,14 @@ router.put("/practices/:practiceId/students/:cedula/hours", async (req, res, nex
   try {
     const { practiceId, cedula } = req.params;
     const { horas_cumplidas, horas_asignadas } = req.body;
+
+    const access = await verifyAuditorPracticeAccess(practiceId, req, {
+      requireEditable: true,
+      studentCedula: cedula,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
 
     const updates = [];
     const params = [];
@@ -647,6 +733,14 @@ router.post("/practices/:practiceId/students/:cedula/add-hours", async (req, res
   try {
     const { practiceId, cedula } = req.params;
     const { deltaHours } = req.body;
+
+    const access = await verifyAuditorPracticeAccess(practiceId, req, {
+      requireEditable: true,
+      studentCedula: cedula,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
 
     const added = parseInt(deltaHours, 10);
     if (isNaN(added) || added === 0) {
@@ -712,15 +806,20 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
       });
     }
 
-    // Obtener docente a cargo de la práctica y su rúbrica
-    const prDoc = await queryDB("SELECT docente_cedula, titulo, rubrica_criterios FROM practica WHERE id = ?", [practiceId]);
-    const docCed = prDoc[0]?.docente_cedula || null;
-    const prTitle = prDoc[0]?.titulo || "";
+    const access = await verifyAuditorPracticeAccess(practiceId, req, {
+      requireEditable: true,
+      studentCedula: cedula,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
+
+    const docCed = access.practice.docente_cedula || null;
 
     let activeRubricIds = null;
-    if (prDoc[0]?.rubrica_criterios) {
+    if (access.practice.rubrica_criterios) {
       try {
-        activeRubricIds = JSON.parse(prDoc[0].rubrica_criterios);
+        activeRubricIds = JSON.parse(access.practice.rubrica_criterios);
       } catch (e) {}
     }
 
@@ -730,83 +829,88 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
     const cEquipo = parseFloat(comunicacion_equipo) || 4.0;
     const pAsistencia = parseFloat(puntualidad_asistencia) || 5.0;
 
-    // Calcular nota sugerida si viene criterios_rubrica (suma de los criterios de la escala)
+    // Calcular nota sugerida a partir de los 10 criterios de la rúbrica
     const requiredRubricIds = (Array.isArray(activeRubricIds) && activeRubricIds.length > 0)
       ? activeRubricIds
       : DEFAULT_RUBRIC_CRITERIA_IDS;
 
-    if (criterios_rubrica && typeof criterios_rubrica === "object") {
-      const missingCriteria = requiredRubricIds.filter(
-        (cId) => criterios_rubrica[cId] === undefined || criterios_rubrica[cId] === null || isNaN(Number(criterios_rubrica[cId]))
-      );
-      if (missingCriteria.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Faltan ${missingCriteria.length} ítem(s) por calificar en la rúbrica del informe clínico (${requiredRubricIds.length - missingCriteria.length}/${requiredRubricIds.length} calificados). Debes calificar todos los ítems antes de guardar.`,
-        });
-      }
+    if (!criterios_rubrica || typeof criterios_rubrica !== "object" || Object.keys(criterios_rubrica).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Debes calificar todos los ítems de la rúbrica del informe clínico antes de guardar.",
+      });
     }
 
-    let calculatedNota = parseFloat(nota_sugerida);
-    if (criterios_rubrica && typeof criterios_rubrica === "object") {
-      const rubricScore = calculateScoreFromCriteriaMap(criterios_rubrica, activeRubricIds);
-      if (!isNaN(rubricScore) && rubricScore > 0) {
-        calculatedNota = rubricScore;
-      }
+    const missingCriteria = requiredRubricIds.filter(
+      (cId) => criterios_rubrica[cId] === undefined || criterios_rubrica[cId] === null || isNaN(Number(criterios_rubrica[cId]))
+    );
+    if (missingCriteria.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Faltan ${missingCriteria.length} ítem(s) por calificar en la rúbrica del informe clínico (${requiredRubricIds.length - missingCriteria.length}/${requiredRubricIds.length} calificados). Debes calificar todos los ítems antes de guardar.`,
+      });
+    }
+
+    let calculatedNota = calculateScoreFromCriteriaMap(criterios_rubrica, requiredRubricIds);
+    if (isNaN(calculatedNota) || calculatedNota <= 0) {
+      calculatedNota = parseFloat(nota_sugerida);
     }
     if (isNaN(calculatedNota)) {
       calculatedNota = parseFloat(((cTeorico + hPracticas + aEtica + cEquipo + pAsistencia) / 5).toFixed(1));
     }
     const finalConcepto = concepto || (calculatedNota >= 4.5 ? "Excelente" : calculatedNota >= 3.8 ? "Favorable" : calculatedNota >= 3.0 ? "En Seguimiento" : "Requiere Refuerzo");
 
-    const criteriosRubricaJson = criterios_rubrica ? JSON.stringify(criterios_rubrica) : null;
+    const criteriosRubricaJson = JSON.stringify(criterios_rubrica);
 
-    // Verificar si ya existe reporte para actualizar o insertar
-    const existing = await queryDB(
-      "SELECT id FROM reporte_auditor WHERE practica_id = ? AND estudiante_cedula = ?",
-      [practiceId, cedula]
-    );
-
-    let reportId = null;
-    if (existing.length > 0) {
-      reportId = existing[0].id;
-      await queryDB(`
-        UPDATE reporte_auditor
-        SET auditor_cedula = ?, docente_cedula = ?, conocimiento_teorico = ?, habilidades_practicas = ?,
-            actitud_etica = ?, comunicacion_equipo = ?, puntualidad_asistencia = ?, criterios_rubrica = ?, nota_sugerida = ?,
-            concepto = ?, observaciones = ?, fecha_reporte = NOW(), leido_por_docente = 0
-        WHERE id = ?
-      `, [auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, criteriosRubricaJson, calculatedNota, finalConcepto, observaciones.trim(), reportId]);
-    } else {
-      const ins = await queryDB(`
-        INSERT INTO reporte_auditor
-          (practica_id, estudiante_cedula, auditor_cedula, docente_cedula, conocimiento_teorico, habilidades_practicas, actitud_etica, comunicacion_equipo, puntualidad_asistencia, criterios_rubrica, nota_sugerida, concepto, observaciones, fecha_reporte)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-      `, [practiceId, cedula, auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, criteriosRubricaJson, calculatedNota, finalConcepto, observaciones.trim()]);
-      reportId = ins.insertId;
-    }
-
-    // Registrar en observacion_practica para que aparezca en el panel de comunicación del docente
     const audRow = await queryDB("SELECT nombre, apellidos FROM auditor WHERE cedula = ?", [auditorCedula]);
     const audName = audRow.length > 0 ? `${audRow[0].nombre} ${audRow[0].apellidos}`.trim() : "Auditor Clínico";
 
     const estRow = await queryDB("SELECT nombre, apellidos FROM estudiante WHERE cedula = ?", [cedula]);
     const estName = estRow.length > 0 ? `${estRow[0].nombre} ${estRow[0].apellidos}`.trim() : `Estudiante #${cedula}`;
 
-    await queryDB(`
-      INSERT INTO observacion_practica 
-        (practica_id, autor_rol, autor_cedula, autor_nombre, auditor_cedula, docente_cedula, estudiante_cedula, titulo, observacion, tipo)
-      VALUES (?, 'auditor', ?, ?, ?, ?, ?, ?, ?, 'Desempeño')
-    `, [
-      practiceId,
-      auditorCedula,
-      audName,
-      auditorCedula,
-      docCed,
-      cedula,
-      `Reporte de Desempeño Clínico: ${estName}`,
-      `[REPORTE CLÍNICO DEL AUDITOR] Calificación sugerida: ${calculatedNota.toFixed(1)} / 5.0 (Concepto: ${finalConcepto}). Observaciones: ${observaciones.trim()}`,
-    ]);
+    const reportId = await withTransaction(async (conn) => {
+      const [existing] = await conn.execute(
+        "SELECT id FROM reporte_auditor WHERE practica_id = ? AND estudiante_cedula = ?",
+        [practiceId, cedula]
+      );
+
+      let rId = null;
+      if (existing.length > 0) {
+        rId = existing[0].id;
+        await conn.execute(`
+          UPDATE reporte_auditor
+          SET auditor_cedula = ?, docente_cedula = ?, conocimiento_teorico = ?, habilidades_practicas = ?,
+              actitud_etica = ?, comunicacion_equipo = ?, puntualidad_asistencia = ?, criterios_rubrica = ?, nota_sugerida = ?,
+              concepto = ?, observaciones = ?, fecha_reporte = NOW(), leido_por_docente = 0
+          WHERE id = ?
+        `, [auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, criteriosRubricaJson, calculatedNota, finalConcepto, observaciones.trim(), rId]);
+      } else {
+        const [ins] = await conn.execute(`
+          INSERT INTO reporte_auditor
+            (practica_id, estudiante_cedula, auditor_cedula, docente_cedula, conocimiento_teorico, habilidades_practicas, actitud_etica, comunicacion_equipo, puntualidad_asistencia, criterios_rubrica, nota_sugerida, concepto, observaciones, fecha_reporte)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [practiceId, cedula, auditorCedula, docCed, cTeorico, hPracticas, aEtica, cEquipo, pAsistencia, criteriosRubricaJson, calculatedNota, finalConcepto, observaciones.trim()]);
+        rId = ins.insertId;
+      }
+
+      // Registrar en observacion_practica para que aparezca en el panel de comunicación del docente
+      await conn.execute(`
+        INSERT INTO observacion_practica 
+          (practica_id, autor_rol, autor_cedula, autor_nombre, auditor_cedula, docente_cedula, estudiante_cedula, titulo, observacion, tipo)
+        VALUES (?, 'auditor', ?, ?, ?, ?, ?, ?, ?, 'Desempeño')
+      `, [
+        practiceId,
+        auditorCedula,
+        audName,
+        auditorCedula,
+        docCed,
+        cedula,
+        `Reporte de Desempeño Clínico: ${estName}`,
+        `[REPORTE CLÍNICO DEL AUDITOR] Calificación sugerida: ${calculatedNota.toFixed(1)} / 5.0 (Concepto: ${finalConcepto}). Observaciones: ${observaciones.trim()}`,
+      ]);
+
+      return rId;
+    });
 
     console.log(`✅ Reporte clínico #${reportId} emitido por auditor ${auditorCedula} para estudiante ${cedula} en práctica #${practiceId}`);
     res.status(200).json({
@@ -828,6 +932,11 @@ router.post("/practices/:practiceId/students/:cedula/report", async (req, res, n
 router.get("/practices/:practiceId/students/:cedula/report", async (req, res, next) => {
   try {
     const { practiceId, cedula } = req.params;
+
+    const access = await verifyAuditorPracticeAccess(practiceId, req, { requireEditable: false });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
 
     const rows = await queryDB(`
       SELECT 
@@ -908,6 +1017,11 @@ router.get("/practices/:practiceId/messages", async (req, res, next) => {
   try {
     const { practiceId } = req.params;
 
+    const access = await verifyAuditorPracticeAccess(practiceId, req, { requireEditable: false });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
+
     const rows = await queryDB(`
       SELECT 
         op.id,
@@ -961,17 +1075,16 @@ router.post("/practices/:practiceId/messages", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "El mensaje no puede estar vacío." });
     }
 
+    const access = await verifyAuditorPracticeAccess(practiceId, req, { requireEditable: true });
+    if (!access.ok) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
+
     // Datos del auditor
     const audRow = await queryDB("SELECT nombre, apellidos FROM auditor WHERE cedula = ?", [auditorCedula]);
     const audName = audRow.length > 0 ? `${audRow[0].nombre} ${audRow[0].apellidos}`.trim() : "Auditor Clínico";
 
-    // Docente de la práctica
-    const prDoc = await queryDB("SELECT docente_cedula, titulo FROM practica WHERE id = ?", [practiceId]);
-    if (prDoc.length === 0) {
-      return res.status(404).json({ success: false, message: "Práctica no encontrada." });
-    }
-    const docCed = prDoc[0].docente_cedula;
-
+    const docCed = access.practice.docente_cedula;
     const finalTitulo = (titulo && titulo.trim()) || "Mensaje del Auditor Clínico";
     const finalTipo = tipo || "General";
 
@@ -1181,6 +1294,10 @@ router.put("/mark-messages-read", async (req, res, next) => {
     const { practiceId } = req.body || {};
 
     if (practiceId) {
+      const access = await verifyAuditorPracticeAccess(practiceId, req, { requireEditable: false });
+      if (!access.ok) {
+        return res.status(access.status).json({ success: false, message: access.message });
+      }
       await queryDB(`
         UPDATE observacion_practica 
         SET leido = 1 

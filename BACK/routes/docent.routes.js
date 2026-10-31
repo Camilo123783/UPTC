@@ -5,7 +5,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { queryDB, getColombiaToday } = require("../config/db");
+const { queryDB, withTransaction, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
 const { syncPracticeStatuses, calculatePracticeStatus } = require("../services/practiceSync.service");
@@ -111,18 +111,26 @@ router.get("/photo/:docentId", async (req, res, next) => {
   }
 });
 
+// El resto de rutas de gestión docente requieren autenticación con JWT y rol específico
+router.use(verifyToken);
+router.use(requireRole("docent", "admin", "superadmin"));
+
 // ──────────────────────────────────────────────
 // GET /api/docent/signature/:docentId
 // Servir la firma digital del docente para emisión y descarga de certificados
-// Requiere autenticación (JWT) para evitar recolección anónima de firmas legales
+// Requiere rol docent (solo su propia firma), admin o superadmin
 // ──────────────────────────────────────────────
-router.get("/signature/:docentId", verifyToken, async (req, res, next) => {
+router.get("/signature/:docentId", async (req, res, next) => {
   try {
     const { docentId } = req.params;
     const docentKey = String(docentId).trim();
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    if (req.user?.role === "docent" && String(req.user.cedula).trim() !== docentKey) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permisos para consultar la firma digital de otro docente.",
+      });
+    }
 
     const rows = await queryDB(
       "SELECT foto_firma FROM docente WHERE cedula = ? LIMIT 1",
@@ -141,10 +149,6 @@ router.get("/signature/:docentId", verifyToken, async (req, res, next) => {
     next(err);
   }
 });
-
-// El resto de rutas de gestión docente requieren autenticación con JWT y rol específico
-router.use(verifyToken);
-router.use(requireRole("docent", "admin", "superadmin"));
 
 /**
  * Helper para obtener el docentId legítimo:
@@ -581,6 +585,19 @@ router.get("/practices/:practiceId/students/:cedula/auditor-report", async (req,
   try {
     const { practiceId, cedula } = req.params;
 
+    if (req.user?.role === "docent") {
+      const prOwner = await queryDB("SELECT id, docente_cedula FROM practica WHERE id = ? LIMIT 1", [practiceId]);
+      if (prOwner.length === 0) {
+        return res.status(404).json({ success: false, message: "Práctica no encontrada." });
+      }
+      if (String(prOwner[0].docente_cedula) !== String(req.user.cedula)) {
+        return res.status(403).json({
+          success: false,
+          message: "No tienes permisos para consultar informes de una práctica asignada a otro docente.",
+        });
+      }
+    }
+
     const rows = await queryDB(`
       SELECT 
         ra.*,
@@ -644,7 +661,7 @@ router.post("/practices/:practiceId/observations", async (req, res, next) => {
     const { practiceId } = req.params;
     const { docente_cedula, estudiante_cedula, titulo, observacion, tipo } = req.body;
 
-    const authorCedula = docente_cedula || req.user?.cedula;
+    const authorCedula = req.user?.role === "docent" ? req.user.cedula : (docente_cedula || req.user?.cedula);
 
     if (!authorCedula) {
       return res.status(400).json({
@@ -660,12 +677,26 @@ router.post("/practices/:practiceId/observations", async (req, res, next) => {
       });
     }
 
-    // Verificar que la práctica exista
-    const practCheck = await queryDB(`SELECT id, titulo FROM practica WHERE id = ?`, [practiceId]);
+    // Verificar que la práctica exista y validar permisos / estado
+    const practCheck = await queryDB(`SELECT id, titulo, docente_cedula, estado FROM practica WHERE id = ?`, [practiceId]);
     if (practCheck.length === 0) {
       return res.status(404).json({
         success: false,
         message: "Práctica no encontrada.",
+      });
+    }
+
+    if (req.user?.role === "docent" && String(practCheck[0].docente_cedula) !== String(req.user.cedula)) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permisos para registrar observaciones en una práctica de otro docente.",
+      });
+    }
+
+    if (practCheck[0].estado === "Finalizada" || practCheck[0].estado === "Cancelada") {
+      return res.status(400).json({
+        success: false,
+        message: "No se pueden registrar nuevas observaciones en una práctica finalizada o cancelada.",
       });
     }
 
@@ -1025,16 +1056,18 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       estudiantes,
     } = req.body;
 
-    const docentCedula = req.body.docente_cedula || req.user?.cedula;
-
     const existing = await queryDB(`SELECT id, estado, docente_cedula, programa_id, fecha_inicio, rubrica_criterios FROM practica WHERE id = ?`, [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: "Práctica formativa no encontrada." });
     }
 
-    if (req.user?.role === "docent" && existing[0].docente_cedula && String(existing[0].docente_cedula) !== String(req.user.cedula)) {
+    if (req.user?.role === "docent" && String(existing[0].docente_cedula) !== String(req.user.cedula)) {
       return res.status(403).json({ success: false, message: "No tienes permiso para modificar una práctica asignada a otro docente." });
     }
+
+    const docentCedula = req.user?.role === "docent"
+      ? req.user.cedula
+      : (req.body.docente_cedula || existing[0].docente_cedula || req.user?.cedula);
     // Una práctica ya finalizada o cancelada no puede ser modificada
     if (existing[0].estado === "Finalizada" || existing[0].estado === "Cancelada") {
       return res.status(400).json({
@@ -1151,30 +1184,64 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       }
     }
 
-    // Validar que los estudiantes asignados pertenezcan exclusivamente al programa del docente
-    if (Array.isArray(estudiantes) && estudiantes.length > 0 && effectiveProgramaId) {
-      const checkCedulas = estudiantes
-        .map((item) => String(typeof item === "object" ? item.cedula || item.Cédula : item))
-        .filter(Boolean);
+    // Validar que el servicio pertenezca a la institución seleccionada
+    if (institucion_id && servicio_id) {
+      const servCheck = await queryDB(
+        `SELECT id, institucion_id FROM servicio WHERE id = ? LIMIT 1`,
+        [servicio_id]
+      );
+      if (servCheck.length > 0 && servCheck[0].institucion_id && Number(servCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El servicio asistencial seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
 
-      if (checkCedulas.length > 0) {
-        const ph = checkCedulas.map(() => "?").join(",");
-        const invalidStudents = await queryDB(
-          `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma 
-           FROM estudiante e 
-           LEFT JOIN programa p ON e.programa_id = p.id 
-           WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
-          [...checkCedulas, effectiveProgramaId]
-        );
-        if (invalidStudents.length > 0) {
-          const names = invalidStudents
-            .map((s) => `${s.nombre} ${s.apellidos} (${s.nombreprograma || "Sin programa"})`)
-            .join(", ");
-          return res.status(403).json({
-            success: false,
-            message: `No puedes asignar estudiantes de otros programas académicos: ${names}.`,
-          });
-        }
+    // Validar que el auditor pertenezca a la institución seleccionada
+    if (institucion_id && auditor_cedula) {
+      const audCheck = await queryDB(
+        `SELECT cedula, institucion_id FROM auditor WHERE cedula = ? LIMIT 1`,
+        [auditor_cedula]
+      );
+      if (audCheck.length > 0 && audCheck[0].institucion_id && Number(audCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El auditor clínico seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
+
+    const maxCupos = parseInt(cupos, 10) || 10;
+    const uniqueStudentCedulas = Array.isArray(estudiantes)
+      ? [...new Set(estudiantes.map((item) => String((typeof item === "object" ? item.cedula || item.Cédula : item) || "").trim()).filter(Boolean))]
+      : null;
+
+    if (uniqueStudentCedulas && uniqueStudentCedulas.length > maxCupos) {
+      return res.status(400).json({
+        success: false,
+        message: `No se pueden asignar ${uniqueStudentCedulas.length} estudiantes porque supera el límite de cupos configurado (${maxCupos}).`,
+      });
+    }
+
+    // Validar que los estudiantes asignados pertenezcan exclusivamente al programa del docente
+    if (uniqueStudentCedulas && uniqueStudentCedulas.length > 0 && effectiveProgramaId) {
+      const ph = uniqueStudentCedulas.map(() => "?").join(",");
+      const invalidStudents = await queryDB(
+        `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma 
+         FROM estudiante e 
+         LEFT JOIN programa p ON e.programa_id = p.id 
+         WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
+        [...uniqueStudentCedulas, effectiveProgramaId]
+      );
+      if (invalidStudents.length > 0) {
+        const names = invalidStudents
+          .map((s) => `${s.nombre} ${s.apellidos} (${s.nombreprograma || "Sin programa"})`)
+          .join(", ");
+        return res.status(403).json({
+          success: false,
+          message: `No puedes asignar estudiantes de otros programas académicos: ${names}.`,
+        });
       }
     }
 
@@ -1197,68 +1264,65 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       finalEstado = calculatePracticeStatus(fIni, fFin, finalEstado);
     }
 
-    await queryDB(`
-      UPDATE practica SET
-        titulo = COALESCE(?, titulo),
-        programa_id = ?,
-        asignatura_id = ?,
-        institucion_id = ?,
-        servicio_id = ?,
-        auditor_cedula = ?,
-        periodo = COALESCE(?, periodo),
-        fecha_inicio = ?,
-        fecha_fin = ?,
-        horas_totales = COALESCE(?, horas_totales),
-        cupos = COALESCE(?, cupos),
-        estado = COALESCE(?, estado),
-        motivo_cancelacion = ?,
-        descripcion = ?,
-        horario = ?,
-        rubrica_criterios = ?
-      WHERE id = ?
-    `, [
-      titulo || null,
-      effectiveProgramaId || null,
-      asignatura_id || null,
-      institucion_id || null,
-      servicio_id || null,
-      auditor_cedula || null,
-      periodo || null,
-      fecha_inicio || null,
-      fecha_fin || null,
-      horas_totales ? parseInt(horas_totales, 10) : null,
-      cupos ? parseInt(cupos, 10) : null,
-      finalEstado || null,
-      finalMotivo || null,
-      descripcion || null,
-      horario !== undefined ? (horario || null) : null,
-      finalRubricaJson || null,
-      id,
-    ]);
+    await withTransaction(async (conn) => {
+      await conn.execute(`
+        UPDATE practica SET
+          titulo = COALESCE(?, titulo),
+          programa_id = ?,
+          asignatura_id = ?,
+          institucion_id = ?,
+          servicio_id = ?,
+          auditor_cedula = ?,
+          periodo = COALESCE(?, periodo),
+          fecha_inicio = ?,
+          fecha_fin = ?,
+          horas_totales = COALESCE(?, horas_totales),
+          cupos = COALESCE(?, cupos),
+          estado = COALESCE(?, estado),
+          motivo_cancelacion = ?,
+          descripcion = ?,
+          horario = ?,
+          rubrica_criterios = ?
+        WHERE id = ?
+      `, [
+        titulo || null,
+        effectiveProgramaId || null,
+        asignatura_id || null,
+        institucion_id || null,
+        servicio_id || null,
+        auditor_cedula || null,
+        periodo || null,
+        fecha_inicio || null,
+        fecha_fin || null,
+        horas_totales ? parseInt(horas_totales, 10) : null,
+        maxCupos,
+        finalEstado || null,
+        finalMotivo || null,
+        descripcion || null,
+        horario !== undefined ? (horario || null) : null,
+        finalRubricaJson || null,
+        id,
+      ]);
 
-    if (Array.isArray(estudiantes)) {
-      const newCedulas = estudiantes
-        .map((item) => String(typeof item === "object" ? item.cedula || item.Cédula : item))
-        .filter(Boolean);
-
-      if (newCedulas.length > 0) {
-        const ph = newCedulas.map(() => "?").join(",");
-        await queryDB(
-          `DELETE FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula NOT IN (${ph})`,
-          [id, ...newCedulas]
-        );
-        for (const ced of newCedulas) {
-          await queryDB(
-            `INSERT INTO practica_estudiante (practica_id, estudiante_cedula, estado)
-             VALUES (?, ?, 'Asignado')
-             ON DUPLICATE KEY UPDATE estado = VALUES(estado)`,
-            [id, ced]
+      if (uniqueStudentCedulas !== null) {
+        if (uniqueStudentCedulas.length > 0) {
+          const ph = uniqueStudentCedulas.map(() => "?").join(",");
+          await conn.execute(
+            `DELETE FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula NOT IN (${ph})`,
+            [id, ...uniqueStudentCedulas]
           );
+          for (const ced of uniqueStudentCedulas) {
+            await conn.execute(
+              `INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
+               VALUES (?, ?, 'Asignado')`,
+              [id, ced]
+            );
+          }
+        } else {
+          await conn.execute(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
         }
-      } else {
-        await queryDB(`DELETE FROM practica_estudiante WHERE practica_id = ?`, [id]);
       }
-    }
+    });
 
     // Si la práctica quedó Finalizada o Cancelada, archivar inmediatamente en el Historial
     if (finalEstado === "Finalizada" || finalEstado === "Cancelada") {
@@ -1267,6 +1331,11 @@ router.put(["/practices/:id", "/practice/:id"], async (req, res, next) => {
       } catch (archErr) {
         console.error(`Error archivando práctica #${id} tras actualización docente:`, archErr.message);
       }
+    } else {
+      try {
+        await queryDB(`DELETE FROM historial_practica_estudiante WHERE practica_id = ?`, [id]);
+        await queryDB(`DELETE FROM historial_practica WHERE practica_id = ?`, [id]);
+      } catch (cleanErr) {}
     }
 
     console.log(`✅ Práctica #${id} "${titulo}" actualizada por Docente.`);
@@ -1300,7 +1369,9 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       estudiantes,
     } = req.body;
 
-    const docentCedula = req.body.docente_cedula || req.user?.cedula;
+    const docentCedula = req.user?.role === "docent"
+      ? req.user.cedula
+      : (req.body.docente_cedula || req.user?.cedula);
 
     if (!docentCedula) {
       return res.status(400).json({
@@ -1395,30 +1466,64 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       }
     }
 
-    // Validar que los estudiantes asignados pertenezcan exclusivamente al programa académico del docente
-    if (Array.isArray(estudiantes) && estudiantes.length > 0 && effectiveProgramaId) {
-      const checkCedulas = estudiantes
-        .map((item) => String(typeof item === "object" ? item.cedula || item.Cédula : item))
-        .filter(Boolean);
+    // Validar que el servicio pertenezca a la institución seleccionada
+    if (institucion_id && servicio_id) {
+      const servCheck = await queryDB(
+        `SELECT id, institucion_id FROM servicio WHERE id = ? LIMIT 1`,
+        [servicio_id]
+      );
+      if (servCheck.length > 0 && servCheck[0].institucion_id && Number(servCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El servicio asistencial seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
 
-      if (checkCedulas.length > 0) {
-        const ph = checkCedulas.map(() => "?").join(",");
-        const invalidStudents = await queryDB(
-          `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma 
-           FROM estudiante e 
-           LEFT JOIN programa p ON e.programa_id = p.id 
-           WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
-          [...checkCedulas, effectiveProgramaId]
-        );
-        if (invalidStudents.length > 0) {
-          const names = invalidStudents
-            .map((s) => `${s.nombre} ${s.apellidos} (${s.nombreprograma || "Sin programa"})`)
-            .join(", ");
-          return res.status(403).json({
-            success: false,
-            message: `No puedes asignar estudiantes de otros programas académicos: ${names}.`,
-          });
-        }
+    // Validar que el auditor pertenezca a la institución seleccionada
+    if (institucion_id && auditor_cedula) {
+      const audCheck = await queryDB(
+        `SELECT cedula, institucion_id FROM auditor WHERE cedula = ? LIMIT 1`,
+        [auditor_cedula]
+      );
+      if (audCheck.length > 0 && audCheck[0].institucion_id && Number(audCheck[0].institucion_id) !== Number(institucion_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "El auditor clínico seleccionado no pertenece a la institución hospitalaria seleccionada.",
+        });
+      }
+    }
+
+    const maxCupos = parseInt(cupos, 10) || 10;
+    const uniqueStudentCedulas = Array.isArray(estudiantes)
+      ? [...new Set(estudiantes.map((item) => String((typeof item === "object" ? item.cedula || item.Cédula : item) || "").trim()).filter(Boolean))]
+      : [];
+
+    if (uniqueStudentCedulas.length > maxCupos) {
+      return res.status(400).json({
+        success: false,
+        message: `No se pueden asignar ${uniqueStudentCedulas.length} estudiantes porque supera el límite de cupos configurado (${maxCupos}).`,
+      });
+    }
+
+    // Validar que los estudiantes asignados pertenezcan exclusivamente al programa académico del docente
+    if (uniqueStudentCedulas.length > 0 && effectiveProgramaId) {
+      const ph = uniqueStudentCedulas.map(() => "?").join(",");
+      const invalidStudents = await queryDB(
+        `SELECT e.cedula, e.nombre, e.apellidos, e.programa_id, p.nombreprograma 
+         FROM estudiante e 
+         LEFT JOIN programa p ON e.programa_id = p.id 
+         WHERE e.cedula IN (${ph}) AND (e.programa_id IS NULL OR e.programa_id != ?)`,
+        [...uniqueStudentCedulas, effectiveProgramaId]
+      );
+      if (invalidStudents.length > 0) {
+        const names = invalidStudents
+          .map((s) => `${s.nombre} ${s.apellidos} (${s.nombreprograma || "Sin programa"})`)
+          .join(", ");
+        return res.status(403).json({
+          success: false,
+          message: `No puedes asignar estudiantes de otros programas académicos: ${names}.`,
+        });
       }
     }
 
@@ -1463,7 +1568,7 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
       fecha_inicio || null,
       fecha_fin || null,
       horas_totales ? parseInt(horas_totales, 10) : 120,
-      cupos ? parseInt(cupos, 10) : 10,
+      maxCupos,
       finalEstado,
       descripcion || null,
       horario || null,
@@ -1475,15 +1580,20 @@ router.post(["/practices", "/practice"], async (req, res, next) => {
     const practicaId = insertResult.insertId;
 
     // Asignar los estudiantes seleccionados a practica_estudiante
-    if (Array.isArray(estudiantes) && estudiantes.length > 0) {
-      for (const item of estudiantes) {
-        const cedula = typeof item === "object" ? item.cedula : item;
-        if (cedula) {
-          await queryDB(`
-            INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
-            VALUES (?, ?, 'Asignado')
-          `, [practicaId, cedula]);
-        }
+    if (uniqueStudentCedulas.length > 0) {
+      for (const cedula of uniqueStudentCedulas) {
+        await queryDB(`
+          INSERT IGNORE INTO practica_estudiante (practica_id, estudiante_cedula, estado)
+          VALUES (?, ?, 'Asignado')
+        `, [practicaId, cedula]);
+      }
+    }
+
+    if (finalEstado === "Finalizada" || finalEstado === "Cancelada") {
+      try {
+        await archivePractice(practicaId, null);
+      } catch (archErr) {
+        console.error(`Error archivando práctica #${practicaId} al crear por docente:`, archErr.message);
       }
     }
 
@@ -1684,8 +1794,17 @@ router.put("/practices/:practiceId/students/:cedula/hours", async (req, res, nex
     const { practiceId, cedula } = req.params;
     const { horas_cumplidas, horas_asignadas } = req.body;
 
-    const prCheck = await queryDB("SELECT estado FROM practica WHERE id = ? LIMIT 1", [practiceId]);
-    if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
+    const prCheck = await queryDB("SELECT id, estado, docente_cedula FROM practica WHERE id = ? LIMIT 1", [practiceId]);
+    if (prCheck.length === 0) {
+      return res.status(404).json({ success: false, message: "Práctica no encontrada." });
+    }
+    if (req.user?.role === "docent" && String(prCheck[0].docente_cedula) !== String(req.user.cedula)) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permisos para modificar horas en una práctica asignada a otro docente.",
+      });
+    }
+    if (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada") {
       return res.status(400).json({
         success: false,
         message: "No se pueden modificar horas en una práctica finalizada o cancelada. El historial está congelado.",
@@ -1741,8 +1860,17 @@ router.post("/practices/:practiceId/students/:cedula/add-hours", async (req, res
     const { practiceId, cedula } = req.params;
     const { deltaHours } = req.body;
 
-    const prCheck = await queryDB("SELECT estado FROM practica WHERE id = ? LIMIT 1", [practiceId]);
-    if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
+    const prCheck = await queryDB("SELECT id, estado, docente_cedula FROM practica WHERE id = ? LIMIT 1", [practiceId]);
+    if (prCheck.length === 0) {
+      return res.status(404).json({ success: false, message: "Práctica no encontrada." });
+    }
+    if (req.user?.role === "docent" && String(prCheck[0].docente_cedula) !== String(req.user.cedula)) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permisos para modificar horas en una práctica asignada a otro docente.",
+      });
+    }
+    if (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada") {
       return res.status(400).json({
         success: false,
         message: "No se pueden modificar horas en una práctica finalizada o cancelada. El historial está congelado.",
@@ -1798,8 +1926,20 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
       });
     }
 
-    const prCheck = await queryDB("SELECT estado, rubrica_criterios FROM practica WHERE id = ? LIMIT 1", [practica_id]);
-    if (prCheck.length > 0 && (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada")) {
+    const prCheck = await queryDB("SELECT id, estado, docente_cedula, rubrica_criterios FROM practica WHERE id = ? LIMIT 1", [practica_id]);
+    if (prCheck.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Práctica formativa no encontrada.",
+      });
+    }
+    if (req.user?.role === "docent" && String(prCheck[0].docente_cedula) !== String(req.user.cedula)) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permisos para registrar evaluaciones en una práctica asignada a otro docente.",
+      });
+    }
+    if (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada") {
       return res.status(400).json({
         success: false,
         message: "No se pueden modificar calificaciones en una práctica finalizada o cancelada. El historial está congelado.",
@@ -1838,8 +1978,8 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
     let numScore = parseFloat(calificacion);
     if (criterios && typeof criterios === "object") {
       // Calcular a partir de los criterios de la rúbrica
-      const calculatedFromRubric = calculateScoreFromCriteriaMap(criterios, activeRubricIds);
-      if (!isNaN(calculatedFromRubric) && calculatedFromRubric > 0) {
+      const calculatedFromRubric = calculateScoreFromCriteriaMap(criterios, requiredRubricIds);
+      if (calculatedFromRubric !== null && !isNaN(calculatedFromRubric)) {
         numScore = calculatedFromRubric;
       }
     }
@@ -1856,7 +1996,7 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
 
     const criteriosJson = criterios ? JSON.stringify(criterios) : null;
 
-    // Actualizar registro en practica_estudiante
+    // Actualizar registro en practica_estudiante (solo para estudiantes inscritos)
     const updateResult = await queryDB(`
       UPDATE practica_estudiante
       SET 
@@ -1875,17 +2015,10 @@ router.post(["/evaluations", "/students/evaluate"], async (req, res, next) => {
     ]);
 
     if (updateResult.affectedRows === 0) {
-      // Intentar insertar si no estaba previamente asignado
-      await queryDB(`
-        INSERT INTO practica_estudiante (practica_id, estudiante_cedula, estado, calificacion, retroalimentacion, fecha_evaluacion, estado_evaluacion, criterios)
-        VALUES (?, ?, 'Asignado', ?, ?, NOW(), 'Completada', ?)
-      `, [
-        practica_id,
-        estudiante_cedula,
-        roundedScore,
-        retroalimentacion ? retroalimentacion.trim() : "Evaluación de desempeño clínico completada satisfactoriamente.",
-        criteriosJson,
-      ]);
+      return res.status(404).json({
+        success: false,
+        message: "El estudiante no se encuentra inscrito en esta práctica formativa.",
+      });
     }
 
     console.log(`✅ Calificación ${roundedScore}/5.0 guardada para estudiante ${estudiante_cedula} en práctica #${practica_id}.`);
@@ -2113,6 +2246,7 @@ const handleRespondRequest = async (req, res, next) => {
     // 1. Obtener detalles completos de la solicitud y de la práctica asociada
     const reqDetails = await queryDB(`
       SELECT sc.*, 
+             pr.docente_cedula AS practica_docente_cedula,
              pr.estado AS practica_estado,
              pr.fecha_fin AS practica_fecha_fin,
              pr.fecha_inicio AS practica_fecha_inicio,
@@ -2130,7 +2264,7 @@ const handleRespondRequest = async (req, res, next) => {
       LEFT JOIN institucion i ON pr.institucion_id = i.id
       LEFT JOIN servicio s ON pr.servicio_id = s.id
       LEFT JOIN programa prog ON pr.programa_id = prog.id
-      LEFT JOIN docente d ON pr.docente_cedula = d.cedula
+      LEFT JOIN docente d ON COALESCE(pr.docente_cedula, sc.docente_cedula) = d.cedula
       LEFT JOIN estudiante e ON sc.estudiante_cedula = e.cedula
       LEFT JOIN practica_estudiante pe ON sc.practica_id = pe.practica_id AND sc.estudiante_cedula = pe.estudiante_cedula
       WHERE sc.id = ?
@@ -2148,14 +2282,24 @@ const handleRespondRequest = async (req, res, next) => {
 
     // Verificar permisos: si el usuario es docente, debe tener asignada la solicitud o la práctica
     if (req.user?.role === "docent") {
-      const isAssigned = String(sol.docente_cedula) === String(req.user.cedula) ||
-                         (sol.practica_id && String(sol.docente_cedula) === String(req.user.cedula));
-      if (!isAssigned && sol.docente_cedula && String(sol.docente_cedula) !== String(req.user.cedula)) {
+      const userCedulaStr = String(req.user.cedula).trim();
+      const isAssigned =
+        (sol.docente_cedula && String(sol.docente_cedula).trim() === userCedulaStr) ||
+        (sol.practica_docente_cedula && String(sol.practica_docente_cedula).trim() === userCedulaStr);
+      if (!isAssigned) {
         return res.status(403).json({
           success: false,
           message: "No tienes permisos para responder a esta solicitud de certificado (no está asignada a tu cargo).",
         });
       }
+    }
+
+    // Evitar responder dos veces a la misma solicitud y generar duplicados en historial_certificado
+    if (sol.estado && sol.estado !== "Pendiente") {
+      return res.status(400).json({
+        success: false,
+        message: `Esta solicitud ya fue procesada previamente con estado "${sol.estado}".`,
+      });
     }
 
     // Reglas de emisión según estado de la práctica y cláusula de aprobación (>= 3.0) al aprobar:
@@ -2210,73 +2354,75 @@ const handleRespondRequest = async (req, res, next) => {
       }
     }
 
-    await queryDB(`
-      UPDATE solicitud_certificado
-      SET estado = ?, respuesta_docente = ?, fecha_respuesta = NOW()
-      WHERE id = ?
-    `, [estado, respuesta_docente || null, id]);
-
-    // Si se aprueba, registrar automáticamente en historial_certificado con código hexadecimal único
     let hexId = null;
-    if (estado === "Aprobado") {
-      const crypto = require("crypto");
-      hexId = crypto.randomBytes(8).toString("hex").toUpperCase();
-      const estNombre = `${sol.e_nombre || ""} ${sol.e_apellidos || ""}`.trim() || `Estudiante ${sol.estudiante_cedula}`;
-      const docNombre = `${sol.d_nombre || ""} ${sol.d_apellidos || ""}`.trim() || "Docente Tutor UPTC";
+    await withTransaction(async (conn) => {
+      await conn.execute(`
+        UPDATE solicitud_certificado
+        SET estado = ?, respuesta_docente = ?, fecha_respuesta = NOW()
+        WHERE id = ?
+      `, [estado, respuesta_docente || null, id]);
 
-      await queryDB(`
-        INSERT INTO historial_certificado (
-          id_hex,
-          estudiante_cedula,
-          estudiante_nombre,
-          estudiante_codigo,
-          estudiante_correo,
-          practica_id,
-          practica_titulo,
-          programa_nombre,
-          institucion_nombre,
-          servicio_nombre,
-          docente_nombre,
-          docente_cedula,
-          horas_totales,
-          calificacion,
-          periodo,
-          tipo_certificado,
-          categoria_solicitud,
-          motivo,
-          fecha_inicio,
-          fecha_fin,
-          fecha_emision,
-          fecha_expiracion_estudiante,
-          metadatos_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), ?)
-      `, [
-        hexId,
-        sol.estudiante_cedula,
-        estNombre,
-        sol.e_codigo || null,
-        sol.e_correo || null,
-        sol.practica_id,
-        sol.practica_titulo || "Práctica Formativa",
-        sol.programa_nombre || "Medicina",
-        sol.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
-        sol.servicio_nombre || "Servicio Clínico",
-        docNombre,
-        sol.docente_cedula,
-        sol.estudiante_horas_cumplidas || sol.practica_horas || 120,
-        sol.estudiante_calificacion || null,
-        sol.practica_periodo || "2026-1",
-        sol.tipo_certificado,
-        sol.categoria_solicitud || "certificado",
-        sol.motivo || "Aval Docente Oficial",
-        sol.practica_fecha_inicio,
-        sol.practica_fecha_fin,
-        JSON.stringify({
-          solicitud_id: id,
-          respuesta_docente: respuesta_docente,
-        }),
-      ]);
-    }
+      // Si se aprueba, registrar automáticamente en historial_certificado con código hexadecimal único
+      if (estado === "Aprobado") {
+        const crypto = require("crypto");
+        hexId = crypto.randomBytes(8).toString("hex").toUpperCase();
+        const estNombre = `${sol.e_nombre || ""} ${sol.e_apellidos || ""}`.trim() || `Estudiante ${sol.estudiante_cedula}`;
+        const docNombre = `${sol.d_nombre || ""} ${sol.d_apellidos || ""}`.trim() || "Docente Tutor UPTC";
+
+        await conn.execute(`
+          INSERT INTO historial_certificado (
+            id_hex,
+            estudiante_cedula,
+            estudiante_nombre,
+            estudiante_codigo,
+            estudiante_correo,
+            practica_id,
+            practica_titulo,
+            programa_nombre,
+            institucion_nombre,
+            servicio_nombre,
+            docente_nombre,
+            docente_cedula,
+            horas_totales,
+            calificacion,
+            periodo,
+            tipo_certificado,
+            categoria_solicitud,
+            motivo,
+            fecha_inicio,
+            fecha_fin,
+            fecha_emision,
+            fecha_expiracion_estudiante,
+            metadatos_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), ?)
+        `, [
+          hexId,
+          sol.estudiante_cedula,
+          estNombre,
+          sol.e_codigo || null,
+          sol.e_correo || null,
+          sol.practica_id,
+          sol.practica_titulo || "Práctica Formativa",
+          sol.programa_nombre || "Medicina",
+          sol.institucion_nombre || "Hospital Universitario San Rafael de Tunja",
+          sol.servicio_nombre || "Servicio Clínico",
+          docNombre,
+          sol.docente_cedula || sol.practica_docente_cedula,
+          sol.estudiante_horas_cumplidas || sol.practica_horas || 120,
+          sol.estudiante_calificacion || null,
+          sol.practica_periodo || "2026-1",
+          sol.tipo_certificado,
+          sol.categoria_solicitud || "certificado",
+          sol.motivo || "Aval Docente Oficial",
+          sol.practica_fecha_inicio,
+          sol.practica_fecha_fin,
+          JSON.stringify({
+            solicitud_id: id,
+            respuesta_docente: respuesta_docente,
+          }),
+        ]);
+      }
+    });
 
     console.log(`✅ Solicitud #${id} actualizada por el docente a estado: ${estado}${hexId ? ` (ID Hex: ${hexId})` : ""}`);
     res.status(200).json({
@@ -2604,12 +2750,14 @@ router.put("/mark-messages-read", async (req, res, next) => {
 
     if (practiceId) {
       await queryDB(`
-        UPDATE observacion_practica 
-        SET leido = 1 
-        WHERE practica_id = ? 
-          AND autor_rol = 'auditor' 
-          AND leido = 0
-      `, [practiceId]);
+        UPDATE observacion_practica op
+        INNER JOIN practica pr ON op.practica_id = pr.id
+        SET op.leido = 1 
+        WHERE op.practica_id = ? 
+          AND (pr.docente_cedula = ? OR op.docente_cedula = ?)
+          AND op.autor_rol = 'auditor' 
+          AND op.leido = 0
+      `, [practiceId, docentId, docentId]);
     } else {
       await queryDB(`
         UPDATE observacion_practica op
@@ -2779,13 +2927,37 @@ router.get("/student-communication/practices/:practiceId/messages", async (req, 
     const params = [practiceId];
 
     if (studentCedula && studentCedula !== "all") {
-      query += ` AND (med.estudiante_cedula = ? OR med.destinatario_tipo = 'todos')`;
+      query += ` AND (med.estudiante_cedula = ? OR (med.estudiante_cedula IS NULL AND med.destinatario_tipo = 'todos'))`;
       params.push(studentCedula);
     }
 
     query += ` ORDER BY med.created_at ASC, med.id ASC`;
 
-    const rows = await queryDB(query, params);
+    const rawRows = await queryDB(query, params);
+
+    // Si se consulta la vista general ("all" o sin studentCedula), agrupar comunicados masivos ('todos')
+    // que comparten grupo_envio_id para no mostrar N copias en la vista del docente
+    let rows = rawRows;
+    if (!studentCedula || studentCedula === "all") {
+      const seenGroups = new Map();
+      rows = [];
+      for (const r of rawRows) {
+        if (r.destinatario_tipo === "todos" && r.grupo_envio_id) {
+          if (!seenGroups.has(r.grupo_envio_id)) {
+            const clone = { ...r, estudiante_cedula: null, estudiante_nombre_completo: null };
+            seenGroups.set(r.grupo_envio_id, clone);
+            rows.push(clone);
+          } else {
+            const first = seenGroups.get(r.grupo_envio_id);
+            if (!r.leido_por_estudiante) {
+              first.leido_por_estudiante = 0;
+            }
+          }
+        } else {
+          rows.push(r);
+        }
+      }
+    }
 
     // Marcar como leídos por el docente los mensajes de estudiantes
     try {
@@ -2879,35 +3051,71 @@ router.post("/student-communication/practices/:practiceId/messages", async (req,
     let insertedCount = 0;
 
     if (destinatario_tipo === "todos") {
-      // Caso difusión general a toda la práctica: insertar exactamente 1 registro con estudiante_cedula = NULL
-      await queryDB(`
-        INSERT INTO mensaje_estudiante_docente (
-          practica_id,
-          docente_cedula,
-          estudiante_cedula,
-          destinatario_tipo,
-          grupo_envio_id,
-          remitente_rol,
-          remitente_cedula,
-          remitente_nombre,
-          titulo,
-          mensaje,
-          tipo,
-          leido_por_docente,
-          leido_por_estudiante,
-          created_at
-        ) VALUES (?, ?, NULL, 'todos', ?, 'docente', ?, ?, ?, ?, ?, 1, 0, NOW())
-      `, [
-        practiceId,
-        docentId,
-        grupoEnvioId,
-        docentId,
-        docName,
-        finalTitulo,
-        mensaje.trim(),
-        finalTipo,
-      ]);
-      insertedCount = 1;
+      if (targetCedulas.length > 0) {
+        // Insertar 1 registro por cada estudiante inscrito con destinatario_tipo = 'todos'
+        // para que cada estudiante tenga estado de lectura (leido_por_estudiante) independiente
+        for (const stCedula of targetCedulas) {
+          await queryDB(`
+            INSERT INTO mensaje_estudiante_docente (
+              practica_id,
+              docente_cedula,
+              estudiante_cedula,
+              destinatario_tipo,
+              grupo_envio_id,
+              remitente_rol,
+              remitente_cedula,
+              remitente_nombre,
+              titulo,
+              mensaje,
+              tipo,
+              leido_por_docente,
+              leido_por_estudiante,
+              created_at
+            ) VALUES (?, ?, ?, 'todos', ?, 'docente', ?, ?, ?, ?, ?, 1, 0, NOW())
+          `, [
+            practiceId,
+            docentId,
+            stCedula,
+            grupoEnvioId,
+            docentId,
+            docName,
+            finalTitulo,
+            mensaje.trim(),
+            finalTipo,
+          ]);
+          insertedCount++;
+        }
+      } else {
+        // Respaldo si aún no hay estudiantes inscritos en la práctica
+        await queryDB(`
+          INSERT INTO mensaje_estudiante_docente (
+            practica_id,
+            docente_cedula,
+            estudiante_cedula,
+            destinatario_tipo,
+            grupo_envio_id,
+            remitente_rol,
+            remitente_cedula,
+            remitente_nombre,
+            titulo,
+            mensaje,
+            tipo,
+            leido_por_docente,
+            leido_por_estudiante,
+            created_at
+          ) VALUES (?, ?, NULL, 'todos', ?, 'docente', ?, ?, ?, ?, ?, 1, 0, NOW())
+        `, [
+          practiceId,
+          docentId,
+          grupoEnvioId,
+          docentId,
+          docName,
+          finalTitulo,
+          mensaje.trim(),
+          finalTipo,
+        ]);
+        insertedCount = 1;
+      }
     } else if (targetCedulas.length > 0) {
       // Caso estudiantes seleccionados: insertar 1 registro por cada estudiante destinatario
       for (const stCedula of targetCedulas) {
@@ -3105,18 +3313,25 @@ router.post("/practices/:practiceId/students/:cedula/validate", async (req, res,
       }
     }
 
-    // Verificar permisos del docente en la práctica
-    if (req.user?.role === "docent") {
-      const prCheck = await queryDB(
-        "SELECT id FROM practica WHERE id = ? AND docente_cedula = ? LIMIT 1",
-        [practiceId, docentId]
-      );
-      if (prCheck.length === 0) {
-        return res.status(403).json({
-          success: false,
-          message: "No tienes permisos para validar estudiantes en esta práctica.",
-        });
-      }
+    // Verificar permisos del docente y estado de la práctica
+    const prCheck = await queryDB(
+      "SELECT id, estado, docente_cedula FROM practica WHERE id = ? LIMIT 1",
+      [practiceId]
+    );
+    if (prCheck.length === 0) {
+      return res.status(404).json({ success: false, message: "Práctica no encontrada." });
+    }
+    if (req.user?.role === "docent" && String(prCheck[0].docente_cedula) !== String(docentId)) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permisos para validar estudiantes en esta práctica.",
+      });
+    }
+    if (prCheck[0].estado === "Finalizada" || prCheck[0].estado === "Cancelada") {
+      return res.status(400).json({
+        success: false,
+        message: "No se puede modificar el aval de estudiantes en una práctica finalizada o cancelada.",
+      });
     }
 
     const result = await queryDB(

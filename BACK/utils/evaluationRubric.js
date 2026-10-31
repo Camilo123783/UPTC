@@ -348,7 +348,7 @@ function calculateScoreFromCriteriaMap(criteriaMap, activeCriteriaIds = null) {
   if (!criteriaMap || typeof criteriaMap !== "object") return 0.0;
   const targetIds = Array.isArray(activeCriteriaIds) && activeCriteriaIds.length === 10
     ? activeCriteriaIds
-    : Object.keys(criteriaMap);
+    : DEFAULT_RUBRIC_CRITERIA_IDS;
 
   let total = 0;
   for (const id of targetIds) {
@@ -362,7 +362,7 @@ function calculateScoreFromCriteriaMap(criteriaMap, activeCriteriaIds = null) {
       total += 0.1; // Valor base por defecto
     }
   }
-  return Math.round(total * 10) / 10;
+  return Math.min(5.0, Math.max(0.0, Math.round(total * 10) / 10));
 }
 
 module.exports = {

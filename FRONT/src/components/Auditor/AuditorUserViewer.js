@@ -784,7 +784,7 @@ const AuditorUserViewer = () => {
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              setClinicalReportModal({
+                                              pr.estado === "Finalizada" || pr.estado === "Cancelada" ? toast.warning(`Esta práctica ya se encuentra ${pr.estado.toLowerCase()}. Los informes clínicos cerrados no admiten edición.`) : setClinicalReportModal({
                                                 isOpen: true,
                                                 student: {
                                                   ...st,

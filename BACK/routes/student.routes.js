@@ -66,10 +66,38 @@ function checkStudentOwnership(req, res, targetStudentId) {
 }
 
 // ──────────────────────────────────────────────
-// Configuración de Multer (archivos en memoria)
+// Configuración de Multer (archivos en memoria con límites y validación)
 // ──────────────────────────────────────────────
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // Máximo 10 MB por archivo
+  },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const mime = (file.mimetype || "").toLowerCase();
+
+    if (file.fieldname === "foto_perfil") {
+      const allowedImageExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+      const allowedImageMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+      if (allowedImageExts.includes(ext) && allowedImageMimes.includes(mime)) {
+        return cb(null, true);
+      }
+      const err = new Error("La foto de perfil debe ser una imagen válida (.jpg, .jpeg, .png, .webp).");
+      err.statusCode = 400;
+      return cb(err, false);
+    }
+
+    if (ext === ".pdf" && (mime === "application/pdf" || mime === "application/octet-stream")) {
+      return cb(null, true);
+    }
+
+    const err = new Error(`El documento "${file.fieldname}" debe ser un archivo PDF válido (.pdf).`);
+    err.statusCode = 400;
+    return cb(err, false);
+  },
+});
 
 const DOCUMENT_FIELDS_MAP = [
   { name: "foto_perfil",               dbColumn: "foto_perfil",               maxCount: 1 },
@@ -320,10 +348,23 @@ router.get(
   }
 );
 
-// Caché ultrarrápida en memoria RAM para fotos de perfil (tiempo de respuesta < 1ms)
+// Caché ultrarrápida en memoria RAM para fotos de perfil (tiempo de respuesta < 1ms, máximo 100 entradas)
 const photoMemoryCache = new Map();
+const MAX_PHOTO_CACHE_SIZE = 100;
 // Caché negativa en memoria para evitar consultas repetidas a MySQL de estudiantes sin foto
 const missingPhotoCache = new Map();
+
+function setPhotoMemoryCache(studentKey, value) {
+  if (photoMemoryCache.has(studentKey)) {
+    photoMemoryCache.delete(studentKey);
+  } else if (photoMemoryCache.size >= MAX_PHOTO_CACHE_SIZE) {
+    const oldestKey = photoMemoryCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      photoMemoryCache.delete(oldestKey);
+    }
+  }
+  photoMemoryCache.set(studentKey, value);
+}
 
 // ──────────────────────────────────────────────
 // GET /api/student/photo/:studentId
@@ -332,7 +373,10 @@ const missingPhotoCache = new Map();
 router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
   try {
     const { studentId } = req.params;
-    const studentKey = String(studentId);
+    const studentKey = String(studentId || "").trim();
+    if (!/^\d{4,20}$/.test(studentKey)) {
+      return res.status(400).json({ success: false, message: "Identificador de estudiante no válido." });
+    }
 
     // Encabezados CORS y de recursos cruzados para permitir visualización en cualquier <img>
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -379,7 +423,7 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
         }
 
         const etag = `W/"photo-${studentKey}-${fileBuffer.length}"`;
-        photoMemoryCache.set(studentKey, { buffer: fileBuffer, mimeType, etag });
+        setPhotoMemoryCache(studentKey, { buffer: fileBuffer, mimeType, etag });
         missingPhotoCache.delete(studentKey);
 
         if (ifNoneMatch && ifNoneMatch === etag) {
@@ -403,6 +447,10 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
     );
 
     if (rows.length === 0 || !rows[0].foto_perfil) {
+      if (missingPhotoCache.size >= 500) {
+        const oldestMissing = missingPhotoCache.keys().next().value;
+        if (oldestMissing !== undefined) missingPhotoCache.delete(oldestMissing);
+      }
       missingPhotoCache.set(studentKey, Date.now());
       return res.status(404).json({ success: false, message: "Foto no encontrada." });
     }
@@ -412,7 +460,7 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
     const etag = `W/"photo-${studentKey}-${fileBuffer.length}"`;
 
     // Guardar en memoria RAM y en disco
-    photoMemoryCache.set(studentKey, { buffer: fileBuffer, mimeType, etag });
+    setPhotoMemoryCache(studentKey, { buffer: fileBuffer, mimeType, etag });
     missingPhotoCache.delete(studentKey);
 
     try {
@@ -439,13 +487,13 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
 // ──────────────────────────────────────────────
 // POST /api/student/insert
 // ──────────────────────────────────────────────
-router.post("/insert", verifyToken, cpUpload, async (req, res, next) => {
+router.post("/insert", verifyToken, requireRole("student", "admin", "superadmin"), cpUpload, async (req, res, next) => {
   try {
     const { body, files } = req;
-    const cedula = body.cedula;
+    const cedula = body.cedula ? String(body.cedula).trim() : "";
 
-    if (!cedula) {
-      return res.status(400).json({ success: false, message: "Falta el campo cédula del estudiante." });
+    if (!cedula || !/^\d{4,20}$/.test(cedula)) {
+      return res.status(400).json({ success: false, message: "Falta o es inválido el campo cédula del estudiante." });
     }
 
     if (!checkStudentOwnership(req, res, cedula)) return;
@@ -506,7 +554,7 @@ router.post("/insert", verifyToken, cpUpload, async (req, res, next) => {
         const etag = `W/"photo-${studentKey}-${buf.length}"`;
 
         // Actualizar caché en memoria de inmediato
-        photoMemoryCache.set(studentKey, { buffer: buf, mimeType: mime, etag });
+        setPhotoMemoryCache(studentKey, { buffer: buf, mimeType: mime, etag });
         missingPhotoCache.delete(studentKey);
 
         const avatarDir = path.join(__dirname, "../uploads/avatars");
@@ -759,14 +807,18 @@ router.get(["/certificate-requests", "/certificate-requests/:studentId"], verify
         sc.respuesta_docente,
         pr.titulo AS practica_titulo,
         pr.periodo AS practica_periodo,
-        pr.horas_totales,
+        pr.fecha_inicio,
+        pr.fecha_fin,
+        COALESCE(pe.horas_cumplidas, pr.horas_totales) AS horas_totales,
+        pe.calificacion,
         s.nombreservicio AS servicio_nombre,
         i.nombreinstitucion AS institucion_nombre,
         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS docente_nombre,
         d.correo_institucional AS docente_correo,
-        d.foto_firma AS docente_foto_firma
+        CASE WHEN sc.estado = 'Aprobado' THEN d.foto_firma ELSE NULL END AS docente_foto_firma
       FROM solicitud_certificado sc
       LEFT JOIN practica pr ON sc.practica_id = pr.id
+      LEFT JOIN practica_estudiante pe ON sc.practica_id = pe.practica_id AND sc.estudiante_cedula = pe.estudiante_cedula
       LEFT JOIN servicio s ON pr.servicio_id = s.id
       LEFT JOIN institucion i ON pr.institucion_id = i.id
       LEFT JOIN docente d ON COALESCE(sc.docente_cedula, pr.docente_cedula) = d.cedula
@@ -784,7 +836,7 @@ router.get(["/certificate-requests", "/certificate-requests/:studentId"], verify
 // ──────────────────────────────────────────────
 // POST /api/student/certificate-requests
 // ──────────────────────────────────────────────
-router.post("/certificate-requests", verifyToken, async (req, res, next) => {
+router.post("/certificate-requests", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const {
       estudiante_cedula,
@@ -823,6 +875,18 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
 
     const prInfo = prCheck[0];
 
+    // Validar siempre que el estudiante esté asignado a la práctica (tanto para certificados como para reportes)
+    const enrollmentRows = await queryDB(
+      "SELECT id, calificacion, estado_evaluacion FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula = ? LIMIT 1",
+      [practica_id, effectiveCedula]
+    );
+    if (enrollmentRows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: "No estás matriculado ni asignado a esta práctica formativa.",
+      });
+    }
+
     // Regla 1: Práctica cancelada no permite emitir certificados ni reportes
     if (prInfo.estado === "Cancelada") {
       return res.status(400).json({
@@ -854,16 +918,10 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
             "La práctica formativa aún no ha finalizado. No puedes solicitar el Certificado Oficial antes de que finalice la práctica; en su lugar, te recomendamos solicitar un Reporte de Práctica.",
         });
       }
-      const evalCheckEarly = await queryDB(
-        "SELECT calificacion FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula = ?",
-        [practica_id, effectiveCedula]
-      );
+      const rawGrade = enrollmentRows[0].calificacion;
       const gradeVal =
-        evalCheckEarly.length > 0 &&
-        evalCheckEarly[0].calificacion !== null &&
-        evalCheckEarly[0].calificacion !== undefined &&
-        evalCheckEarly[0].calificacion !== ""
-          ? Number(evalCheckEarly[0].calificacion)
+        rawGrade !== null && rawGrade !== undefined && rawGrade !== ""
+          ? Number(rawGrade)
           : null;
       if (gradeVal === null || gradeVal < 3.0) {
         return res.status(400).json({
@@ -875,29 +933,9 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
         });
       }
     }
-    if (!isReport) {
-      const evalCheck = await queryDB(
-        "SELECT calificacion, estado_evaluacion FROM practica_estudiante WHERE practica_id = ? AND estudiante_cedula = ?",
-        [practica_id, effectiveCedula]
-      );
-      const hasGrade =
-        evalCheck.length > 0 &&
-        evalCheck[0].calificacion !== null &&
-        evalCheck[0].calificacion !== undefined &&
-        evalCheck[0].calificacion !== "" &&
-        Number(evalCheck[0].calificacion) > 0;
 
-      if (!hasGrade) {
-        return res.status(400).json({
-          success: false,
-          requiresReport: true,
-          message:
-            "Aún no cuentas con una calificación final registrada por tu docente en esta práctica formativa. No es posible tramitar un Certificado Oficial sin nota. Por favor solicita un Reporte de Práctica.",
-        });
-      }
-    }
-
-    let finalDocenteCedula = docente_cedula || prInfo.docente_cedula;
+    // Usar siempre el docente titular real de la práctica como prioritario
+    const finalDocenteCedula = prInfo.docente_cedula || docente_cedula || null;
 
     const result = await queryDB(`
       INSERT INTO solicitud_certificado (
@@ -913,7 +951,7 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente', NOW())
     `, [
       effectiveCedula,
-      finalDocenteCedula || null,
+      finalDocenteCedula,
       practica_id,
       tipo_certificado,
       finalCategoria,
@@ -935,18 +973,23 @@ router.post("/certificate-requests", verifyToken, async (req, res, next) => {
 // ──────────────────────────────────────────────
 // DELETE /api/student/certificate-requests/:id
 // ──────────────────────────────────────────────
-router.delete("/certificate-requests/:id", verifyToken, async (req, res, next) => {
+router.delete("/certificate-requests/:id", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const { id } = req.params;
     const checkRows = await queryDB(
-      "SELECT id, estudiante_cedula FROM solicitud_certificado WHERE id = ?",
+      "SELECT id, estudiante_cedula, estado FROM solicitud_certificado WHERE id = ?",
       [id]
     );
     if (checkRows.length === 0) {
       return res.status(404).json({ success: false, message: "Solicitud no encontrada." });
     }
-    if (req.user.role === "student" && String(checkRows[0].estudiante_cedula) !== String(req.user.cedula)) {
-      return res.status(403).json({ success: false, message: "No tienes permisos para cancelar esta solicitud de certificado." });
+    if (req.user.role === "student") {
+      if (String(checkRows[0].estudiante_cedula) !== String(req.user.cedula)) {
+        return res.status(403).json({ success: false, message: "No tienes permisos para cancelar esta solicitud de certificado." });
+      }
+      if (checkRows[0].estado !== "Pendiente") {
+        return res.status(400).json({ success: false, message: "Solo puedes cancelar solicitudes que aún se encuentren en estado Pendiente." });
+      }
     }
     await queryDB("DELETE FROM solicitud_certificado WHERE id = ?", [id]);
     res.status(200).json({ success: true, message: "Solicitud cancelada correctamente." });
@@ -989,7 +1032,7 @@ router.get("/communication/practices", verifyToken, async (req, res, next) => {
           SELECT COUNT(*)
           FROM mensaje_estudiante_docente med
           WHERE med.practica_id = pr.id
-            AND (med.estudiante_cedula = ? OR med.destinatario_tipo = 'todos')
+            AND (med.estudiante_cedula = ? OR (med.estudiante_cedula IS NULL AND med.destinatario_tipo = 'todos'))
             AND med.remitente_rol = 'docente'
             AND med.leido_por_estudiante = 0
         ) AS unread_messages_count
@@ -1057,7 +1100,7 @@ router.get("/communication/practices/:practiceId/messages", verifyToken, async (
       FROM mensaje_estudiante_docente med
       LEFT JOIN docente d ON med.docente_cedula = d.cedula
       WHERE med.practica_id = ?
-        AND (med.estudiante_cedula = ? OR med.destinatario_tipo = 'todos')
+        AND (med.estudiante_cedula = ? OR (med.estudiante_cedula IS NULL AND med.destinatario_tipo = 'todos'))
       ORDER BY med.created_at ASC, med.id ASC
     `, [practiceId, studentCedula]);
 
@@ -1067,7 +1110,7 @@ router.get("/communication/practices/:practiceId/messages", verifyToken, async (
         UPDATE mensaje_estudiante_docente
         SET leido_por_estudiante = 1
         WHERE practica_id = ?
-          AND (estudiante_cedula = ? OR destinatario_tipo = 'todos')
+          AND (estudiante_cedula = ? OR (estudiante_cedula IS NULL AND destinatario_tipo = 'todos'))
           AND remitente_rol = 'docente'
           AND leido_por_estudiante = 0
       `, [practiceId, studentCedula]);
@@ -1085,7 +1128,7 @@ router.get("/communication/practices/:practiceId/messages", verifyToken, async (
 // POST /api/student/communication/practices/:practiceId/messages
 // Enviar mensaje o consulta del estudiante al docente de la práctica
 // ──────────────────────────────────────────────
-router.post("/communication/practices/:practiceId/messages", verifyToken, async (req, res, next) => {
+router.post("/communication/practices/:practiceId/messages", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const { practiceId } = req.params;
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.body.estudiante_cedula || req.user.cedula);
@@ -1178,7 +1221,7 @@ router.get("/communication/unread-count", verifyToken, async (req, res, next) =>
       SELECT COUNT(*) AS unreadCount
       FROM mensaje_estudiante_docente med
       INNER JOIN practica_estudiante pe ON med.practica_id = pe.practica_id AND pe.estudiante_cedula = ?
-      WHERE (med.estudiante_cedula = ? OR med.destinatario_tipo = 'todos')
+      WHERE (med.estudiante_cedula = ? OR (med.estudiante_cedula IS NULL AND med.destinatario_tipo = 'todos'))
         AND med.remitente_rol = 'docente'
         AND med.leido_por_estudiante = 0
     `, [studentCedula, studentCedula]);
@@ -1194,7 +1237,7 @@ router.get("/communication/unread-count", verifyToken, async (req, res, next) =>
 // PUT /api/student/communication/mark-read
 // Marcar mensajes como leídos por el estudiante
 // ──────────────────────────────────────────────
-router.put("/communication/mark-read", verifyToken, async (req, res, next) => {
+router.put("/communication/mark-read", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.body.estudiante_cedula || req.user.cedula);
     const { practiceId } = req.body || {};
@@ -1202,7 +1245,7 @@ router.put("/communication/mark-read", verifyToken, async (req, res, next) => {
     let query = `
       UPDATE mensaje_estudiante_docente
       SET leido_por_estudiante = 1
-      WHERE (estudiante_cedula = ? OR destinatario_tipo = 'todos')
+      WHERE (estudiante_cedula = ? OR (estudiante_cedula IS NULL AND destinatario_tipo = 'todos'))
         AND remitente_rol = 'docente'
         AND leido_por_estudiante = 0
     `;
@@ -1224,7 +1267,7 @@ router.put("/communication/mark-read", verifyToken, async (req, res, next) => {
 // DELETE /api/student/communication/messages/:id
 // Eliminar mensaje enviado por el estudiante (máximo 5 minutos)
 // ──────────────────────────────────────────────
-router.delete("/communication/messages/:id", verifyToken, async (req, res, next) => {
+router.delete("/communication/messages/:id", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const { id } = req.params;
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.query.studentId || req.user.cedula);

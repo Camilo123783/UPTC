@@ -161,11 +161,16 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
         const userData = data.user;
         const userRole = data.role;
 
-        // Comprobar si hay un progreso guardado para restaurar la vista previa a la inactividad
+        // Comprobar si hay un progreso guardado del mismo rol/usuario para restaurar la vista previa a la inactividad
         const savedProg = getSavedProgress();
         let targetPage = "dashboard";
 
-        if (savedProg && savedProg.isValid) {
+        if (
+          savedProg &&
+          savedProg.isValid &&
+          (!savedProg.userRole || savedProg.userRole === userRole) &&
+          (!savedProg.userData?.cedula || String(savedProg.userData.cedula) === String(userData.cedula))
+        ) {
           targetPage = savedProg.currentPage || "dashboard";
         }
 

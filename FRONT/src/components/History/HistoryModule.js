@@ -53,7 +53,7 @@ const formatDateReadable = (dateStr) => {
 const HistoryModule = ({ userRole }) => {
   const { isDark } = useTheme();
 
-  if (userRole === "superadmin") {
+  if (false && userRole === "superadmin") {
     return (
       <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
         <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
@@ -111,7 +111,7 @@ const HistoryModule = ({ userRole }) => {
   }, []);
 
   useEffect(() => {
-    fetchHistory();
+    if (userRole !== "superadmin") fetchHistory();
   }, [fetchHistory]);
 
   // Sincronización manual para administradores
@@ -239,6 +239,18 @@ const HistoryModule = ({ userRole }) => {
   };
 
   // Función para imprimir el expediente actual
+  if (userRole === "superadmin") {
+    return (
+      <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
+        <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acceso No Autorizado</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+          El rol Superadministrador no tiene acceso al módulo de historial.
+        </p>
+      </div>
+    );
+  }
+
   const handlePrint = () => {
     window.print();
   };

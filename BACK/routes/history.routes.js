@@ -12,9 +12,10 @@ const { syncAllFinishedAndCancelledPractices, archivePractice } = require("../se
 /**
  * GET /api/history
  * Lista las prácticas archivadas (finalizadas o canceladas).
- * - Administradores / Superadministradores: ven todas las prácticas archivadas.
+ * - Administradores: ven todas las prácticas archivadas.
  * - Docentes: ven las prácticas finalizadas o canceladas que hayan tenido asignadas.
- * - Estudiantes: ven las prácticas finalizadas o canceladas donde estuvieron vinculados.
+ * - Estudiantes: ven las prácticas finalizadas o canceladas donde estuvieron vinculados (sin datos de otros compañeros).
+ * - Auditores: ven las prácticas archivadas de su institución o asignadas a su cédula.
  */
 router.get("/", verifyToken, async (req, res, next) => {
   try {
@@ -149,8 +150,7 @@ router.get("/", verifyToken, async (req, res, next) => {
         WHERE hpe.estudiante_cedula = ?
         ORDER BY hp.fecha_archivo DESC, hp.id DESC
       `, [cedula]);
-    } else {
-      // Otros roles (ej. auditor)
+    } else if (role === "auditor") {
       rows = await queryDB(`
         SELECT 
           hp.id,
@@ -164,6 +164,7 @@ router.get("/", verifyToken, async (req, res, next) => {
           hp.estado,
           hp.motivo_cancelacion,
           hp.descripcion,
+          hp.horario,
           hp.programa_id,
           hp.programa_nombre,
           hp.asignatura_id,
@@ -187,8 +188,11 @@ router.get("/", verifyToken, async (req, res, next) => {
           hp.fecha_archivo
         FROM historial_practica hp
         WHERE hp.auditor_cedula = ?
+           OR hp.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1)
         ORDER BY hp.fecha_archivo DESC, hp.id DESC
-      `, [cedula]);
+      `, [cedula, cedula]);
+    } else {
+      return res.status(403).json({ success: false, message: "Acceso denegado al módulo de historial." });
     }
 
     // Parsear campos JSON serializados
@@ -206,10 +210,18 @@ router.get("/", verifyToken, async (req, res, next) => {
         parsedAsistencias = null;
       }
 
-      // Si el rol es estudiante, podemos adjuntar los detalles específicos de ese estudiante
+      // Si el rol es estudiante, filtrar estrictamente para que solo vea su propio registro y no las notas/teléfonos de sus compañeros
       let miDetalle = null;
       if (role === "student") {
         miDetalle = parsedEstudiantes.find((st) => String(st.cedula) === String(cedula)) || null;
+        const sanitizedRow = { ...r };
+        delete sanitizedRow.estudiantes_info;
+        return {
+          ...sanitizedRow,
+          estudiantes: miDetalle ? [miDetalle] : [],
+          asistencias: parsedAsistencias,
+          miDetalle,
+        };
       }
 
       return {
@@ -239,6 +251,13 @@ router.get("/:id", verifyToken, async (req, res, next) => {
     const { id } = req.params;
     const { role, cedula } = req.user;
 
+    if (role === "superadmin") {
+      return res.status(403).json({
+        success: false,
+        message: "El rol Superadministrador no tiene acceso al módulo de historial.",
+      });
+    }
+
     const rows = await queryDB(`
       SELECT * FROM historial_practica 
       WHERE id = ? OR practica_id = ? 
@@ -254,12 +273,25 @@ router.get("/:id", verifyToken, async (req, res, next) => {
 
     const row = rows[0];
 
-    // Validar autorización
+    // Validar autorización por rol
     if (role === "docent" && String(row.docente_cedula) !== String(cedula)) {
       return res.status(403).json({
         success: false,
         message: "Acceso denegado. No eres el docente asignado a esta práctica archivada.",
       });
+    }
+
+    if (role === "auditor") {
+      const audRows = await queryDB("SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1", [cedula]);
+      const auditorInstId = audRows[0]?.institucion_id;
+      const isDirectAuditor = row.auditor_cedula && String(row.auditor_cedula) === String(cedula);
+      const isSameInstitution = auditorInstId && row.institucion_id && Number(row.institucion_id) === Number(auditorInstId);
+      if (!isDirectAuditor && !isSameInstitution) {
+        return res.status(403).json({
+          success: false,
+          message: "Acceso denegado. Esta práctica archivada no pertenece a tu institución hospitalaria.",
+        });
+      }
     }
 
     if (role === "student") {
@@ -293,6 +325,17 @@ router.get("/:id", verifyToken, async (req, res, next) => {
     let miDetalle = null;
     if (role === "student") {
       miDetalle = parsedEstudiantes.find((st) => String(st.cedula) === String(cedula)) || null;
+      const sanitizedRow = { ...row };
+      delete sanitizedRow.estudiantes_info;
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...sanitizedRow,
+          estudiantes: miDetalle ? [miDetalle] : [],
+          asistencias: parsedAsistencias,
+          miDetalle,
+        },
+      });
     }
 
     res.status(200).json({
@@ -339,7 +382,7 @@ const generateHexId = () => {
  * GET /api/history/certificates
  * Consulta de certificados en el historial:
  * - Estudiantes: Solo ven sus certificados vigentes (máximo 1 año desde emisión).
- * - Administradores / Superadministradores: Ven todos los certificados permanentemente (para siempre) con buscador y filtros.
+ * - Administradores: Ven todos los certificados permanentemente (para siempre) con buscador y filtros.
  * - Docentes: Ven los certificados de las prácticas bajo su tutoría.
  */
 router.get("/certificates/list", verifyToken, async (req, res, next) => {
@@ -741,4 +784,3 @@ router.get("/certificates/verify/:hexId", async (req, res, next) => {
 });
 
 module.exports = router;
-

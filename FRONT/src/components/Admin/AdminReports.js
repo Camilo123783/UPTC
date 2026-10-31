@@ -750,7 +750,8 @@ const AdminReports = () => {
     let dataToExport = [];
     let filenamePrefix = "";
 
-    switch (generalReportType) {
+    const effectiveReportType = activeTab === "estudiantes" ? "activeStudents" : activeTab === "docentes" ? "activeDocents" : generalReportType;
+    switch (effectiveReportType) {
       case "activeStudents":
         dataToExport = activeStudentsList.map((s) => ({
           "Cédula": s.cedula,

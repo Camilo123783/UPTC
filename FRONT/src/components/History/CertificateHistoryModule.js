@@ -55,7 +55,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
     return String(stored).toLowerCase();
   }, [propRole, user]);
 
-  if (userRole === "superadmin") {
+  if (false && userRole === "superadmin") {
     return (
       <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
         <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
@@ -157,7 +157,7 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
   }, [searchTerm, programFilter, periodFilter, typeFilter, statusFilter]);
 
   useEffect(() => {
-    fetchCertificates();
+    if (userRole !== "superadmin") fetchCertificates();
   }, [fetchCertificates]);
 
   // Copiar código hexadecimal
@@ -262,6 +262,18 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
       passingGrades,
     };
   }, [certificates]);
+
+  if (userRole === "superadmin") {
+    return (
+      <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
+        <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acceso No Autorizado</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+          El rol Superadministrador no tiene acceso al módulo de historial de certificados.
+        </p>
+      </div>
+    );
+  }
 
   const formatDateReadable = (dateStr) => {
     if (!dateStr) return "N/A";
