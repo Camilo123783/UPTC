@@ -89,8 +89,8 @@ const ROLE_TABLES_MAP = [
   {
     tableName: "docente",
     roleName: "docent",
-    dataTable: "datos_docente",
-    dataCedulaCol: "cedula_docente",
+    dataTable: null,
+    dataCedulaCol: null,
     nameCol: "nombre",
     apellidoCol: "apellidos",
     emailCol: "T1.correo_institucional",

@@ -985,7 +985,6 @@ router.get("/communication/practices", verifyToken, async (req, res, next) => {
         pr.docente_cedula,
         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS docente_nombre,
         d.correo_institucional AS docente_correo,
-        dd.telefono AS docente_telefono,
         (
           SELECT COUNT(*)
           FROM mensaje_estudiante_docente med
@@ -999,7 +998,6 @@ router.get("/communication/practices", verifyToken, async (req, res, next) => {
       LEFT JOIN institucion i ON pr.institucion_id = i.id
       LEFT JOIN servicio s ON pr.servicio_id = s.id
       LEFT JOIN docente d ON pr.docente_cedula = d.cedula
-      LEFT JOIN datos_docente dd ON pr.docente_cedula = dd.cedula_docente
       WHERE pe.estudiante_cedula = ?
       ORDER BY pr.fecha_inicio DESC, pr.id DESC
     `, [studentCedula, studentCedula]);
