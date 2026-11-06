@@ -5,11 +5,61 @@
 
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
 const { queryDB, withTransaction, getColombiaToday } = require("../config/db");
 const { verifyToken, requireRole } = require("../middleware/auth");
 const { archivePractice } = require("../services/history.service");
 const { syncPracticeStatuses, calculatePracticeStatus } = require("../services/practiceSync.service");
 const { validateRubricCriteriaSelection, calculateScoreFromCriteriaMap, DEFAULT_RUBRIC_CRITERIA_IDS } = require("../utils/evaluationRubric");
+
+// Multer en memoria para documentos y fotos del docente
+const docentStorage = multer.memoryStorage();
+const uploadDocent = multer({
+  storage: docentStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const mime = (file.mimetype || "").toLowerCase();
+
+    if (file.fieldname === "foto_perfil" || file.fieldname === "foto_firma") {
+      const allowedImageExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+      const allowedImageMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+      if (allowedImageExts.includes(ext) && allowedImageMimes.includes(mime)) {
+        return cb(null, true);
+      }
+      const err = new Error("La imagen debe ser válida (.jpg, .jpeg, .png, .webp).");
+      err.statusCode = 400;
+      return cb(err, false);
+    }
+
+    if (ext === ".pdf" && (mime === "application/pdf" || mime === "application/octet-stream")) {
+      return cb(null, true);
+    }
+
+    const err = new Error(`El soporte "${file.fieldname}" debe ser un archivo PDF válido (.pdf).`);
+    err.statusCode = 400;
+    return cb(err, false);
+  },
+});
+
+const DOCENT_DOCUMENT_FIELDS_MAP = [
+  { name: "foto_perfil",               dbColumn: "foto_perfil",               maxCount: 1 },
+  { name: "foto_firma",                dbColumn: "foto_firma",                maxCount: 1 },
+  { name: "hoja_vida_digital",         dbColumn: "hoja_vida_digital",         maxCount: 1 },
+  { name: "seguridad_social_eps",      dbColumn: "seguridad_social_eps",      maxCount: 1 },
+  { name: "riesgos_profesionales_arl", dbColumn: "riesgos_profesionales_arl", maxCount: 1 },
+  { name: "copia_documento_identidad", dbColumn: "copia_documento_identidad", maxCount: 1 },
+  { name: "copia_carnet_docente",      dbColumn: "copia_carnet_docente",      maxCount: 1 },
+  { name: "copia_carnet_estudiantil",  dbColumn: "copia_carnet_docente",      maxCount: 1 },
+  { name: "carnet_vacunas",            dbColumn: "carnet_vacunas",            maxCount: 1 },
+];
+
+const cpUploadDocent = uploadDocent.fields(
+  DOCENT_DOCUMENT_FIELDS_MAP.map((f) => ({ name: f.name, maxCount: f.maxCount }))
+);
 
 // Caché ultrarrápida en memoria RAM para fotos de perfil de docentes (< 1ms)
 const docentPhotoMemoryCache = new Map();
@@ -111,26 +161,80 @@ router.get("/photo/:docentId", async (req, res, next) => {
   }
 });
 
-// El resto de rutas de gestión docente requieren autenticación con JWT y rol específico
+// Autenticación obligatoria con JWT
 router.use(verifyToken);
-router.use(requireRole("docent", "admin", "superadmin"));
+
+/**
+ * Helper para verificar permisos de acceso a los datos de un docente.
+ * - docent: solo puede acceder a su propio perfil.
+ * - admin / superadmin: acceso irrestricto.
+ * - auditor: acceso si el docente está asignado a alguna de sus prácticas o a su misma institución.
+ */
+async function checkDocentAccess(req, res, targetDocentCedula) {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ success: false, message: "No autenticado." });
+    return false;
+  }
+  const cleanTarget = String(targetDocentCedula || "").trim();
+  if (!cleanTarget) {
+    res.status(400).json({ success: false, message: "Cédula del docente no especificada." });
+    return false;
+  }
+
+  if (user.role === "admin" || user.role === "superadmin") {
+    return true;
+  }
+  if (user.role === "docent") {
+    if (String(user.cedula).trim() !== cleanTarget) {
+      res.status(403).json({ success: false, message: "Acceso denegado: solo puedes consultar tu propia información." });
+      return false;
+    }
+    return true;
+  }
+  if (user.role === "auditor") {
+    const rel = await queryDB(
+      `SELECT 1 FROM practica pr 
+       WHERE (pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+         AND pr.docente_cedula = ?
+       UNION
+       SELECT 1 FROM historial_practica hp 
+       WHERE (hp.auditor_cedula = ? OR hp.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+         AND hp.docente_cedula = ? LIMIT 1`,
+      [user.cedula, user.cedula, cleanTarget, user.cedula, user.cedula, cleanTarget]
+    );
+    if (rel.length === 0) {
+      res.status(403).json({ success: false, message: "Acceso denegado: este docente no está asignado a tus prácticas o institución." });
+      return false;
+    }
+    return true;
+  }
+  res.status(403).json({ success: false, message: "Acceso prohibido para este rol." });
+  return false;
+}
+
+/**
+ * Helper para obtener el docentId legítimo:
+ * Si el usuario es docente, se fuerza a su propia cédula del JWT para evitar IDOR.
+ */
+function getEffectiveDocentId(req) {
+  if (req.user?.role === "docent") {
+    return req.user.cedula;
+  }
+  return req.params.docentId || req.query.docentId || req.user?.cedula;
+}
 
 // ──────────────────────────────────────────────
 // GET /api/docent/signature/:docentId
-// Servir la firma digital del docente para emisión y descarga de certificados
-// Requiere rol docent (solo su propia firma), admin o superadmin
+// Servir la firma digital del docente
 // ──────────────────────────────────────────────
 router.get("/signature/:docentId", async (req, res, next) => {
   try {
     const { docentId } = req.params;
     const docentKey = String(docentId).trim();
 
-    if (req.user?.role === "docent" && String(req.user.cedula).trim() !== docentKey) {
-      return res.status(403).json({
-        success: false,
-        message: "No tienes permisos para consultar la firma digital de otro docente.",
-      });
-    }
+    const hasAccess = await checkDocentAccess(req, res, docentKey);
+    if (!hasAccess) return;
 
     const rows = await queryDB(
       "SELECT foto_firma FROM docente WHERE cedula = ? LIMIT 1",
@@ -150,31 +254,33 @@ router.get("/signature/:docentId", async (req, res, next) => {
   }
 });
 
-/**
- * Helper para obtener el docentId legítimo:
- * Si el usuario es docente, se fuerza a su propia cédula del JWT para evitar IDOR.
- */
-function getEffectiveDocentId(req) {
-  if (req.user?.role === "docent") {
-    return req.user.cedula;
-  }
-  return req.params.docentId || req.query.docentId || req.user?.cedula;
-}
-
 // ──────────────────────────────────────────────
-// GET /api/docent/profile
-// Obtener información institucional del docente, su foto de perfil y su firma digital
+// GET /api/docent/profile & GET /api/docent/profile/:docentId
+// Obtener información institucional del docente y sus soportes
 // ──────────────────────────────────────────────
-router.get("/profile", async (req, res, next) => {
+router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
   try {
-    const docentId = getEffectiveDocentId(req);
+    const docentId = req.params.docentId || getEffectiveDocentId(req);
     if (!docentId) {
       return res.status(400).json({ success: false, message: "Cédula del docente no especificada." });
     }
+    const hasAccess = await checkDocentAccess(req, res, docentId);
+    if (!hasAccess) return;
+
     const rows = await queryDB(
       `SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, 
-              d.foto_perfil, d.foto_firma, p.nombreprograma 
+              d.foto_perfil, d.foto_firma, d.especialidad, p.nombreprograma,
+              COALESCE(dd.biografia, d.biografia) AS biografia,
+              COALESCE(dd.telefono, d.telefono) AS telefono,
+              dd.direccion, dd.correo_personal, dd.nombre_familiar, dd.telefono_familiar,
+              (dd.hoja_vida_digital IS NOT NULL) AS has_cv,
+              (dd.seguridad_social_eps IS NOT NULL) AS has_eps,
+              (dd.riesgos_profesionales_arl IS NOT NULL) AS has_arl,
+              (dd.copia_documento_identidad IS NOT NULL) AS has_id,
+              (dd.copia_carnet_docente IS NOT NULL) AS has_carnet,
+              (dd.carnet_vacunas IS NOT NULL) AS has_vaccines
        FROM docente d 
+       LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
        LEFT JOIN programa p ON d.programa_id = p.id 
        WHERE d.cedula = ? LIMIT 1`,
       [docentId]
@@ -193,10 +299,23 @@ router.get("/profile", async (req, res, next) => {
         nombre_completo: `${doc.nombre} ${doc.apellidos}`.trim(),
         correo_institucional: doc.correo_institucional,
         programa: doc.nombreprograma || "Facultad de Ciencias de la Salud",
+        especialidad: doc.especialidad || null,
+        biografia: doc.biografia || null,
+        telefono: doc.telefono || null,
+        direccion: doc.direccion || null,
+        correo_personal: doc.correo_personal || null,
+        nombre_familiar: doc.nombre_familiar || null,
+        telefono_familiar: doc.telefono_familiar || null,
         foto_perfil: doc.foto_perfil || null,
         foto_firma: doc.foto_firma || null,
         has_signature: Boolean(doc.foto_firma),
         has_photo: Boolean(doc.foto_perfil),
+        has_cv: Boolean(doc.has_cv),
+        has_eps: Boolean(doc.has_eps),
+        has_arl: Boolean(doc.has_arl),
+        has_id: Boolean(doc.has_id),
+        has_carnet: Boolean(doc.has_carnet),
+        has_vaccines: Boolean(doc.has_vaccines),
       },
     });
   } catch (err) {
@@ -205,10 +324,282 @@ router.get("/profile", async (req, res, next) => {
 });
 
 // ──────────────────────────────────────────────
+// GET /api/docent/details & GET /api/docent/details/:docentId
+// Expediente completo con datos personales y estado de soportes
+// ──────────────────────────────────────────────
+router.get(["/details", "/details/:docentId"], async (req, res, next) => {
+  try {
+    const targetCedula = req.params.docentId || (req.user?.role === "docent" ? req.user.cedula : (req.query.docentId || req.user?.cedula));
+    if (!targetCedula) {
+      return res.status(400).json({ success: false, message: "Cédula del docente no especificada." });
+    }
+
+    const hasAccess = await checkDocentAccess(req, res, targetCedula);
+    if (!hasAccess) return;
+
+    const rows = await queryDB(
+      `SELECT 
+         d.id,
+         d.cedula,
+         d.nombre,
+         d.apellidos,
+         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS fullName,
+         d.correo_institucional AS email,
+         d.especialidad,
+         p.nombreprograma AS career,
+         COALESCE(dd.biografia, d.biografia) AS bio,
+         dd.direccion AS address,
+         COALESCE(dd.telefono, d.telefono) AS phone,
+         dd.correo_personal AS personalEmail,
+         dd.nombre_familiar AS familyContactName,
+         dd.telefono_familiar AS familyContactPhone,
+         (dd.hoja_vida_digital IS NOT NULL) AS cvDigital,
+         (dd.seguridad_social_eps IS NOT NULL) AS socialSecurity,
+         (dd.riesgos_profesionales_arl IS NOT NULL) AS professionalRisks,
+         (dd.copia_documento_identidad IS NOT NULL) AS idCopy,
+         (dd.copia_carnet_docente IS NOT NULL) AS carnetCopy,
+         (dd.carnet_vacunas IS NOT NULL) AS vaccines,
+         (d.foto_perfil IS NOT NULL OR dd.foto_perfil IS NOT NULL) AS has_photo,
+         (d.foto_firma IS NOT NULL) AS has_signature,
+         CASE WHEN (d.foto_perfil IS NOT NULL OR dd.foto_perfil IS NOT NULL)
+           THEN CONCAT('/api/docent/photo/', d.cedula)
+           ELSE NULL
+         END AS photoPreview,
+         d.foto_firma AS foto_firma
+       FROM docente d
+       LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+       LEFT JOIN programa p ON d.programa_id = p.id
+       WHERE d.cedula = ?
+       LIMIT 1`,
+      [targetCedula]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Docente no encontrado.", data: null });
+    }
+
+    const raw = rows[0];
+    const data = {
+      ...raw,
+      cvDigital: !!raw.cvDigital,
+      socialSecurity: !!raw.socialSecurity,
+      professionalRisks: !!raw.professionalRisks,
+      idCopy: !!raw.idCopy,
+      carnetCopy: !!raw.carnetCopy,
+      vaccines: !!raw.vaccines,
+    };
+
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/docent/insert
+// Guardar expediente del docente (datos personales y soportes PDF)
+// ──────────────────────────────────────────────
+router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDocent, async (req, res, next) => {
+  try {
+    const { body, files } = req;
+    const cedula = body.cedula ? String(body.cedula).trim() : (req.user?.role === "docent" ? String(req.user.cedula).trim() : "");
+
+    if (!cedula || !/^\d{1,20}$/.test(cedula)) {
+      return res.status(400).json({ success: false, message: "Falta o es inválido el campo cédula del docente." });
+    }
+
+    if (req.user.role === "docent" && String(req.user.cedula).trim() !== cedula) {
+      return res.status(403).json({ success: false, message: "Acceso denegado: solo puedes modificar tus propios datos." });
+    }
+
+    const textFieldsMap = [
+      { frontend: "biografia",          db: "biografia" },
+      { frontend: "direccion",          db: "direccion" },
+      { frontend: "telefono",           db: "telefono" },
+      { frontend: "correo_personal",    db: "correo_personal" },
+      { frontend: "nombre_familiar",    db: "nombre_familiar" },
+      { frontend: "telefono_familiar",  db: "telefono_familiar" },
+    ];
+
+    let fieldNames = ["cedula_docente"];
+    let fieldValues = [cedula];
+
+    // Campos de texto
+    textFieldsMap.forEach(({ frontend, db }) => {
+      const value = body[frontend] === "" || body[frontend] === undefined ? null : body[frontend];
+      fieldNames.push(db);
+      fieldValues.push(value);
+    });
+
+    // Manejo de archivos (BLOB)
+    DOCENT_DOCUMENT_FIELDS_MAP.forEach(({ name, dbColumn }) => {
+      const fileArray = files?.[name];
+      const fileBuffer = fileArray?.length > 0 ? fileArray[0].buffer : null;
+      if (fileBuffer) {
+        fieldNames.push(dbColumn);
+        fieldValues.push(fileBuffer);
+      }
+    });
+
+    const placeholders = fieldNames.map(() => "?").join(", ");
+    const updateClauses = fieldNames
+      .filter((f) => f !== "cedula_docente")
+      .map((field) => `${field} = VALUES(${field})`)
+      .join(", ");
+
+    await queryDB(`
+      INSERT INTO datos_docente (${fieldNames.join(", ")})
+      VALUES (${placeholders})
+      ON DUPLICATE KEY UPDATE ${updateClauses}
+    `, fieldValues);
+
+    // Sincronizar en tabla 'docente' los campos: telefono, biografia, foto_perfil, foto_firma
+    const docenteUpdates = [];
+    const docenteValues = [];
+
+    if (body.telefono !== undefined) {
+      docenteUpdates.push("telefono = ?");
+      docenteValues.push(body.telefono || null);
+    }
+    if (body.biografia !== undefined) {
+      docenteUpdates.push("biografia = ?");
+      docenteValues.push(body.biografia || null);
+    }
+    if (files?.foto_perfil?.[0]?.buffer) {
+      docenteUpdates.push("foto_perfil = ?");
+      docenteValues.push(files.foto_perfil[0].buffer);
+      docentPhotoMemoryCache.delete(cedula);
+    } else if (body.foto_perfil) {
+      docenteUpdates.push("foto_perfil = ?");
+      docenteValues.push(body.foto_perfil);
+      docentPhotoMemoryCache.delete(cedula);
+    }
+    if (files?.foto_firma?.[0]?.buffer) {
+      docenteUpdates.push("foto_firma = ?");
+      docenteValues.push(files.foto_firma[0].buffer.toString("base64"));
+    } else if (body.foto_firma) {
+      docenteUpdates.push("foto_firma = ?");
+      docenteValues.push(body.foto_firma);
+    }
+
+    if (docenteUpdates.length > 0) {
+      docenteValues.push(cedula);
+      await queryDB(`UPDATE docente SET ${docenteUpdates.join(", ")} WHERE cedula = ?`, docenteValues);
+    }
+
+    console.log(`✅ Perfil docente guardado/actualizado correctamente para ${cedula}`);
+    res.status(201).json({
+      success: true,
+      message: "Datos y soportes del docente guardados correctamente.",
+      photoUrl: `/api/docent/photo/${cedula}?t=${Date.now()}`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/docent/download/:docentId/:columnName
+// Descarga / visualización de documentos oficiales del docente
+// ──────────────────────────────────────────────
+router.get(
+  [
+    "/download/:docentId/:columnName",
+    "/view/:docentId/:columnName",
+    "/documents/:docentId/:columnName",
+    "/document/:docentId/:columnName",
+  ],
+  async (req, res, next) => {
+    try {
+      const { docentId, columnName } = req.params;
+      const allowedCols = [
+        "foto_perfil",
+        "foto_firma",
+        "hoja_vida_digital",
+        "seguridad_social_eps",
+        "riesgos_profesionales_arl",
+        "copia_documento_identidad",
+        "copia_carnet_docente",
+        "carnet_vacunas",
+      ];
+
+      const col = columnName === "copia_carnet_estudiantil" ? "copia_carnet_docente" : columnName;
+      if (!allowedCols.includes(col)) {
+        return res.status(400).json({ success: false, message: "Nombre de soporte no válido." });
+      }
+
+      const hasAccess = await checkDocentAccess(req, res, docentId);
+      if (!hasAccess) return;
+
+      const rows = await queryDB(
+        `SELECT ${col} AS fileData FROM datos_docente WHERE cedula_docente = ? LIMIT 1`,
+        [docentId]
+      );
+
+      let fileBuffer = rows[0]?.fileData;
+
+      // Si no está en datos_docente y es foto_perfil o foto_firma, consultar tabla docente
+      if (!fileBuffer && (col === "foto_perfil" || col === "foto_firma")) {
+        const dRows = await queryDB(`SELECT ${col} AS f FROM docente WHERE cedula = ? LIMIT 1`, [docentId]);
+        if (dRows[0]?.f) {
+          const raw = dRows[0].f;
+          if (typeof raw === "string" && raw.startsWith("data:")) {
+            const b64 = raw.split(",")[1];
+            fileBuffer = Buffer.from(b64, "base64");
+          } else if (typeof raw === "string") {
+            fileBuffer = Buffer.from(raw, "base64");
+          } else if (Buffer.isBuffer(raw)) {
+            fileBuffer = raw;
+          }
+        }
+      }
+
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(404).json({ success: false, message: "Documento no encontrado o vacío." });
+      }
+
+      const isInline =
+        req.query.view === "true" ||
+        req.query.inline === "true" ||
+        req.path.includes("/view/") ||
+        req.path.includes("/document/") ||
+        req.path.includes("/documents/");
+
+      let mimeType = "application/pdf";
+      let fileExt = "pdf";
+
+      if (fileBuffer[0] === 0x25 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x44 && fileBuffer[3] === 0x46) {
+        mimeType = "application/pdf";
+        fileExt = "pdf";
+      } else if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x4E && fileBuffer[3] === 0x47) {
+        mimeType = "image/png";
+        fileExt = "png";
+      } else if (fileBuffer[0] === 0xff && fileBuffer[1] === 0xd8) {
+        mimeType = "image/jpeg";
+        fileExt = "jpg";
+      } else if (fileBuffer[0] === 0x52 && fileBuffer[1] === 0x49 && fileBuffer[2] === 0x46 && fileBuffer[3] === 0x46) {
+        mimeType = "image/webp";
+        fileExt = "webp";
+      }
+
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader(
+        "Content-Disposition",
+        `${isInline ? "inline" : "attachment"}; filename="${col}_${docentId}.${fileExt}"`
+      );
+      res.setHeader("Content-Length", fileBuffer.length);
+      res.end(fileBuffer);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ──────────────────────────────────────────────
 // PUT /api/docent/profile
 // Actualizar únicamente foto de perfil y/o foto de la firma
 // ──────────────────────────────────────────────
-router.put("/profile", async (req, res, next) => {
+router.put("/profile", requireRole("docent", "admin", "superadmin"), async (req, res, next) => {
   try {
     const docentId = getEffectiveDocentId(req);
     if (!docentId) {
@@ -251,6 +642,9 @@ router.put("/profile", async (req, res, next) => {
     next(err);
   }
 });
+
+// El resto de rutas operativas de práctica requieren rol docente o administrador
+router.use(requireRole("docent", "admin", "superadmin"));
 
 // ──────────────────────────────────────────────
 // GET /api/docent/pending-documents-count

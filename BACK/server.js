@@ -223,6 +223,14 @@ app.listen(PORT, () => {
     console.warn("Aviso al invocar migración v5:", err.message);
   }
 
+  // Asegurar migración de tabla 'datos_docente'
+  try {
+    const { runMigration: runMigrationV6 } = require("./migrations/migrate_v6_datos_docente");
+    runMigrationV6().catch((e) => console.warn("Aviso en migración v6:", e.message));
+  } catch (err) {
+    console.warn("Aviso al invocar migración v6:", err.message);
+  }
+
   // Sincronización automática de prácticas (inicial y periódica cada 15 min)
   try {
     const { syncPracticeStatuses } = require("./services/practiceSync.service");

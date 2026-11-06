@@ -31,10 +31,12 @@ import {
   FileSpreadsheet,
   Download,
   FileText,
+  Eye,
 } from "lucide-react";
 import StudentAvatar from "../Shared/StudentAvatar";
 import DocentAvatar from "../Shared/DocentAvatar";
 import StudentFichaModal from "../Shared/StudentFichaModal";
+import DocentFichaModal from "../Shared/DocentFichaModal";
 import ClinicalReportModal from "./ClinicalReportModal";
 import { generateCsv } from "../../utils/reportGenerator";
 import toast from "../../utils/toast";
@@ -54,6 +56,9 @@ const AuditorUserViewer = () => {
 
   // Modal para ver ficha completa e integral de un estudiante
   const [selectedStudentForFicha, setSelectedStudentForFicha] = useState(null);
+
+  // Modal para ver ficha completa e integral del docente a cargo
+  const [selectedDocentForFicha, setSelectedDocentForFicha] = useState(null);
 
   // Modal para emisión / edición de informe clínico con rúbrica por el auditor
   const [clinicalReportModal, setClinicalReportModal] = useState({
@@ -618,15 +623,31 @@ const AuditorUserViewer = () => {
                           </h4>
 
                           <div className="p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
+                            <div
+                              onClick={() => {
+                                if (pr.docente_cedula) {
+                                  setSelectedDocentForFicha({
+                                    cedula: pr.docente_cedula,
+                                    nombre: pr.docente_nombre,
+                                    correo: pr.docente_correo,
+                                    programa: pr.programa_nombre,
+                                    practica_titulo: pr.titulo,
+                                    institucion_nombre: pr.institucion_nombre,
+                                    servicio_nombre: pr.servicio_nombre,
+                                  });
+                                }
+                              }}
+                              className={`flex items-center gap-3 ${pr.docente_cedula ? "cursor-pointer group" : ""}`}
+                              title={pr.docente_cedula ? `Ver expediente completo de ${pr.docente_nombre}` : ""}
+                            >
                               <DocentAvatar
                                 cedula={pr.docente_cedula}
                                 name={pr.docente_nombre}
                                 size="w-11 h-11"
-                                className="rounded-2xl"
+                                className="rounded-2xl group-hover:scale-105 transition-transform"
                               />
                               <div>
-                                <p className="font-bold text-sm text-gray-900 dark:text-white">
+                                <p className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                                   {pr.docente_nombre || "Docente no asignado"}
                                 </p>
                                 <div className="flex flex-wrap items-center gap-x-3 text-xs text-gray-600 dark:text-zinc-400 mt-0.5">
@@ -641,9 +662,32 @@ const AuditorUserViewer = () => {
                               </div>
                             </div>
 
-                            <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[11px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-700">
-                              Docente UPTC
-                            </span>
+                            <div className="flex items-center gap-2 self-start sm:self-auto">
+                              {pr.docente_cedula && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedDocentForFicha({
+                                      cedula: pr.docente_cedula,
+                                      nombre: pr.docente_nombre,
+                                      correo: pr.docente_correo,
+                                      programa: pr.programa_nombre,
+                                      practica_titulo: pr.titulo,
+                                      institucion_nombre: pr.institucion_nombre,
+                                      servicio_nombre: pr.servicio_nombre,
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer"
+                                  title={`Ver ficha completa, datos y documentos de ${pr.docente_nombre}`}
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Ver Datos del Docente</span>
+                                </button>
+                              )}
+                              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-700">
+                                Docente UPTC
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -858,6 +902,14 @@ const AuditorUserViewer = () => {
         onClose={() => setSelectedStudentForFicha(null)}
         student={selectedStudentForFicha}
         role="auditor"
+      />
+
+      {/* Modal Ficha Integral del Docente para el Auditor */}
+      <DocentFichaModal
+        isOpen={!!selectedDocentForFicha}
+        onClose={() => setSelectedDocentForFicha(null)}
+        docent={selectedDocentForFicha}
+        practiceInfo={selectedDocentForFicha || {}}
       />
 
       {/* Modal de Informe Clínico y Evaluación Formativa con Rúbrica */}
