@@ -5,6 +5,7 @@
 // adjuntar sus soportes de práctica (PDF) y gestionar su firma digital oficial.
 // ============================================================
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { BACKEND_URL } from "../../config/api";
 import { useAuth } from "../../utils/useAuth";
 import { notifyDataChanged } from "../../utils/dataSync";
@@ -38,6 +39,8 @@ import {
   Download,
   Sparkles,
   Lock,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import { SkeletonProfile } from "../Shared/Skeleton";
 
@@ -121,6 +124,14 @@ const DocentProfile = () => {
     documentsInDB: {}, // Existencia en BD { key: true/false }
   });
 
+  const [previewModal, setPreviewModal] = useState({
+    isOpen: false,
+    title: "",
+    url: "",
+    downloadUrl: "",
+    isImage: false,
+  });
+
   const photoInputRef = useRef(null);
   const signatureInputRef = useRef(null);
 
@@ -171,6 +182,16 @@ const DocentProfile = () => {
         ? `${BACKEND_URL}/api/docent/photo/${currentCedula}?v=${Date.now()}`
         : null;
 
+      let resolvedSig = null;
+      if (typeof d?.foto_firma === "string") {
+        resolvedSig = d.foto_firma;
+      } else if (d?.foto_firma?.data && Array.isArray(d.foto_firma.data)) {
+        try {
+          const binary = String.fromCharCode.apply(null, d.foto_firma.data);
+          resolvedSig = binary.startsWith("data:") ? binary : `data:image/png;base64,${btoa(binary)}`;
+        } catch (_) {}
+      }
+
       setProfile((prev) => ({
         ...prev,
         name: currentName,
@@ -189,7 +210,7 @@ const DocentProfile = () => {
         familyContactPhone: d?.familyContactPhone || d?.telefono_familiar || "",
 
         photoPreview: photoUrl,
-        signaturePreview: d?.foto_firma || null,
+        signaturePreview: resolvedSig,
         documentsInDB: {
           cvDigital: !!d?.cvDigital || !!d?.has_cv,
           socialSecurity: !!d?.socialSecurity || !!d?.has_eps,
@@ -279,18 +300,27 @@ const DocentProfile = () => {
     reader.readAsDataURL(file);
   };
 
-  // Manejo de Documentos PDF
+  // Manejo de Documentos (PDF e imágenes de cédula / carnet)
   const handleDocumentSelect = (e, docKey) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("El soporte adjuntado debe ser un archivo en formato PDF (.pdf).");
+    const fileNameLower = file.name.toLowerCase();
+    const isImageAllowed = docKey === "idCopy" || docKey === "carnetCopy";
+    const isPdf = fileNameLower.endsWith(".pdf");
+    const isImg = fileNameLower.endsWith(".jpg") || fileNameLower.endsWith(".jpeg") || fileNameLower.endsWith(".png") || fileNameLower.endsWith(".webp");
+
+    if (isImageAllowed ? (!isPdf && !isImg) : !isPdf) {
+      toast.error(
+        isImageAllowed
+          ? "El documento debe ser un archivo PDF (.pdf) o imagen (.jpg, .png, .webp)."
+          : "El soporte adjuntado debe ser un archivo en formato PDF (.pdf)."
+      );
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.warning("El archivo PDF no debe exceder 10 MB.");
+      toast.warning("El archivo no debe exceder 10 MB.");
       return;
     }
 
@@ -838,32 +868,63 @@ const DocentProfile = () => {
                     className="flex-1 py-1.5 px-3 text-center bg-white hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 text-xs font-semibold rounded-lg border border-gray-300 dark:border-zinc-700 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                   >
                     <UploadCloud className="w-3.5 h-3.5 text-gray-500" />
-                    <span>{isReady ? "Reemplazar" : "Subir PDF"}</span>
+                    <span>{isReady ? "Reemplazar" : (doc.key === "idCopy" || doc.key === "carnetCopy" ? "Subir Archivo / Foto" : "Subir PDF")}</span>
                     <input
                       id={`file-${doc.key}`}
                       type="file"
-                      accept=".pdf,application/pdf"
+                      accept={
+                        doc.key === "idCopy" || doc.key === "carnetCopy"
+                          ? ".pdf,application/pdf,image/jpeg,image/png,image/webp"
+                          : ".pdf,application/pdf"
+                      }
                       onChange={(e) => handleDocumentSelect(e, doc.key)}
                       className="hidden"
                     />
                   </label>
 
+                  {localFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = URL.createObjectURL(localFile);
+                        setPreviewModal({
+                          isOpen: true,
+                          title: `${doc.title} (Nuevo Archivo Seleccionado)`,
+                          url,
+                          downloadUrl: url,
+                          isImage: localFile.type?.startsWith("image/"),
+                        });
+                      }}
+                      className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-800 transition cursor-pointer"
+                      title="Previsualizar archivo seleccionado"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  )}
+
                   {isInDB && (
                     <>
-                      <a
-                        href={viewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg border border-purple-200 dark:border-purple-800 transition"
-                        title="Ver PDF"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewModal({
+                            isOpen: true,
+                            title: doc.title,
+                            url: viewUrl,
+                            downloadUrl,
+                            isImage: false,
+                          })
+                        }
+                        className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-lg border border-purple-200 dark:border-purple-800 transition cursor-pointer"
+                        title="Ver Documento"
                       >
                         <Eye className="w-4 h-4" />
-                      </a>
+                      </button>
                       <a
                         href={downloadUrl}
                         download
                         className="p-1.5 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700 transition"
-                        title="Descargar PDF"
+                        title="Descargar Documento"
                       >
                         <Download className="w-4 h-4" />
                       </a>
@@ -1094,6 +1155,65 @@ const DocentProfile = () => {
           </button>
         </div>
       </div>
+
+      {/* Modal de Previsualización Rápida de Soportes (PDF / Cédula / Carnet) */}
+      {previewModal.isOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-4xl h-[88vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+              <div className="p-4 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-950">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">
+                    {previewModal.title}
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewModal.downloadUrl || previewModal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition shadow-xs cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Abrir en Pestaña</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewModal({ isOpen: false, title: "", url: "", downloadUrl: "", isImage: false })
+                    }
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg transition cursor-pointer"
+                    title="Cerrar"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 bg-gray-100 dark:bg-zinc-950 p-2 sm:p-4 overflow-auto flex items-center justify-center">
+                {previewModal.isImage ? (
+                  <img
+                    src={previewModal.url}
+                    alt={previewModal.title}
+                    className="max-h-full max-w-full object-contain rounded-xl shadow-lg border border-gray-300 dark:border-zinc-800"
+                  />
+                ) : (
+                  <iframe
+                    src={previewModal.url}
+                    className="w-full h-full rounded-xl border border-gray-300 dark:border-zinc-800 bg-white"
+                    title="Previsualización de Documento"
+                  ></iframe>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

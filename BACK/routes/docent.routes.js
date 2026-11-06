@@ -35,11 +35,19 @@ const uploadDocent = multer({
       return cb(err, false);
     }
 
+    // Permitir PDF e imágenes para documento de identidad y carnet docente (fotos de cédula física)
+    if (file.fieldname === "copia_documento_identidad" || file.fieldname === "copia_carnet_docente") {
+      const allowedDocExts = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+      if (allowedDocExts.includes(ext)) {
+        return cb(null, true);
+      }
+    }
+
     if (ext === ".pdf" && (mime === "application/pdf" || mime === "application/octet-stream")) {
       return cb(null, true);
     }
 
-    const err = new Error(`El soporte "${file.fieldname}" debe ser un archivo PDF válido (.pdf).`);
+    const err = new Error(`El soporte "${file.fieldname}" debe ser un archivo válido (.pdf, .jpg, .png).`);
     err.statusCode = 400;
     return cb(err, false);
   },
@@ -63,6 +71,27 @@ const cpUploadDocent = uploadDocent.fields(
 
 // Caché ultrarrápida en memoria RAM para fotos de perfil de docentes (< 1ms)
 const docentPhotoMemoryCache = new Map();
+
+/**
+ * Convierte un Buffer binario o cadena Base64 a un data URL estándar para renderizado inmediato en el navegador.
+ */
+function bufferToDataUrl(buf, defaultMime = "image/png") {
+  if (!buf) return null;
+  if (typeof buf === "string") {
+    if (buf.startsWith("data:")) return buf;
+    return `data:${defaultMime};base64,${buf}`;
+  }
+  if (Buffer.isBuffer(buf)) {
+    const text = buf.toString("utf8");
+    if (text.startsWith("data:")) return text;
+    let mime = defaultMime;
+    if (buf[0] === 0xff && buf[1] === 0xd8) mime = "image/jpeg";
+    else if (buf[0] === 0x89 && buf[1] === 0x50) mime = "image/png";
+    else if (buf[0] === 0x52 && buf[1] === 0x49) mime = "image/webp";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  }
+  return null;
+}
 
 // Helper de auto-creación resiliente para tabla datos_docente
 let isDatosDocenteTableEnsured = false;
@@ -345,8 +374,8 @@ router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
         correo_personal: doc.correo_personal || null,
         nombre_familiar: doc.nombre_familiar || null,
         telefono_familiar: doc.telefono_familiar || null,
-        foto_perfil: doc.foto_perfil || null,
-        foto_firma: doc.foto_firma || null,
+        foto_perfil: bufferToDataUrl(doc.foto_perfil, "image/jpeg"),
+        foto_firma: bufferToDataUrl(doc.foto_firma, "image/png"),
         has_signature: Boolean(doc.foto_firma),
         has_photo: Boolean(doc.foto_perfil),
         has_cv: Boolean(doc.has_cv),
@@ -421,6 +450,7 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
     const data = {
       ...raw,
       especialidad: "Docencia Clínica y Asistencial",
+      foto_firma: bufferToDataUrl(raw.foto_firma, "image/png"),
       cvDigital: !!raw.cvDigital,
       socialSecurity: !!raw.socialSecurity,
       professionalRisks: !!raw.professionalRisks,
@@ -578,6 +608,7 @@ router.get(
     "/documents/:docentId/:columnName",
     "/document/:docentId/:columnName",
   ],
+  verifyToken,
   async (req, res, next) => {
     try {
       await ensureDatosDocenteTable();
