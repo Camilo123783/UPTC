@@ -169,7 +169,10 @@ const StudentFichaModal = ({
   const photoUrl = `${BACKEND_URL}/api/student/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white rounded-3xl max-w-xl w-full shadow-2xl border border-gray-200 dark:border-zinc-800 my-8 overflow-hidden transform transition-all flex flex-col">
         {/* Cabecera con degradado institucional */}
         <div className="relative px-6 pt-6 pb-5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 text-white flex-shrink-0">
@@ -665,6 +668,7 @@ const StudentFichaModal = ({
       {isPhotoZoomed && (
         <div
           className="fixed inset-0 z-[100000] flex flex-col items-center justify-center p-3 sm:p-6 bg-black/95 backdrop-blur-xl animate-in fade-in duration-200 select-none"
+          style={{ backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsPhotoZoomed(false);
           }}

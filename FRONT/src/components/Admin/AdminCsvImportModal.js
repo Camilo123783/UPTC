@@ -427,7 +427,10 @@ const AdminCsvImportModal = ({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-[#18181b] border border-gray-200 dark:border-zinc-800 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-8 flex flex-col max-h-[92vh]">
         {/* Cabecera del Modal */}
         <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center bg-gray-50/80 dark:bg-zinc-900/60">

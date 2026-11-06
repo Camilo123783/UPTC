@@ -9,7 +9,10 @@ export const EditProgramaModal = ({
 }) => {
   if (!editingPrograma) return null;
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl w-full max-w-md">
         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
           <Edit3 className="w-5 h-5 text-blue-500" /> Editar Programa
@@ -59,7 +62,10 @@ export const EditAsignaturaModal = ({
 }) => {
   if (!editingAsignatura) return null;
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl w-full max-w-md">
         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
           <Edit3 className="w-5 h-5 text-blue-500" /> Editar Asignatura
@@ -152,7 +158,10 @@ export const EditInstitucionModal = ({
 }) => {
   if (!editingInstitucion) return null;
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl w-full max-w-md">
         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
           <Edit3 className="w-5 h-5 text-blue-500" /> Editar Institución
@@ -202,7 +211,10 @@ export const EditServicioModal = ({
 }) => {
   if (!editingServicio) return null;
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-6 rounded-2xl shadow-2xl w-full max-w-md">
         <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
           <Edit3 className="w-5 h-5 text-blue-500" /> Editar Servicio

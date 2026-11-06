@@ -1389,7 +1389,10 @@ const StudentCertifications = () => {
       {/* MODAL: SOLICITAR CERTIFICADO O REPORTE A DOCENTE      */}
       {/* ─────────────────────────────────────────────────────────── */}
       {isRequestModalOpen && selectedPracticeForRequest && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="relative bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-white max-h-[92vh] overflow-y-auto">
             {/* Header del Modal */}
             <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-5">
@@ -1554,7 +1557,10 @@ const StudentCertifications = () => {
       {/* MODAL 2: VISTA PREVIA DEL DIPLOMA OFICIAL UPTC             */}
       {/* ─────────────────────────────────────────────────────────── */}
       {previewCert && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="relative bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
             {/* Header del Modal */}
             <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-6">

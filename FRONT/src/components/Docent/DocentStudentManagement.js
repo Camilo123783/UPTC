@@ -1448,7 +1448,10 @@ const DocentStudentManagement = () => {
 
       {/* ─── Modal de Calificación Oficial (0.0 - 5.0) Totalmente Responsive y Adaptativo ─── */}
       {isEvaluatingModalOpen && selectedStudent && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden my-auto">
             {/* Cabecera Fija */}
             <div className="p-4 sm:p-6 pb-4 border-b border-gray-200 dark:border-zinc-800 flex items-start justify-between shrink-0 bg-white dark:bg-zinc-900">
@@ -1595,7 +1598,10 @@ const DocentStudentManagement = () => {
           '';
 
         return createPortal(
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+            style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+          >
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 max-h-[92vh] flex flex-col my-auto overflow-hidden">
               {/* Cabecera del Modal */}
               <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-zinc-800 shrink-0">

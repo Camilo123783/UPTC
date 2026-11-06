@@ -1156,7 +1156,10 @@ const AdminPractices = () => {
 
       {/* ─── MODAL DE CREACIÓN / EDICIÓN COMPLETA ─── */}
       {isModalOpen && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 my-8 overflow-hidden max-h-[90vh] flex flex-col">
             {/* Header Modal */}
             <div className="px-6 py-5 bg-gradient-to-r from-blue-700 to-indigo-750 text-white flex justify-between items-center flex-shrink-0">
@@ -1747,7 +1750,10 @@ const AdminPractices = () => {
 
       {/* ─── MODAL DE FICHA DETALLADA ─── */}
       {viewingPractice && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-6">
               <div>
@@ -1954,7 +1960,10 @@ const AdminPractices = () => {
 
       {/* ─── MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ─── */}
       {deletingPractice && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-zinc-800 text-center">
             <Trash2 className="w-12 h-12 text-rose-500 mx-auto mb-3" />
             <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">

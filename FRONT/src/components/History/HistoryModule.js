@@ -606,7 +606,10 @@ const HistoryModule = ({ userRole }) => {
 
       {/* ── MODAL DETALLADO / EXPEDIENTE HISTÓRICO ── */}
       {isModalOpen && selectedPractice && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div
             className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden transition-all ${
               isDark ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-zinc-900"

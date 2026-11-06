@@ -969,7 +969,10 @@ const DocentCertificateRequests = () => {
 
       {/* ─── Modal para Avalar o Rechazar Solicitud ─── */}
       {selectedRequest && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 max-w-lg w-full p-6 sm:p-7 overflow-hidden">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
@@ -1096,7 +1099,10 @@ const DocentCertificateRequests = () => {
 
       {/* ─── Modal para Cargar Firma Oficial al Instante ─── */}
       {isSignatureModalOpen && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 max-w-md w-full p-6 sm:p-7 overflow-hidden">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>

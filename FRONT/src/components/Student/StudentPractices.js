@@ -640,7 +640,10 @@ const StudentPractices = () => {
 
       {/* ─── Modal de Detalles Exhaustivos de la Práctica ─── */}
       {selectedPractice && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] overflow-y-auto bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="relative bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-white max-h-[90vh] overflow-y-auto">
             {/* Header del Modal */}
             <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-slate-800 mb-6">

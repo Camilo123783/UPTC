@@ -5,6 +5,7 @@
 // firma oficial registrada y soportes documentales (PDF) del docente tutor.
 // ============================================================
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   GraduationCap,
@@ -168,8 +169,11 @@ const DocentFichaModal = ({
   const photoUrl = `${BACKEND_URL}/api/docent/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
   const hasSignature = details?.has_signature || Boolean(docent.foto_firma || docent.has_signature);
 
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white rounded-3xl max-w-xl w-full shadow-2xl border border-gray-200 dark:border-zinc-800 my-8 overflow-hidden transform transition-all flex flex-col">
         {/* Cabecera institucional con degradado morado / índigo */}
         <div className="relative px-6 pt-6 pb-5 bg-gradient-to-r from-purple-800 via-indigo-800 to-purple-950 text-white flex-shrink-0">
@@ -472,7 +476,10 @@ const DocentFichaModal = ({
 
       {/* Lightbox para ampliar fotografía */}
       {isPhotoZoomed && (
-        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+        >
           <div className="relative max-w-lg w-full flex flex-col items-center">
             <button
               type="button"
@@ -527,6 +534,8 @@ const DocentFichaModal = ({
       )}
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 };
 
 export default DocentFichaModal;

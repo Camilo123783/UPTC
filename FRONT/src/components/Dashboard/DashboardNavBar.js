@@ -1525,6 +1525,7 @@ const DashboardLayout = ({
         {isMobileMenuOpen && (
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity"
+            style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
             onClick={() => setIsMobileMenuOpen(false)}
             aria-hidden="true"
           />

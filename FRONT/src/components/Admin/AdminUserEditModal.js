@@ -218,7 +218,10 @@ const AdminUserEditModal = ({
     "border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 p-2.5 rounded-xl w-full focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all";
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 p-4 sm:p-7 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto border border-gray-100 dark:border-zinc-800 transition-colors">
         <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-zinc-800 pb-4">
           <div>

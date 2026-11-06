@@ -215,7 +215,10 @@ const ClinicalReportModal = ({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-4xl my-auto max-h-[92vh] flex flex-col overflow-hidden transform transition-all">
         {/* Cabecera Fija */}
         <div className="px-5 sm:px-6 py-4 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between shrink-0">

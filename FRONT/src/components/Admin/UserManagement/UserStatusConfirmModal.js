@@ -75,6 +75,7 @@ export const UserStatusConfirmModal = ({
   const modalContent = (
     <div
       className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
       onClick={(e) => {
         if (e.target === e.currentTarget && !isToggling) {
           onClose();

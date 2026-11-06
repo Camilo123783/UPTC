@@ -1449,7 +1449,10 @@ const DocentPractices = () => {
 
       {/* ─── MODAL DE CREACIÓN DE NUEVA PRÁCTICA FORMATIVA ─── */}
       {isCreateModalOpen && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="relative w-full max-w-3xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex justify-between items-start mb-6 pb-4 border-b border-gray-100 dark:border-zinc-800">

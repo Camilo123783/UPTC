@@ -623,7 +623,10 @@ const App = () => {
 
       {/* ─── Modal Preventivo de Advertencia de Inactividad ─── */}
       {inactivityWarningSeconds !== null && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in select-none">
+        <div
+          className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none"
+          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+        >
           <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-600/60 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl text-center">
             <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center mx-auto mb-4">
               <Clock className="w-8 h-8 animate-pulse text-amber-500" />

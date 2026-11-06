@@ -21,7 +21,10 @@ export const DeleteConfirmModal = ({
   if (!deleteTarget) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md border border-gray-100 dark:border-zinc-800 transform transition-all text-center">
         <div className="w-16 h-16 bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
           <Trash2 className="w-8 h-8" />
@@ -73,7 +76,10 @@ export const BlockedDeleteModal = ({ blockedDeleteInfo, onClose }) => {
   if (!blockedDeleteInfo) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-[99999] overflow-y-auto animate-in fade-in duration-200"
+      style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
       <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-lg border border-amber-200 dark:border-amber-800/50 transform transition-all text-center">
         <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
           <Ban className="w-8 h-8" />
