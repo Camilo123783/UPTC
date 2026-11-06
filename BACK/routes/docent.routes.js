@@ -439,18 +439,21 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
 // POST /api/docent/insert
 // Guardar expediente del docente (datos personales y soportes PDF)
 // ──────────────────────────────────────────────
-router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDocent, async (req, res) => {
+router.post("/insert", requireRole("docent", "docente", "admin", "superadmin"), cpUploadDocent, async (req, res) => {
   try {
     await ensureDatosDocenteTable();
 
     const { body, files } = req;
-    const cedula = body.cedula ? String(body.cedula).trim() : (req.user?.role === "docent" ? String(req.user.cedula).trim() : "");
+    const isDocentRole = req.user?.role === "docent" || req.user?.role === "docente";
+    const userCedula = req.user?.cedula ? String(req.user.cedula).trim() : "";
+    const bodyCedula = body.cedula ? String(body.cedula).trim() : "";
+    const cedula = isDocentRole ? (userCedula || bodyCedula) : (bodyCedula || userCedula);
 
     if (!cedula || !/^\d{1,20}$/.test(cedula)) {
       return res.status(400).json({ success: false, message: "Falta o es inválido el campo cédula del docente." });
     }
 
-    if (req.user.role === "docent" && String(req.user.cedula).trim() !== cedula) {
+    if (isDocentRole && userCedula && userCedula !== cedula) {
       return res.status(403).json({ success: false, message: "Acceso denegado: solo puedes modificar tus propios datos." });
     }
 
@@ -473,20 +476,36 @@ router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDoc
       fieldValues.push(value);
     });
 
-    // Manejo de archivos (BLOB)
+    // Manejo de archivos (BLOB) — idéntico a student.routes.js con preservación segura
+    const processedDocCols = new Set();
     DOCENT_DOCUMENT_FIELDS_MAP.forEach(({ name, dbColumn }) => {
+      if (processedDocCols.has(dbColumn)) return;
+      processedDocCols.add(dbColumn);
+
       const fileArray = files?.[name];
-      const fileBuffer = fileArray?.length > 0 ? fileArray[0].buffer : null;
-      if (fileBuffer && !fieldNames.includes(dbColumn)) {
-        fieldNames.push(dbColumn);
-        fieldValues.push(fileBuffer);
+      let fileBuffer = fileArray?.length > 0 ? fileArray[0].buffer : null;
+
+      // Soporte para base64 si vino en el body (ej: firma o foto)
+      if (!fileBuffer && body[name] && typeof body[name] === "string" && body[name].startsWith("data:")) {
+        try {
+          const b64 = body[name].split(",")[1];
+          if (b64) fileBuffer = Buffer.from(b64, "base64");
+        } catch (_) {}
       }
+
+      fieldNames.push(dbColumn);
+      fieldValues.push(fileBuffer);
     });
 
     const placeholders = fieldNames.map(() => "?").join(", ");
     const updateClauses = fieldNames
       .filter((f) => f !== "cedula_docente")
-      .map((field) => `${field} = VALUES(${field})`)
+      .map((field) => {
+        if (DOCENT_DOCUMENT_FIELDS_MAP.some((m) => m.dbColumn === field)) {
+          return `${field} = IF(VALUES(${field}) IS NOT NULL, VALUES(${field}), ${field})`;
+        }
+        return `${field} = VALUES(${field})`;
+      })
       .join(", ");
 
     await queryDB(`
@@ -500,13 +519,13 @@ router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDoc
       const docenteUpdates = [];
       const docenteValues = [];
 
-      if (body.telefono !== undefined) {
+      if (body.telefono !== undefined && body.telefono !== "") {
         docenteUpdates.push("telefono = ?");
-        docenteValues.push(body.telefono || null);
+        docenteValues.push(body.telefono);
       }
-      if (body.biografia !== undefined) {
+      if (body.biografia !== undefined && body.biografia !== "") {
         docenteUpdates.push("biografia = ?");
-        docenteValues.push(body.biografia || null);
+        docenteValues.push(body.biografia);
       }
       if (files?.foto_perfil?.[0]?.buffer) {
         docenteUpdates.push("foto_perfil = ?");
@@ -533,10 +552,10 @@ router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDoc
       console.warn("Aviso al sincronizar tabla docente:", syncErr.message);
     }
 
-    console.log(`✅ Perfil docente guardado/actualizado correctamente para ${cedula}`);
+    console.log(`✅ Perfil docente guardado/actualizado exitosamente en 'datos_docente' para cédula ${cedula}`);
     return res.status(201).json({
       success: true,
-      message: "Datos y soportes del docente guardados correctamente.",
+      message: "Datos y soportes del docente guardados correctamente en la base de datos.",
       photoUrl: `/api/docent/photo/${cedula}?t=${Date.now()}`,
     });
   } catch (err) {

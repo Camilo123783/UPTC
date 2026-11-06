@@ -338,14 +338,6 @@ const DocentProfile = () => {
       return;
     }
 
-    const missingDoc = DOCENT_DOCUMENTS_CONFIG.find(
-      (doc) => !profile.documents[doc.key]?.file && !profile.documentsInDB[doc.key]
-    );
-    if (missingDoc) {
-      setErrorMessage(`El documento "${missingDoc.title}" es obligatorio y debe ser adjuntado.`);
-      return;
-    }
-
     setIsSaving(true);
     const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -419,8 +411,8 @@ const DocentProfile = () => {
       window.dispatchEvent(new CustomEvent("uptc:user-data-updated", { detail: { foto_perfil: updatedPhotoUrl, cedula: cedulaDoc } }));
       notifyDataChanged("docent-profile", "update");
 
-      setSuccessMessage("¡Datos y soportes documentales guardados exitosamente!");
-      toast.success("¡Expediente docente actualizado con éxito!");
+      setSuccessMessage("¡Datos y soportes documentales guardados exitosamente en la base de datos!");
+      toast.success("¡Expediente docente actualizado con éxito en la base de datos!");
       await fetchProfile();
     } catch (err) {
       console.error("Error al guardar datos del docente:", err);
