@@ -32,13 +32,15 @@ import { notifyDataChanged } from "../../utils/dataSync";
 // --- RESOLUCIÓN ROBUSTA DE SESIÓN Y CREDENCIALES ---
 const getStoredUser = () => {
   for (const storage of [sessionStorage, localStorage]) {
-    try {
-      const raw = storage.getItem("userData");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed) return parsed;
-      }
-    } catch (e) {}
+    for (const key of ["userData", "user", "currentUser"]) {
+      try {
+        const raw = storage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") return parsed;
+        }
+      } catch (e) {}
+    }
   }
   return null;
 };
@@ -51,14 +53,16 @@ const getStudentCedula = () => {
   if (u?.id) return String(u.id);
 
   for (const storage of [localStorage, sessionStorage]) {
-    try {
-      const token = storage.getItem("authToken");
-      if (token && token.includes(".")) {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload?.cedula) return String(payload.cedula);
-        if (payload?.id) return String(payload.id);
-      }
-    } catch (e) {}
+    for (const tokenKey of ["authToken", "token"]) {
+      try {
+        const token = storage.getItem(tokenKey);
+        if (token && token.includes(".")) {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload?.cedula) return String(payload.cedula);
+          if (payload?.id) return String(payload.id);
+        }
+      } catch (e) {}
+    }
   }
   return null;
 };
@@ -477,7 +481,7 @@ const StudentProfile = () => {
     // Archivo ya registrado en el servidor
     if (profile.documentsInDB[docKey]) {
       const token = getAuthToken();
-      const currentCedula = profile.studentId || getStudentCedula();
+      const currentCedula = String(profile.studentId || getStudentCedula() || "").trim();
       const downloadUrl = `${API_URL}/student/download/${currentCedula}/${docConfig.dbColumn}?token=${encodeURIComponent(token)}`;
       window.open(downloadUrl, "_blank");
     }
@@ -488,7 +492,7 @@ const StudentProfile = () => {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const currentCedula = profile.studentId || getStudentCedula();
+    const currentCedula = String(profile.studentId || getStudentCedula() || "").trim();
 
     if (!currentCedula) {
       return setErrorMessage("No se pudo verificar la cédula del estudiante.");

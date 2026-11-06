@@ -93,12 +93,18 @@ const DocentAvatar = ({
           <img
             key={`${cedula}-${version}`}
             src={photoUrl}
-            alt={name || "Docente"}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            style={{ display: loaded ? "block" : "none" }}
             className={`w-full h-full object-cover rounded-full transition-opacity duration-200 ${
               loaded ? "opacity-100" : "opacity-0"
             }`}
             onLoad={() => setLoaded(true)}
-            onError={() => setHasError(true)}
+            onError={() => {
+              setHasError(true);
+              setLoaded(false);
+            }}
           />
           {!loaded && (
             <div

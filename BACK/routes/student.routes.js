@@ -369,8 +369,10 @@ function setPhotoMemoryCache(studentKey, value) {
 // ──────────────────────────────────────────────
 // GET /api/student/photo/:studentId
 // Con caché en memoria RAM, caché en disco, ETag HTTP 304 y encabezados universales
+// Servir la foto del estudiante para participantes (docentes, auditores, compañeros y admin)
+// Disponible de manera fluida para etiquetas <img> sin bloqueos de token
 // ──────────────────────────────────────────────
-router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
+router.get("/photo/:studentId", async (req, res, next) => {
   try {
     const { studentId } = req.params;
     const studentKey = String(studentId || "").trim();
@@ -490,10 +492,14 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
 router.post("/insert", verifyToken, requireRole("student", "admin", "superadmin"), cpUpload, async (req, res, next) => {
   try {
     const { body, files } = req;
-    const cedula = body.cedula ? String(body.cedula).trim() : "";
+    let cedula = body.cedula ? String(body.cedula).trim() : "";
 
     if (!cedula || !/^\d{1,20}$/.test(cedula)) {
-      return res.status(400).json({ success: false, message: "Falta o es inválido el campo cédula del estudiante." });
+      if (req.user?.cedula && /^\d{1,20}$/.test(String(req.user.cedula).trim())) {
+        cedula = String(req.user.cedula).trim();
+      } else {
+        return res.status(400).json({ success: false, message: "Falta o es inválido el campo cédula del estudiante." });
+      }
     }
 
     if (!checkStudentOwnership(req, res, cedula)) return;

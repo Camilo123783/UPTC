@@ -308,9 +308,9 @@ router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
 
     const rows = await queryDB(
       `SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, 
-              d.foto_perfil, d.foto_firma, d.especialidad, p.nombreprograma,
-              COALESCE(dd.biografia, d.biografia) AS biografia,
-              COALESCE(dd.telefono, d.telefono) AS telefono,
+              d.foto_perfil, d.foto_firma, p.nombreprograma,
+              dd.biografia,
+              dd.telefono,
               dd.direccion, dd.correo_personal, dd.nombre_familiar, dd.telefono_familiar,
               (dd.hoja_vida_digital IS NOT NULL) AS has_cv,
               (dd.seguridad_social_eps IS NOT NULL) AS has_eps,
@@ -338,7 +338,7 @@ router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
         nombre_completo: `${doc.nombre} ${doc.apellidos}`.trim(),
         correo_institucional: doc.correo_institucional,
         programa: doc.nombreprograma || "Facultad de Ciencias de la Salud",
-        especialidad: doc.especialidad || null,
+        especialidad: "Docencia Clínica y Asistencial",
         biografia: doc.biografia || null,
         telefono: doc.telefono || null,
         direccion: doc.direccion || null,
@@ -385,11 +385,10 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
          d.apellidos,
          CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS fullName,
          d.correo_institucional AS email,
-         d.especialidad,
          p.nombreprograma AS career,
-         COALESCE(dd.biografia, d.biografia) AS bio,
+         dd.biografia AS bio,
          dd.direccion AS address,
-         COALESCE(dd.telefono, d.telefono) AS phone,
+         dd.telefono AS phone,
          dd.correo_personal AS personalEmail,
          dd.nombre_familiar AS familyContactName,
          dd.telefono_familiar AS familyContactPhone,
@@ -400,12 +399,12 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
          (dd.copia_carnet_docente IS NOT NULL) AS carnetCopy,
          (dd.carnet_vacunas IS NOT NULL) AS vaccines,
          (d.foto_perfil IS NOT NULL OR dd.foto_perfil IS NOT NULL) AS has_photo,
-         (d.foto_firma IS NOT NULL) AS has_signature,
+         (d.foto_firma IS NOT NULL OR dd.foto_firma IS NOT NULL) AS has_signature,
          CASE WHEN (d.foto_perfil IS NOT NULL OR dd.foto_perfil IS NOT NULL)
            THEN CONCAT('/api/docent/photo/', d.cedula)
            ELSE NULL
          END AS photoPreview,
-         d.foto_firma AS foto_firma
+         COALESCE(d.foto_firma, dd.foto_firma) AS foto_firma
        FROM docente d
        LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
        LEFT JOIN programa p ON d.programa_id = p.id
@@ -421,6 +420,7 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
     const raw = rows[0];
     const data = {
       ...raw,
+      especialidad: "Docencia Clínica y Asistencial",
       cvDigital: !!raw.cvDigital,
       socialSecurity: !!raw.socialSecurity,
       professionalRisks: !!raw.professionalRisks,
