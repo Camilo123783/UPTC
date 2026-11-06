@@ -161,11 +161,22 @@ router.get("/photo/:docentId", async (req, res, next) => {
       return res.end(inMem.buffer);
     }
 
-    // 2. Consulta en base de datos
-    const rows = await queryDB(
-      "SELECT foto_perfil FROM docente WHERE cedula = ? LIMIT 1",
+    // 2. Consulta en base de datos (revisando datos_docente y docente)
+    let rows = await queryDB(
+      `SELECT COALESCE(dd.foto_perfil, d.foto_perfil) AS foto_perfil
+       FROM docente d
+       LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+       WHERE d.cedula = ?
+       LIMIT 1`,
       [docentKey]
     );
+
+    if (rows.length === 0 || !rows[0].foto_perfil) {
+      rows = await queryDB(
+        "SELECT foto_perfil FROM datos_docente WHERE cedula_docente = ? LIMIT 1",
+        [docentKey]
+      );
+    }
 
     if (rows.length === 0 || !rows[0].foto_perfil) {
       return res.status(404).json({ success: false, message: "Foto no encontrada." });
@@ -303,10 +314,21 @@ router.get("/signature/:docentId", async (req, res, next) => {
     const hasAccess = await checkDocentAccess(req, res, docentKey);
     if (!hasAccess) return;
 
-    const rows = await queryDB(
-      "SELECT foto_firma FROM docente WHERE cedula = ? LIMIT 1",
+    let rows = await queryDB(
+      `SELECT COALESCE(dd.foto_firma, d.foto_firma) AS foto_firma
+       FROM docente d
+       LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+       WHERE d.cedula = ?
+       LIMIT 1`,
       [docentKey]
     );
+
+    if (rows.length === 0 || !rows[0].foto_firma) {
+      rows = await queryDB(
+        "SELECT foto_firma FROM datos_docente WHERE cedula_docente = ? LIMIT 1",
+        [docentKey]
+      );
+    }
 
     if (rows.length === 0 || !rows[0].foto_firma) {
       return res.status(404).json({ success: false, message: "Firma digital no registrada." });
@@ -337,7 +359,9 @@ router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
 
     const rows = await queryDB(
       `SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, 
-              d.foto_perfil, d.foto_firma, p.nombreprograma,
+              COALESCE(dd.foto_perfil, d.foto_perfil) AS foto_perfil,
+              COALESCE(dd.foto_firma, d.foto_firma) AS foto_firma,
+              p.nombreprograma,
               dd.biografia,
               dd.telefono,
               dd.direccion, dd.correo_personal, dd.nombre_familiar, dd.telefono_familiar,
@@ -433,7 +457,8 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
            THEN CONCAT('/api/docent/photo/', d.cedula)
            ELSE NULL
          END AS photoPreview,
-         COALESCE(d.foto_firma, dd.foto_firma) AS foto_firma
+         COALESCE(dd.foto_firma, d.foto_firma) AS foto_firma,
+         COALESCE(dd.foto_perfil, d.foto_perfil) AS foto_perfil
        FROM docente d
        LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
        LEFT JOIN programa p ON d.programa_id = p.id
@@ -450,6 +475,7 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
     const data = {
       ...raw,
       especialidad: "Docencia Clínica y Asistencial",
+      foto_perfil: bufferToDataUrl(raw.foto_perfil, "image/jpeg"),
       foto_firma: bufferToDataUrl(raw.foto_firma, "image/png"),
       cvDigital: !!raw.cvDigital,
       socialSecurity: !!raw.socialSecurity,
@@ -544,19 +570,11 @@ router.post("/insert", requireRole("docent", "docente", "admin", "superadmin"), 
       ON DUPLICATE KEY UPDATE ${updateClauses}
     `, fieldValues);
 
-    // Sincronizar en tabla 'docente' los campos: telefono, biografia, foto_perfil, foto_firma
+    // Sincronizar en tabla 'docente' los campos: foto_perfil, foto_firma
     try {
       const docenteUpdates = [];
       const docenteValues = [];
 
-      if (body.telefono !== undefined && body.telefono !== "") {
-        docenteUpdates.push("telefono = ?");
-        docenteValues.push(body.telefono);
-      }
-      if (body.biografia !== undefined && body.biografia !== "") {
-        docenteUpdates.push("biografia = ?");
-        docenteValues.push(body.biografia);
-      }
       if (files?.foto_perfil?.[0]?.buffer) {
         docenteUpdates.push("foto_perfil = ?");
         docenteValues.push(files.foto_perfil[0].buffer);

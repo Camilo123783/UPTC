@@ -132,6 +132,7 @@ const DocentProfile = () => {
     isImage: false,
   });
 
+  const [photoError, setPhotoError] = useState(false);
   const photoInputRef = useRef(null);
   const signatureInputRef = useRef(null);
 
@@ -178,9 +179,13 @@ const DocentProfile = () => {
       const currentLastName = d?.apellidos || parsedLocal.apellidos || "";
       const fullName = d?.fullName || d?.nombre_completo || `${currentName} ${currentLastName}`.trim() || "Docente UPTC";
 
-      const photoUrl = (d?.has_photo || d?.foto_perfil)
-        ? `${BACKEND_URL}/api/docent/photo/${currentCedula}?v=${Date.now()}`
-        : null;
+      let photoUrl = null;
+      if (typeof d?.foto_perfil === "string" && d.foto_perfil.startsWith("data:")) {
+        photoUrl = d.foto_perfil;
+      } else if (d?.has_photo || d?.foto_perfil) {
+        photoUrl = `${BACKEND_URL}/api/docent/photo/${currentCedula}?v=${Date.now()}`;
+      }
+      setPhotoError(false);
 
       let resolvedSig = null;
       if (typeof d?.foto_firma === "string") {
@@ -265,6 +270,7 @@ const DocentProfile = () => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
+      setPhotoError(false);
       setProfile((prev) => ({
         ...prev,
         photoFile: file,
@@ -953,10 +959,11 @@ const DocentProfile = () => {
 
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="relative group shrink-0">
-              {profile.photoPreview ? (
+              {profile.photoPreview && !photoError ? (
                 <img
                   src={profile.photoPreview}
                   alt="Foto de perfil del docente"
+                  onError={() => setPhotoError(true)}
                   className="w-28 h-28 rounded-full object-cover shadow-lg border-4 border-purple-500/40 ring-4 ring-purple-500/10"
                 />
               ) : (
