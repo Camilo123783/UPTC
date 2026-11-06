@@ -374,7 +374,7 @@ router.get("/photo/:studentId", verifyToken, async (req, res, next) => {
   try {
     const { studentId } = req.params;
     const studentKey = String(studentId || "").trim();
-    if (!/^\d{4,20}$/.test(studentKey)) {
+    if (!/^\d{1,20}$/.test(studentKey)) {
       return res.status(400).json({ success: false, message: "Identificador de estudiante no válido." });
     }
 
@@ -492,7 +492,7 @@ router.post("/insert", verifyToken, requireRole("student", "admin", "superadmin"
     const { body, files } = req;
     const cedula = body.cedula ? String(body.cedula).trim() : "";
 
-    if (!cedula || !/^\d{4,20}$/.test(cedula)) {
+    if (!cedula || !/^\d{1,20}$/.test(cedula)) {
       return res.status(400).json({ success: false, message: "Falta o es inválido el campo cédula del estudiante." });
     }
 

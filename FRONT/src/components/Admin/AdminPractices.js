@@ -391,14 +391,22 @@ const AdminPractices = () => {
     );
   }, [servicios, formData.institucion_id]);
 
-  // ─── Auditores sugeridos según la Institución ───
+  // ─── Auditores filtrados estrictamente según la Institución seleccionada ───
   const availableAuditors = useMemo(() => {
-    if (!formData.institucion_id) return auditors;
+    if (!formData.institucion_id) return [];
     const instAuditors = auditors.filter(
       (au) => String(au.institucion_id) === String(formData.institucion_id)
     );
-    return instAuditors.length > 0 ? instAuditors : auditors;
-  }, [auditors, formData.institucion_id]);
+    // Si estamos editando y el auditor ya asignado pertenece a otra institución, conservarlo visible
+    if (
+      formData.auditor_cedula &&
+      !instAuditors.some((au) => String(au.Cédula) === String(formData.auditor_cedula))
+    ) {
+      const assigned = auditors.find((au) => String(au.Cédula) === String(formData.auditor_cedula));
+      if (assigned) instAuditors.push(assigned);
+    }
+    return instAuditors;
+  }, [auditors, formData.institucion_id, formData.auditor_cedula]);
 
   // ─── Estudiantes disponibles para añadir al modal (no seleccionados aún y filtrados por programa) ───
   const selectableStudents = useMemo(() => {
@@ -487,9 +495,10 @@ const AdminPractices = () => {
         }
       }
 
-      // Si cambia la institución, limpiar el servicio
+      // Si cambia la institución, limpiar el servicio y el auditor (pertenece a la institución)
       if (name === "institucion_id") {
         updated.servicio_id = "";
+        updated.auditor_cedula = "";
       }
 
       // Sincronizar automáticamente el estado según el ciclo de vida por fechas
@@ -1551,15 +1560,28 @@ const AdminPractices = () => {
                       name="auditor_cedula"
                       value={formData.auditor_cedula}
                       onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      disabled={!formData.institucion_id}
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">-- Seleccionar Auditor --</option>
+                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
+                        {!formData.institucion_id
+                          ? "-- Primero elige una institución --"
+                          : availableAuditors.length === 0
+                            ? "-- Esta institución no tiene auditores registrados --"
+                            : "-- Seleccionar Auditor --"}
+                      </option>
                       {availableAuditors.map((au) => (
                         <option key={au.Cédula || au.id_user_table} value={au.Cédula} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
                           {au.Nombre} {au.Apellidos} ({au.Cédula})
                         </option>
                       ))}
                     </select>
+                    {formData.institucion_id && availableAuditors.length === 0 && (
+                      <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>Registra un auditor vinculado a esta institución en Gestión de Usuarios.</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

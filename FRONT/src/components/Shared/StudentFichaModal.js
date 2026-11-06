@@ -23,6 +23,8 @@ import {
   UserCheck,
   RotateCw,
   ExternalLink,
+  MapPin,
+  Users,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import StudentAvatar from "./StudentAvatar";
@@ -48,10 +50,13 @@ const StudentFichaModal = ({
   const [rotation, setRotation] = useState(0);
   const [zoomImageError, setZoomImageError] = useState(false);
   const [docDetails, setDocDetails] = useState(null);
+  // Datos personales completos (tabla datos_estudiante)
+  const [personalInfo, setPersonalInfo] = useState(null);
 
   useEffect(() => {
     if (!isOpen || !student) {
       setDocDetails(null);
+      setPersonalInfo(null);
       return;
     }
     const studentCedula = String(student.cedula || student.id || "");
@@ -67,7 +72,6 @@ const StudentFichaModal = ({
         has_vaccines: student.has_vaccines || student.vaccines,
         estado: student.estado || student.estado_asignacion,
       });
-      return;
     }
 
     const token =
@@ -77,23 +81,36 @@ const StudentFichaModal = ({
       sessionStorage.getItem("token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+    let cancelled = false;
+    // Siempre consultar la ficha completa para mostrar todos los datos de datos_estudiante
     fetch(`${BACKEND_URL}/api/student/details/${studentCedula}`, { headers })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.data) {
-          const d = data.data;
-          setDocDetails({
-            has_cv: !!d.cvDigital,
-            has_eps: !!d.socialSecurity,
-            has_arl: !!d.professionalRisks,
-            has_id: !!d.idCopy,
-            has_carnet: !!d.carnetCopy,
-            has_vaccines: !!d.vaccines,
-            estado: d.estado,
-          });
-        }
+        if (cancelled || !data?.data) return;
+        const d = data.data;
+        setPersonalInfo({
+          biografia: d.bio || null,
+          direccion: d.address || null,
+          telefono: d.phone || null,
+          correo_personal: d.personalEmail || null,
+          nombre_familiar: d.familyContactName || null,
+          telefono_familiar: d.familyContactPhone || null,
+        });
+        setDocDetails({
+          has_cv: !!d.cvDigital,
+          has_eps: !!d.socialSecurity,
+          has_arl: !!d.professionalRisks,
+          has_id: !!d.idCopy,
+          has_carnet: !!d.carnetCopy,
+          has_vaccines: !!d.vaccines,
+          estado: d.estado,
+        });
       })
       .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, student]);
 
   useEffect(() => {
@@ -123,9 +140,12 @@ const StudentFichaModal = ({
   const codigo = student.codigo || null;
   const carrera = student.career || student.carrera || student.programa_nombre || "Área de la Salud";
   const correoInst = student.email || student.correo || student.correo_institucional || null;
-  const correoPersonal = student.correo_personal || null;
-  const telefono = student.telefono || null;
-  const biografia = student.biografia || null;
+  const correoPersonal = personalInfo?.correo_personal || student.correo_personal || null;
+  const telefono = personalInfo?.telefono || student.telefono || null;
+  const biografia = personalInfo?.biografia || student.biografia || null;
+  const direccion = personalInfo?.direccion || student.direccion || null;
+  const nombreFamiliar = personalInfo?.nombre_familiar || student.nombre_familiar || null;
+  const telefonoFamiliar = personalInfo?.telefono_familiar || student.telefono_familiar || null;
 
   // Práctica
   const practicaTitulo = student.practiceName || student.practica_titulo || practiceInfo.titulo || "Práctica Formativa";
@@ -270,6 +290,41 @@ const StudentFichaModal = ({
                   <span className="block text-[10px] text-gray-500 dark:text-zinc-400">Teléfono / WhatsApp</span>
                   <span className="font-semibold text-gray-900 dark:text-white truncate block">
                     {telefono || "No registrado"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-800 flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="block text-[10px] text-gray-500 dark:text-zinc-400">Correo Personal</span>
+                  {correoPersonal ? (
+                    <a href={`mailto:${correoPersonal}`} className="font-semibold text-gray-900 dark:text-white truncate block hover:underline">
+                      {correoPersonal}
+                    </a>
+                  ) : (
+                    <span className="font-semibold text-gray-900 dark:text-white truncate block">No registrado</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-800 flex items-center gap-2.5">
+                <MapPin className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="block text-[10px] text-gray-500 dark:text-zinc-400">Dirección Residencial</span>
+                  <span className="font-semibold text-gray-900 dark:text-white truncate block" title={direccion || ""}>
+                    {direccion || "No registrada"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 flex items-center gap-2.5">
+                <Users className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="block text-[10px] text-gray-500 dark:text-zinc-400">Contacto Familiar / Emergencia</span>
+                  <span className="font-semibold text-gray-900 dark:text-white truncate block">
+                    {nombreFamiliar || "No registrado"}
+                    {telefonoFamiliar ? ` · ${telefonoFamiliar}` : ""}
                   </span>
                 </div>
               </div>

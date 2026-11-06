@@ -830,11 +830,14 @@ const DocentPractices = () => {
     return String(s.institucion_id || s.Institucion_id) === String(practiceFormData.institucion_id);
   });
 
+  // Auditores filtrados estrictamente por la institución seleccionada
   const availableAuditors = (catalogs.auditores || []).filter((au) => {
-    if (!practiceFormData.institucion_id) return true;
-    if (!au.institucion_id && !au.Institucion_id) return true;
+    const auCedula = String(au.cedula || au.Cédula || "");
+    // Conservar visible el auditor ya asignado al editar
+    if (practiceFormData.auditor_cedula && auCedula === String(practiceFormData.auditor_cedula)) return true;
+    if (!practiceFormData.institucion_id) return false;
     return (
-      String(au.institucion_id || au.Institucion_id) === String(practiceFormData.institucion_id)
+      String(au.institucion_id || au.Institucion_id || "") === String(practiceFormData.institucion_id)
     );
   });
 
@@ -1847,9 +1850,16 @@ const DocentPractices = () => {
                       name="auditor_cedula"
                       value={practiceFormData.auditor_cedula}
                       onChange={handlePracticeInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+                      disabled={!practiceFormData.institucion_id}
+                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">-- Sin auditor específico (o asignar después) --</option>
+                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
+                        {!practiceFormData.institucion_id
+                          ? "-- Primero elige una institución --"
+                          : availableAuditors.length === 0
+                            ? "-- Esta institución no tiene auditores registrados --"
+                            : "-- Sin auditor específico (o asignar después) --"}
+                      </option>
                       {availableAuditors.map((au) => (
                         <option key={au.cedula || au.Cédula} value={au.cedula || au.Cédula} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
                           {au.nombre_completo || `${au.nombre || au.Nombre} ${au.apellidos || au.Apellidos}`} ({au.cedula || au.Cédula})
