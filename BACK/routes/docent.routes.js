@@ -64,6 +64,44 @@ const cpUploadDocent = uploadDocent.fields(
 // Caché ultrarrápida en memoria RAM para fotos de perfil de docentes (< 1ms)
 const docentPhotoMemoryCache = new Map();
 
+// Helper de auto-creación resiliente para tabla datos_docente
+let isDatosDocenteTableEnsured = false;
+async function ensureDatosDocenteTable() {
+  if (isDatosDocenteTableEnsured) return;
+  try {
+    await queryDB(`
+      CREATE TABLE IF NOT EXISTS datos_docente (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cedula_docente BIGINT NOT NULL UNIQUE,
+        biografia TEXT DEFAULT NULL,
+        direccion VARCHAR(255) DEFAULT NULL,
+        telefono VARCHAR(50) DEFAULT NULL,
+        correo_personal VARCHAR(180) DEFAULT NULL,
+        nombre_familiar VARCHAR(180) DEFAULT NULL,
+        telefono_familiar VARCHAR(50) DEFAULT NULL,
+        foto_perfil LONGBLOB DEFAULT NULL,
+        foto_firma LONGBLOB DEFAULT NULL,
+        hoja_vida_digital LONGBLOB DEFAULT NULL,
+        seguridad_social_eps LONGBLOB DEFAULT NULL,
+        riesgos_profesionales_arl LONGBLOB DEFAULT NULL,
+        copia_documento_identidad LONGBLOB DEFAULT NULL,
+        copia_carnet_docente LONGBLOB DEFAULT NULL,
+        carnet_vacunas LONGBLOB DEFAULT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_datos_docente_cedula (cedula_docente)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    try {
+      await queryDB(`ALTER TABLE datos_docente ADD COLUMN foto_firma LONGBLOB DEFAULT NULL AFTER foto_perfil`);
+    } catch (_) {}
+
+    isDatosDocenteTableEnsured = true;
+  } catch (err) {
+    console.warn("⚠️ Aviso al asegurar tabla datos_docente:", err.message);
+  }
+}
+
 // ──────────────────────────────────────────────
 // GET /api/docent/photo/:docentId
 // Servir la foto del docente para TODOS los participantes de una práctica
@@ -260,6 +298,7 @@ router.get("/signature/:docentId", async (req, res, next) => {
 // ──────────────────────────────────────────────
 router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
   try {
+    await ensureDatosDocenteTable();
     const docentId = req.params.docentId || getEffectiveDocentId(req);
     if (!docentId) {
       return res.status(400).json({ success: false, message: "Cédula del docente no especificada." });
@@ -329,6 +368,7 @@ router.get(["/profile", "/profile/:docentId"], async (req, res, next) => {
 // ──────────────────────────────────────────────
 router.get(["/details", "/details/:docentId"], async (req, res, next) => {
   try {
+    await ensureDatosDocenteTable();
     const targetCedula = req.params.docentId || (req.user?.role === "docent" ? req.user.cedula : (req.query.docentId || req.user?.cedula));
     if (!targetCedula) {
       return res.status(400).json({ success: false, message: "Cédula del docente no especificada." });
@@ -399,8 +439,10 @@ router.get(["/details", "/details/:docentId"], async (req, res, next) => {
 // POST /api/docent/insert
 // Guardar expediente del docente (datos personales y soportes PDF)
 // ──────────────────────────────────────────────
-router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDocent, async (req, res, next) => {
+router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDocent, async (req, res) => {
   try {
+    await ensureDatosDocenteTable();
+
     const { body, files } = req;
     const cedula = body.cedula ? String(body.cedula).trim() : (req.user?.role === "docent" ? String(req.user.cedula).trim() : "");
 
@@ -435,7 +477,7 @@ router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDoc
     DOCENT_DOCUMENT_FIELDS_MAP.forEach(({ name, dbColumn }) => {
       const fileArray = files?.[name];
       const fileBuffer = fileArray?.length > 0 ? fileArray[0].buffer : null;
-      if (fileBuffer) {
+      if (fileBuffer && !fieldNames.includes(dbColumn)) {
         fieldNames.push(dbColumn);
         fieldValues.push(fileBuffer);
       }
@@ -454,47 +496,55 @@ router.post("/insert", requireRole("docent", "admin", "superadmin"), cpUploadDoc
     `, fieldValues);
 
     // Sincronizar en tabla 'docente' los campos: telefono, biografia, foto_perfil, foto_firma
-    const docenteUpdates = [];
-    const docenteValues = [];
+    try {
+      const docenteUpdates = [];
+      const docenteValues = [];
 
-    if (body.telefono !== undefined) {
-      docenteUpdates.push("telefono = ?");
-      docenteValues.push(body.telefono || null);
-    }
-    if (body.biografia !== undefined) {
-      docenteUpdates.push("biografia = ?");
-      docenteValues.push(body.biografia || null);
-    }
-    if (files?.foto_perfil?.[0]?.buffer) {
-      docenteUpdates.push("foto_perfil = ?");
-      docenteValues.push(files.foto_perfil[0].buffer);
-      docentPhotoMemoryCache.delete(cedula);
-    } else if (body.foto_perfil) {
-      docenteUpdates.push("foto_perfil = ?");
-      docenteValues.push(body.foto_perfil);
-      docentPhotoMemoryCache.delete(cedula);
-    }
-    if (files?.foto_firma?.[0]?.buffer) {
-      docenteUpdates.push("foto_firma = ?");
-      docenteValues.push(files.foto_firma[0].buffer.toString("base64"));
-    } else if (body.foto_firma) {
-      docenteUpdates.push("foto_firma = ?");
-      docenteValues.push(body.foto_firma);
-    }
+      if (body.telefono !== undefined) {
+        docenteUpdates.push("telefono = ?");
+        docenteValues.push(body.telefono || null);
+      }
+      if (body.biografia !== undefined) {
+        docenteUpdates.push("biografia = ?");
+        docenteValues.push(body.biografia || null);
+      }
+      if (files?.foto_perfil?.[0]?.buffer) {
+        docenteUpdates.push("foto_perfil = ?");
+        docenteValues.push(files.foto_perfil[0].buffer);
+        docentPhotoMemoryCache.delete(cedula);
+      } else if (body.foto_perfil) {
+        docenteUpdates.push("foto_perfil = ?");
+        docenteValues.push(body.foto_perfil);
+        docentPhotoMemoryCache.delete(cedula);
+      }
+      if (files?.foto_firma?.[0]?.buffer) {
+        docenteUpdates.push("foto_firma = ?");
+        docenteValues.push(files.foto_firma[0].buffer.toString("base64"));
+      } else if (body.foto_firma) {
+        docenteUpdates.push("foto_firma = ?");
+        docenteValues.push(body.foto_firma);
+      }
 
-    if (docenteUpdates.length > 0) {
-      docenteValues.push(cedula);
-      await queryDB(`UPDATE docente SET ${docenteUpdates.join(", ")} WHERE cedula = ?`, docenteValues);
+      if (docenteUpdates.length > 0) {
+        docenteValues.push(cedula);
+        await queryDB(`UPDATE docente SET ${docenteUpdates.join(", ")} WHERE cedula = ?`, docenteValues);
+      }
+    } catch (syncErr) {
+      console.warn("Aviso al sincronizar tabla docente:", syncErr.message);
     }
 
     console.log(`✅ Perfil docente guardado/actualizado correctamente para ${cedula}`);
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Datos y soportes del docente guardados correctamente.",
       photoUrl: `/api/docent/photo/${cedula}?t=${Date.now()}`,
     });
   } catch (err) {
-    next(err);
+    console.error("❌ Error al guardar datos del docente:", err);
+    return res.status(400).json({
+      success: false,
+      message: err.message || "Error al registrar la información del docente.",
+    });
   }
 });
 
@@ -511,6 +561,7 @@ router.get(
   ],
   async (req, res, next) => {
     try {
+      await ensureDatosDocenteTable();
       const { docentId, columnName } = req.params;
       const allowedCols = [
         "foto_perfil",

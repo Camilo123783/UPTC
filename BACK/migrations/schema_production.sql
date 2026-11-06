@@ -129,6 +129,28 @@ CREATE TABLE IF NOT EXISTS `datos_estudiante` (
   CONSTRAINT `fk_datos_estudiante_cedula` FOREIGN KEY (`cedula_estudiante`) REFERENCES `estudiante` (`cedula`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `datos_docente` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `cedula_docente` BIGINT NOT NULL UNIQUE,
+  `biografia` TEXT DEFAULT NULL,
+  `direccion` VARCHAR(255) DEFAULT NULL,
+  `telefono` VARCHAR(50) DEFAULT NULL,
+  `correo_personal` VARCHAR(180) DEFAULT NULL,
+  `nombre_familiar` VARCHAR(180) DEFAULT NULL,
+  `telefono_familiar` VARCHAR(50) DEFAULT NULL,
+  `foto_perfil` LONGBLOB DEFAULT NULL,
+  `foto_firma` LONGBLOB DEFAULT NULL,
+  `hoja_vida_digital` LONGBLOB DEFAULT NULL,
+  `seguridad_social_eps` LONGBLOB DEFAULT NULL,
+  `riesgos_profesionales_arl` LONGBLOB DEFAULT NULL,
+  `copia_documento_identidad` LONGBLOB DEFAULT NULL,
+  `copia_carnet_docente` LONGBLOB DEFAULT NULL,
+  `carnet_vacunas` LONGBLOB DEFAULT NULL,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_datos_docente_cedula` (`cedula_docente`),
+  CONSTRAINT `fk_datos_docente_cedula` FOREIGN KEY (`cedula_docente`) REFERENCES `docente` (`cedula`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 3. Prácticas Formativas y Asignaciones
 CREATE TABLE IF NOT EXISTS `practica` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,

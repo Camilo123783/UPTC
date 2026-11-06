@@ -18,6 +18,7 @@ async function runMigration() {
         \`nombre_familiar\` VARCHAR(180) DEFAULT NULL,
         \`telefono_familiar\` VARCHAR(50) DEFAULT NULL,
         \`foto_perfil\` LONGBLOB DEFAULT NULL,
+        \`foto_firma\` LONGBLOB DEFAULT NULL,
         \`hoja_vida_digital\` LONGBLOB DEFAULT NULL,
         \`seguridad_social_eps\` LONGBLOB DEFAULT NULL,
         \`riesgos_profesionales_arl\` LONGBLOB DEFAULT NULL,
@@ -25,9 +26,24 @@ async function runMigration() {
         \`copia_carnet_docente\` LONGBLOB DEFAULT NULL,
         \`carnet_vacunas\` LONGBLOB DEFAULT NULL,
         \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        CONSTRAINT \`fk_datos_docente_cedula\` FOREIGN KEY (\`cedula_docente\`) REFERENCES \`docente\` (\`cedula\`) ON DELETE CASCADE ON UPDATE CASCADE
+        INDEX \`idx_datos_docente_cedula\` (\`cedula_docente\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Asegurar columna foto_firma si la tabla ya existía sin ella
+    try {
+      await queryDB(`ALTER TABLE \`datos_docente\` ADD COLUMN \`foto_firma\` LONGBLOB DEFAULT NULL AFTER \`foto_perfil\``);
+    } catch (_) {}
+
+    // Intentar agregar llave foránea si es posible
+    try {
+      await queryDB(`
+        ALTER TABLE \`datos_docente\`
+        ADD CONSTRAINT \`fk_datos_docente_cedula\`
+        FOREIGN KEY (\`cedula_docente\`) REFERENCES \`docente\` (\`cedula\`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+      `);
+    } catch (_) {}
 
     console.log("✅ Tabla 'datos_docente' verificada/creada exitosamente.");
     console.log("--- Migración v6 completada exitosamente ---");
@@ -46,4 +62,3 @@ if (require.main === module) {
 }
 
 module.exports = { runMigration };
-

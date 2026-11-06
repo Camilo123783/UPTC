@@ -664,6 +664,15 @@ const StudentProfile = () => {
     }, 0);
   }, [profile.documents, profile.documentsInDB]);
 
+  // Lista de documentos pendientes por cargar
+  const missingDocs = useMemo(() => {
+    return DOCUMENT_CONFIGS.filter((doc) => {
+      const hasLocal = !!profile.documents[doc.key]?.file;
+      const hasDB = !!profile.documentsInDB[doc.key];
+      return !hasLocal && !hasDB;
+    });
+  }, [profile.documents, profile.documentsInDB]);
+
   // =========================================================================
   // ESTADOS DE CARGA Y ERROR
   // =========================================================================
@@ -1195,9 +1204,15 @@ const StudentProfile = () => {
               </div>
             )}
             {!errorMessage && !successMessage && (
-              <p className="text-xs text-gray-500 dark:text-zinc-400">
-                Asegúrate de adjuntar los soportes requeridos antes de guardar.
-              </p>
+              missingDocs.length > 0 ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  Soportes pendientes ({missingDocs.length} de {DOCUMENT_CONFIGS.length}): {missingDocs.map((d) => d.title).join(", ")}.
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500 dark:text-zinc-400">
+                  Asegúrate de adjuntar los soportes requeridos antes de guardar.
+                </p>
+              )
             )}
           </div>
 

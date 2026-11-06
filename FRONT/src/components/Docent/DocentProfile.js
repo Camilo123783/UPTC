@@ -330,6 +330,22 @@ const DocentProfile = () => {
       return;
     }
 
+    if (
+      (profile.phone && !/^\d+$/.test(String(profile.phone).trim())) ||
+      (profile.familyContactPhone && !/^\d+$/.test(String(profile.familyContactPhone).trim()))
+    ) {
+      setErrorMessage("Los teléfonos deben contener solo números.");
+      return;
+    }
+
+    const missingDoc = DOCENT_DOCUMENTS_CONFIG.find(
+      (doc) => !profile.documents[doc.key]?.file && !profile.documentsInDB[doc.key]
+    );
+    if (missingDoc) {
+      setErrorMessage(`El documento "${missingDoc.title}" es obligatorio y debe ser adjuntado.`);
+      return;
+    }
+
     setIsSaving(true);
     const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -431,6 +447,10 @@ const DocentProfile = () => {
   const completedDocsCount = DOCENT_DOCUMENTS_CONFIG.filter(
     (doc) => profile.documents[doc.key]?.file || profile.documentsInDB[doc.key]
   ).length;
+
+  const missingDocs = DOCENT_DOCUMENTS_CONFIG.filter(
+    (doc) => !profile.documents[doc.key]?.file && !profile.documentsInDB[doc.key]
+  );
 
   if (isLoading) {
     return <SkeletonProfile />;
@@ -1018,16 +1038,69 @@ const DocentProfile = () => {
         </div>
       </div>
 
-      {/* Botón flotante inferior para guardar */}
-      <div className="flex justify-end pt-4">
-        <button
-          onClick={handleSaveProfile}
-          disabled={isSaving}
-          className="inline-flex items-center gap-2 px-7 py-3 rounded-2xl text-sm font-extrabold bg-purple-600 hover:bg-purple-700 text-white shadow-xl shadow-purple-600/30 transition duration-150 cursor-pointer active:scale-95"
-        >
-          <Save className="w-5 h-5" />
-          <span>{isSaving ? "Guardando..." : "Guardar Expediente Completo"}</span>
-        </button>
+      {/* ─── Sección Inferior: Mensajes de Falta de Documentos y Botón de Guardado ─── */}
+      <div className="space-y-4 pt-4">
+        {/* Alerta de Error al final del panel */}
+        {errorMessage && (
+          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-300 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-md animate-in fade-in duration-200">
+            <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
+            <div className="flex-1">{errorMessage}</div>
+          </div>
+        )}
+
+        {/* Alerta de Éxito al final del panel */}
+        {successMessage && (
+          <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-md animate-in fade-in duration-200">
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex-1">{successMessage}</div>
+          </div>
+        )}
+
+        {/* Alerta informativa de documentos faltantes al final del panel */}
+        {missingDocs.length > 0 && !errorMessage && (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs font-medium flex items-start gap-3 shadow-sm">
+            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold text-sm block">
+                Faltan {missingDocs.length} de {DOCENT_DOCUMENTS_CONFIG.length} soportes requeridos por adjuntar:
+              </span>
+              <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                {missingDocs.map((d) => d.title).join(", ")}.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Barra de acción final con botón de Guardar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-xl">
+          <div className="text-xs text-gray-500 dark:text-zinc-400 flex items-center gap-2">
+            <Info className="w-4 h-4 text-purple-500 shrink-0" />
+            <span>
+              {completedDocsCount === DOCENT_DOCUMENTS_CONFIG.length
+                ? "Todos los soportes requeridos han sido adjuntados satisfactoriamente."
+                : "Recuerda completar todos tus datos y soportes antes de guardar el expediente."}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveProfile}
+            disabled={isSaving}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-sm font-black bg-purple-600 hover:bg-purple-700 text-white shadow-xl shadow-purple-600/30 transition duration-150 cursor-pointer active:scale-95 disabled:opacity-50"
+          >
+            {isSaving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Guardando Expediente...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                <span>Guardar Expediente Completo</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
