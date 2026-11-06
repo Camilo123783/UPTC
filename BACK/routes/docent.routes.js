@@ -18,7 +18,8 @@ const docentStorage = multer.memoryStorage();
 const uploadDocent = multer({
   storage: docentStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 15 * 1024 * 1024, // 15MB por archivo
+    fieldSize: 25 * 1024 * 1024, // 25MB para campos de texto / Base64
   },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase();
@@ -569,6 +570,17 @@ router.post("/insert", requireRole("docent", "docente", "admin", "superadmin"), 
       VALUES (${placeholders})
       ON DUPLICATE KEY UPDATE ${updateClauses}
     `, fieldValues);
+
+    // Eliminación explícita si el usuario hizo clic en "Quitar"
+    if (body.eliminar_foto_perfil === "true") {
+      await queryDB("UPDATE datos_docente SET foto_perfil = NULL WHERE cedula_docente = ?", [cedula]);
+      await queryDB("UPDATE docente SET foto_perfil = NULL WHERE cedula = ?", [cedula]);
+      docentPhotoMemoryCache.delete(cedula);
+    }
+    if (body.eliminar_foto_firma === "true") {
+      await queryDB("UPDATE datos_docente SET foto_firma = NULL WHERE cedula_docente = ?", [cedula]);
+      await queryDB("UPDATE docente SET foto_firma = NULL WHERE cedula = ?", [cedula]);
+    }
 
     // Sincronizar en tabla 'docente' los campos: foto_perfil, foto_firma
     try {

@@ -118,8 +118,12 @@ const DocentProfile = () => {
     // Fotos y soportes
     photoFile: null,
     photoPreview: null,
+    isNewPhoto: false,
+    photoDeleted: false,
     signatureFile: null,
     signaturePreview: null,
+    isNewSignature: false,
+    signatureDeleted: false,
     documents: {}, // Archivos nuevos seleccionados localmente { key: { name, file } }
     documentsInDB: {}, // Existencia en BD { key: true/false }
   });
@@ -226,7 +230,11 @@ const DocentProfile = () => {
         },
         documents: {},
         photoFile: null,
+        isNewPhoto: false,
+        photoDeleted: false,
         signatureFile: null,
+        isNewSignature: false,
+        signatureDeleted: false,
       }));
     } catch (err) {
       console.error("Error al cargar perfil docente:", err);
@@ -275,6 +283,8 @@ const DocentProfile = () => {
         ...prev,
         photoFile: file,
         photoPreview: event.target?.result,
+        isNewPhoto: true,
+        photoDeleted: false,
       }));
     };
     reader.readAsDataURL(file);
@@ -301,6 +311,8 @@ const DocentProfile = () => {
         ...prev,
         signatureFile: file,
         signaturePreview: event.target?.result,
+        isNewSignature: true,
+        signatureDeleted: false,
       }));
     };
     reader.readAsDataURL(file);
@@ -390,15 +402,19 @@ const DocentProfile = () => {
       // Foto de perfil
       if (profile.photoFile) {
         formData.append("foto_perfil", profile.photoFile);
-      } else if (profile.photoPreview && profile.photoPreview.startsWith("data:")) {
+      } else if (profile.isNewPhoto && profile.photoPreview && profile.photoPreview.startsWith("data:")) {
         formData.append("foto_perfil", profile.photoPreview);
+      } else if (profile.photoDeleted) {
+        formData.append("eliminar_foto_perfil", "true");
       }
 
       // Foto de firma
       if (profile.signatureFile) {
         formData.append("foto_firma", profile.signatureFile);
-      } else if (profile.signaturePreview && profile.signaturePreview.startsWith("data:")) {
+      } else if (profile.isNewSignature && profile.signaturePreview && profile.signaturePreview.startsWith("data:")) {
         formData.append("foto_firma", profile.signaturePreview);
+      } else if (profile.signatureDeleted) {
+        formData.append("eliminar_foto_firma", "true");
       }
 
       // Documentos PDF
@@ -1010,7 +1026,7 @@ const DocentProfile = () => {
                 {profile.photoPreview && (
                   <button
                     type="button"
-                    onClick={() => setProfile((prev) => ({ ...prev, photoPreview: null, photoFile: null }))}
+                    onClick={() => setProfile((prev) => ({ ...prev, photoPreview: null, photoFile: null, photoDeleted: true, isNewPhoto: false }))}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1087,7 +1103,7 @@ const DocentProfile = () => {
             {profile.signaturePreview && (
               <button
                 type="button"
-                onClick={() => setProfile((prev) => ({ ...prev, signaturePreview: null, signatureFile: null }))}
+                onClick={() => setProfile((prev) => ({ ...prev, signaturePreview: null, signatureFile: null, signatureDeleted: true, isNewSignature: false }))}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />

@@ -18,7 +18,13 @@ function errorHandler(err, req, res, next) {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         success: false,
-        message: "El archivo adjunto excede el tamaño máximo permitido de 10 MB.",
+        message: "El archivo adjunto excede el tamaño máximo permitido de 15 MB.",
+      });
+    }
+    if (err.code === "LIMIT_FIELD_VALUE") {
+      return res.status(400).json({
+        success: false,
+        message: "El valor del campo o archivo Base64 supera el tamaño permitido.",
       });
     }
     return res.status(400).json({
