@@ -133,7 +133,7 @@ async function authenticateUser(tableName, cedula, password, roleName) {
   if (tableName === "docente") {
     selectQuery = `
       SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, d.password,
-             d.rol_id, d.programa_id, d.activo, d.created_at,
+             d.rol_id, d.programa_id, d.activo,
              (COALESCE(dd.foto_perfil, d.foto_perfil) IS NOT NULL) AS has_photo_blob,
              (COALESCE(dd.foto_firma, d.foto_firma) IS NOT NULL) AS has_signature_blob
       FROM docente d
@@ -144,7 +144,7 @@ async function authenticateUser(tableName, cedula, password, roleName) {
   } else if (tableName === "estudiante") {
     selectQuery = `
       SELECT e.id, e.cedula, e.nombre, e.apellidos, e.codigo, e.correo_institucional, e.password,
-             e.rol_id, e.programa_id, e.semestre_actual, e.activo, e.created_at,
+             e.rol_id, e.programa_id, e.activo,
              (de.foto_perfil IS NOT NULL) AS has_photo_blob
       FROM estudiante e
       LEFT JOIN datos_estudiante de ON de.cedula_estudiante = e.cedula

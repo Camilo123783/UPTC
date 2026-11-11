@@ -48,6 +48,7 @@ const StudentDocentCommunication = React.lazy(() => import("./components/Student
 
 const HistoryModule = React.lazy(() => import("./components/History/HistoryModule"));
 const CertificateHistoryModule = React.lazy(() => import("./components/History/CertificateHistoryModule"));
+import HabeasDataModal from "./components/Shared/HabeasDataModal";
 
 import {
   loadActiveSession,
@@ -270,6 +271,60 @@ const App = () => {
   // Estado para modal preventivo de inactividad (countdown en segundos cuando quedan <= 2 min)
   const [inactivityWarningSeconds, setInactivityWarningSeconds] = useState(null);
 
+  // Estado para modal obligatorio de Tratamiento de Datos Personales / Habeas Data
+  const [showHabeasDataModal, setShowHabeasDataModal] = useState(false);
+  const [habeasUserName, setHabeasUserName] = useState("");
+
+  const checkHabeasDataStatus = useCallback((targetUserData) => {
+    try {
+      let data = targetUserData;
+      if (!data) {
+        const raw =
+          localStorage.getItem("activeUserData") ||
+          sessionStorage.getItem("activeUserData");
+        if (raw) data = JSON.parse(raw);
+      }
+      if (data) {
+        const userId = data.cedula || data.id;
+        if (userId) {
+          const accepted = localStorage.getItem(`habeas_data_accepted_${userId}`);
+          if (!accepted) {
+            const fullName = [data.nombre, data.apellidos || data.apellido]
+              .filter(Boolean)
+              .join(" ");
+            setHabeasUserName(fullName || "");
+            setShowHabeasDataModal(true);
+            return;
+          }
+        }
+      }
+      setShowHabeasDataModal(false);
+    } catch (e) {
+      console.warn("Aviso al verificar Habeas Data:", e);
+    }
+  }, []);
+
+  const handleAcceptHabeasData = useCallback(() => {
+    try {
+      const raw =
+        localStorage.getItem("activeUserData") ||
+        sessionStorage.getItem("activeUserData");
+      if (raw) {
+        const data = JSON.parse(raw);
+        const userId = data.cedula || data.id;
+        if (userId) {
+          localStorage.setItem(
+            `habeas_data_accepted_${userId}`,
+            new Date().toISOString()
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso al guardar aceptación de Habeas Data:", e);
+    }
+    setShowHabeasDataModal(false);
+  }, []);
+
   const handleKeepSessionActive = useCallback(() => {
     resetInactivityTimer();
     setInactivityWarningSeconds(null);
@@ -306,6 +361,7 @@ const App = () => {
         navigate("/login", { replace: true });
       } else {
         setUserRole(session.userRole);
+        checkHabeasDataStatus();
         // Si el usuario ingresa a la raíz "/" o a "/login" teniendo sesión activa válida:
         if (location.pathname === "/" || location.pathname === "/login") {
           const safePage = sanitizeSessionPage(session.currentPage, session.userRole);
@@ -441,12 +497,14 @@ const App = () => {
         : rawTarget;
     saveActiveSession(role, target, userData, token);
     setUserRole(role);
+    checkHabeasDataStatus(userData);
     navigate(target, { replace: true });
   };
 
   const handleLogout = () => {
     performFullLogout();
     setUserRole(null);
+    setShowHabeasDataModal(false);
     navigate("/login", { replace: true });
   };
 
@@ -662,6 +720,12 @@ const App = () => {
           </div>
         </div>
       )}
+      {/* Modal de Aceptación Obligatoria de Tratamiento de Datos / Habeas Data */}
+      <HabeasDataModal
+        isOpen={showHabeasDataModal}
+        userName={habeasUserName}
+        onAccept={handleAcceptHabeasData}
+      />
     </>
   );
 };

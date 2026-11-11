@@ -273,38 +273,6 @@ const AdminPractices = () => {
   const [deletingPractice, setDeletingPractice] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
-  const [scheduleDays, setScheduleDays] = useState(() => {
-    return parseHorarioAHoras(formData.horario || "");
-  });
-
-  const handleToggleScheduleDay = (dia) => {
-    setScheduleDays((prev) => {
-      const next = { ...prev };
-      if (next[dia]) {
-        delete next[dia];
-      } else {
-        next[dia] = { inicio: "07:00", fin: "13:00" };
-      }
-      const formatted = formatHorarioDesdeDias(next);
-      setFormData((f) => ({ ...f, horario: formatted }));
-      return next;
-    });
-  };
-
-  const handleScheduleTimeChange = (dia, field, value) => {
-    setScheduleDays((prev) => {
-      const next = {
-        ...prev,
-        [dia]: {
-          ...(prev[dia] || { inicio: "07:00", fin: "13:00" }),
-          [field]: value,
-        },
-      };
-      const formatted = formatHorarioDesdeDias(next);
-      setFormData((f) => ({ ...f, horario: formatted }));
-      return next;
-    });
-  };
 
   // Guardar automáticamente el borrador en memoria de sesión si el modal está abierto
   useEffect(() => {
@@ -611,7 +579,6 @@ const AdminPractices = () => {
       ...initialFormState,
       rubrica_criterios: [...DEFAULT_RUBRIC_CRITERIA_IDS],
     });
-    setScheduleDays({});
     setStudentSearch("");
     setIsModalOpen(true);
   };
@@ -629,7 +596,6 @@ const AdminPractices = () => {
     }
 
     setIsEditing(true);
-    setScheduleDays(parseHorarioAHoras(practice.horario || ""));
     const fIni = practice.fecha_inicio
       ? practice.fecha_inicio.substring(0, 10)
       : "";
@@ -682,7 +648,6 @@ const AdminPractices = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setIsModalOpen(false);
     setIsEditing(false);
-    setScheduleDays({});
     setFormData(initialFormState);
   };
 
