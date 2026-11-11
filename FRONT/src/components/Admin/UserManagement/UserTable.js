@@ -282,7 +282,7 @@ const RoleSection = ({
                     </option>
                   ))}
                   <option value="none" className="bg-white dark:bg-zinc-900">
-                    Sin Carrera asignada
+                    Sin Programa asignado
                   </option>
                 </select>
               </div>
@@ -427,14 +427,8 @@ const RoleSection = ({
                             {user.Cédula || "N/A"}
                           </td>
                           {hasCodeCol && (
-                            <td className="px-3 py-3 whitespace-nowrap text-xs text-center font-mono">
-                              {user.Codigo ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                  {user.Codigo}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400 dark:text-zinc-500 italic text-xs">Sin código</span>
-                              )}
+                            <td className="px-3 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-800 dark:text-zinc-300">
+                              {user.Codigo || <span className="text-gray-400 dark:text-zinc-500 italic text-xs">Sin código</span>}
                             </td>
                           )}
                           <td className="px-3 py-3 text-xs sm:text-sm text-gray-900 dark:text-white font-medium text-left max-w-[210px] leading-snug">
@@ -987,7 +981,7 @@ export const UserTable = ({
         hasCodeCol={true}
         hasStudentDataCol={true}
         showProgramFilter={true}
-        extraColHeader="Carrera / Programa"
+        extraColHeader="Programa"
         renderExtraCol={(user) => {
           const progName = user.Carrera || (getProgramaName ? getProgramaName(user.programa_id) : "");
           return progName && progName !== "No asignado" && !progName.includes("(No encontrado)") ? (
@@ -1006,7 +1000,7 @@ export const UserTable = ({
           { key: "Codigo", label: "Código" },
           { key: "Nombre", label: "Nombre" },
           { key: "Correo_Institucional", label: "Email" },
-          { key: "Carrera", label: "Carrera" },
+          { key: "Carrera", label: "Programa" },
           { key: "Tiene_Datos_Adicionales", label: "Datos Estudiante" },
           { key: "Activo", label: "Estado" },
         ]}

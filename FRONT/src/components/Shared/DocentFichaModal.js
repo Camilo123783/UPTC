@@ -85,6 +85,14 @@ const DocentFichaModal = ({
   const [details, setDetails] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token")
+      : null;
+
   useEffect(() => {
     if (!isOpen || !docent) {
       setDetails(null);
@@ -94,11 +102,6 @@ const DocentFichaModal = ({
     const docentCedula = String(docent.cedula || docent.id || "");
     if (!docentCedula) return;
 
-    const token =
-      localStorage.getItem("authToken") ||
-      sessionStorage.getItem("authToken") ||
-      localStorage.getItem("token") ||
-      sessionStorage.getItem("token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     setIsLoadingDetails(true);
