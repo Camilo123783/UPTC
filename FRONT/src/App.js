@@ -213,7 +213,7 @@ export const getPageTitle = (pathname, userRole) => {
 
   // Dashboard
   if (pathname.startsWith("/dashboard") || pathname === "/") {
-    return "Dashboard - Gestor de Prácticas";
+    return "Dashboarddd - Gestor de Prácticas";
   }
 
   return "Gestor de Prácticas - UPTC";

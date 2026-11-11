@@ -407,6 +407,23 @@ const DashboardLayout = ({
   }; // Iconos SVG simples (se mantienen sin cambios)
 
   const icons = {
+    Dashboarddd: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="w-5 h-5"
+      >
+        {" "}
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.25 12h19.5m-19.5 0a2.25 2.25 0 0 1-2.25-2.25V6.75a2.25 2.25 0 0 1 2.25-2.25h19.5a2.25 2.25 0 0 1 2.25 2.25v3.003a2.25 2.25 0 0 1-2.25 2.25m-19.5 0a2.25 2.25 0 0 0 0 4.5h19.5a2.25 2.25 0 0 0 0-4.5m-19.5 0v.375a.75.75 0 0 0 .75.75h.75m-1.5 0h.375c.621 0 1.125.504 1.125 1.125v.375m-1.5 0h.375c.621 0 1.125.504 1.125 1.125v.375m-1.5 0h.375c.621 0 1.125.504 1.125 1.125v.375m-1.5 0h.375c.621 0 1.125.504 1.125 1.125v.375m-1.5 0h.375c.621 0 1.125.504 1.125 1.125v.375m-1.5 0h.375c.621 0 1.125.504 1.125 1.125v.375"
+        />{" "}
+      </svg>
+    ),
     Dashboard: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -1121,7 +1138,7 @@ const DashboardLayout = ({
 
   const navItems = {
     student: [
-      { name: "Dashboard", page: "dashboard" },
+      { name: "Dashboarddd", page: "dashboard" },
       { name: "Mi Perfil", page: "studentProfile", section: "Académico" },
       { name: "Mis Prácticas", page: "studentPractices" },
       { name: "Evaluaciones", page: "studentEvaluations" },
@@ -1131,7 +1148,7 @@ const DashboardLayout = ({
       { name: "Historial de Certificados", page: "certificateHistory" },
     ],
     docent: [
-      { name: "Dashboard", page: "dashboard" },
+      { name: "Dashboarddd", page: "dashboard" },
       { name: "Mi Perfil", page: "docentProfile", section: "Información" },
       { name: "Mis Prácticas", page: "docentPractices", section: "Gestión" },
       { name: "Estudiantes", page: "docentStudents" },
@@ -1144,14 +1161,14 @@ const DashboardLayout = ({
       { name: "Historial de Prácticas", page: "history", section: "Historial" },
     ],
     auditor: [
-      { name: "Dashboard", page: "dashboard" },
+      { name: "Dashboarddd", page: "dashboard" },
       { name: "Cumplimiento de Horas", page: "auditorHoursCompliance", section: "Gestión" },
       { name: "Visualizar Usuarios", page: "auditorUserViewer", section: "Usuarios" },
       { name: "Comunicación con el Docente", page: "auditorCommunication", section: "Comunicación" },
       { name: "Historial de Prácticas", page: "history", section: "Historial" },
     ],
     admin: [
-      { name: "Dashboard", page: "dashboard" },
+      { name: "Dashboarddd", page: "dashboard" },
       { name: "Administrar Usuarios", page: "adminUsers", section: "Sistema" },
       { name: "Crear Prácticas", page: "adminPractices" },
       { name: "Diseñar Certificados", page: "adminCertificateDesigner" },
@@ -1160,7 +1177,7 @@ const DashboardLayout = ({
       { name: "Historial de Certificados", page: "certificateHistory" },
     ],
     superadmin: [
-      { name: "Dashboard", page: "dashboard" },
+      { name: "Dashboarddd", page: "dashboard" },
       {
         name: "Parametrización",
         page: "adminInstitutionSettings",
@@ -1212,7 +1229,7 @@ const DashboardLayout = ({
           <RouteLink
             to="dashboard"
             className="flex items-center gap-2 sm:gap-3 min-w-0 cursor-pointer group/brand focus:outline-none"
-            title="Ir al Dashboard"
+            title="Ir al Dashboarddd"
           >
           <img
             src={
