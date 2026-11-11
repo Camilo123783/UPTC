@@ -235,6 +235,14 @@ app.listen(PORT, () => {
     console.warn("Aviso al invocar migración v6:", err.message);
   }
 
+  // Asegurar migración de tabla 'usuario_primer_ingreso' (Habeas Data y Cambio de Clave)
+  try {
+    const { runMigration: runMigrationV7 } = require("./migrations/migrate_v7_primer_ingreso");
+    runMigrationV7().catch((e) => console.warn("Aviso en migración v7:", e.message));
+  } catch (err) {
+    console.warn("Aviso al invocar migración v7:", err.message);
+  }
+
   // Sincronización automática de prácticas (inicial y periódica cada 15 min)
   try {
     const { syncPracticeStatuses } = require("./services/practiceSync.service");

@@ -179,7 +179,38 @@ router.get("/users", async (req, res, next) => {
 
       let dataCheckSelect = `FALSE AS Tiene_Datos_Adicionales`;
 
-      if (roleMap.dataTable) {
+      if (roleMap.dataTable === "datos_estudiante") {
+        dataCheckSelect = `(EXISTS(
+          SELECT 1 FROM datos_estudiante _de 
+          WHERE _de.cedula_estudiante = ${T1}.cedula 
+            AND (
+              _de.telefono IS NOT NULL OR 
+              _de.direccion IS NOT NULL OR 
+              _de.correo_personal IS NOT NULL OR 
+              _de.biografia IS NOT NULL OR 
+              _de.foto_perfil IS NOT NULL OR 
+              _de.hoja_vida_digital IS NOT NULL OR 
+              _de.seguridad_social_eps IS NOT NULL OR 
+              _de.riesgos_profesionales_arl IS NOT NULL OR 
+              _de.copia_documento_identidad IS NOT NULL OR 
+              _de.copia_carnet_estudiantil IS NOT NULL OR 
+              _de.carnet_vacunas IS NOT NULL
+            )
+        )) AS Tiene_Datos_Adicionales`;
+      } else if (roleMap.dataTable === "datos_docente") {
+        dataCheckSelect = `(EXISTS(
+          SELECT 1 FROM datos_docente _dd 
+          WHERE _dd.cedula_docente = ${T1}.cedula 
+            AND (
+              _dd.telefono IS NOT NULL OR 
+              _dd.direccion IS NOT NULL OR 
+              _dd.correo_personal IS NOT NULL OR 
+              _dd.biografia IS NOT NULL OR 
+              _dd.foto_perfil IS NOT NULL OR 
+              _dd.foto_firma IS NOT NULL
+            )
+        )) AS Tiene_Datos_Adicionales`;
+      } else if (roleMap.dataTable) {
         dataCheckSelect = `(EXISTS(SELECT 1 FROM ${roleMap.dataTable} WHERE ${roleMap.dataCedulaCol} = ${T1}.cedula)) AS Tiene_Datos_Adicionales`;
       }
 

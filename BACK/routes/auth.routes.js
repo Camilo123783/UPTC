@@ -20,7 +20,7 @@ const {
   verifyResetCode,
   clearResetCode,
 } = require("../config/resetCodeStore");
-const { invalidateUserAuthCache } = require("../middleware/auth");
+const { verifyToken, invalidateUserAuthCache } = require("../middleware/auth");
 
 function resolveAssetUrl(rawUrl, fallbackUrl = "") {
   if (!rawUrl) return fallbackUrl;
@@ -264,6 +264,25 @@ router.post("/login", async (req, res, next) => {
         message: "Cédula o contraseña incorrectos.",
       });
     }
+
+    // Consultar estado de primer ingreso (Habeas Data y Cambio de Clave inicial)
+    let primerIngreso = { terminos_aceptados: 0, clave_cambiada: 0 };
+    try {
+      const primerIngresoRows = await queryDB(
+        "SELECT terminos_aceptados, clave_cambiada FROM usuario_primer_ingreso WHERE cedula = ? LIMIT 1",
+        [authenticatedUser.cedula]
+      );
+      if (primerIngresoRows.length > 0) {
+        primerIngreso = primerIngresoRows[0];
+      }
+    } catch (piErr) {
+      console.warn("Aviso al consultar usuario_primer_ingreso:", piErr.message);
+    }
+
+    authenticatedUser.terminos_aceptados = Number(primerIngreso.terminos_aceptados) === 1;
+    authenticatedUser.clave_cambiada = Number(primerIngreso.clave_cambiada) === 1;
+    authenticatedUser.requiere_primer_ingreso =
+      !authenticatedUser.terminos_aceptados || !authenticatedUser.clave_cambiada;
 
     // ✅ Generar JWT real
     const token = jwt.sign(
@@ -782,6 +801,112 @@ router.post("/auth/change-password", async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Contraseña cambiada con éxito.",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/auth/accept-terms (Registro oficial de aceptación de Habeas Data)
+// ──────────────────────────────────────────────
+router.post("/auth/accept-terms", verifyToken, async (req, res, next) => {
+  try {
+    const cedula = req.user?.cedula;
+    if (!cedula) {
+      return res.status(401).json({
+        success: false,
+        message: "Sesión inválida o cédula no identificada.",
+      });
+    }
+
+    await queryDB(
+      `INSERT INTO usuario_primer_ingreso (cedula, terminos_aceptados, fecha_terminos)
+       VALUES (?, 1, NOW())
+       ON DUPLICATE KEY UPDATE terminos_aceptados = 1, fecha_terminos = NOW()`,
+      [cedula]
+    );
+
+    console.log(`✅ [HABEAS DATA] Términos aceptados permanentemente por cédula=${cedula}`);
+    return res.status(200).json({
+      success: true,
+      message: "Términos y Política de Tratamiento de Datos aceptados exitosamente.",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/auth/first-login-change-password (Cambio obligatorio de clave de primer ingreso)
+// ──────────────────────────────────────────────
+router.post("/auth/first-login-change-password", verifyToken, async (req, res, next) => {
+  try {
+    const cedula = req.user?.cedula;
+    const role = req.user?.role;
+    const { newPassword, confirmPassword } = req.body;
+
+    if (!cedula) {
+      return res.status(401).json({
+        success: false,
+        message: "Sesión inválida o expirada. Por favor inicie sesión nuevamente.",
+      });
+    }
+
+    if (!newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Debe ingresar y confirmar su nueva contraseña.",
+      });
+    }
+
+    if (String(newPassword) !== String(confirmPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: "Las contraseñas no coinciden. Por favor verifíquelas.",
+      });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "La nueva contraseña debe tener al menos 6 caracteres.",
+      });
+    }
+
+    // Identificar la tabla del usuario
+    const userRoleStr = String(role || "").trim().toLowerCase();
+    const userTable = ROLE_TO_TABLE[userRoleStr];
+
+    if (!userTable) {
+      return res.status(400).json({
+        success: false,
+        message: "Rol de usuario no reconocido en el sistema.",
+      });
+    }
+
+    // Hashear y actualizar contraseña
+    const hashedPassword = await bcrypt.hash(String(newPassword), 10);
+    await queryDB(`UPDATE ${userTable} SET password = ? WHERE cedula = ?`, [
+      hashedPassword,
+      cedula,
+    ]);
+
+    // Registrar en usuario_primer_ingreso
+    await queryDB(
+      `INSERT INTO usuario_primer_ingreso (cedula, terminos_aceptados, clave_cambiada, fecha_clave)
+       VALUES (?, 1, 1, NOW())
+       ON DUPLICATE KEY UPDATE clave_cambiada = 1, fecha_clave = NOW()`,
+      [cedula]
+    );
+
+    clearResetCode(cedula);
+    invalidateUserAuthCache(cedula);
+
+    console.log(`✅ [PRIMER INGRESO] Contraseña personalizada registrada para cédula=${cedula} (${userTable})`);
+    return res.status(200).json({
+      success: true,
+      message: "Contraseña actualizada exitosamente. Ya puedes utilizar la plataforma con total seguridad.",
     });
   } catch (err) {
     next(err);

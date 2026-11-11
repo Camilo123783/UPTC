@@ -5,10 +5,12 @@
 // ============================================================
 import React, { useState } from "react";
 import { ShieldCheck, FileText, CheckCircle2, AlertCircle, Building2, Lock } from "lucide-react";
+import { BACKEND_URL } from "../../config/api";
 
 const HabeasDataModal = ({ isOpen, onAccept, userName = "" }) => {
   const [accepted, setAccepted] = useState(false);
   const [hasScrolledToEnd, setHasScrolledToEnd] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -19,9 +21,28 @@ const HabeasDataModal = ({ isOpen, onAccept, userName = "" }) => {
     }
   };
 
-  const handleConfirm = () => {
-    if (accepted && onAccept) {
-      onAccept();
+  const handleConfirm = async () => {
+    if (!accepted) return;
+    setLoading(true);
+    try {
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
+
+      await fetch(`${BACKEND_URL}/api/auth/accept-terms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token || ""}`,
+        },
+      }).catch((e) => console.warn("Aviso al guardar términos en backend:", e));
+    } catch (err) {
+      console.warn("Aviso términos:", err);
+    } finally {
+      setLoading(false);
+      if (onAccept) onAccept();
     }
   };
 

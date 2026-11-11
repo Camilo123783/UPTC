@@ -49,6 +49,7 @@ const StudentDocentCommunication = React.lazy(() => import("./components/Student
 const HistoryModule = React.lazy(() => import("./components/History/HistoryModule"));
 const CertificateHistoryModule = React.lazy(() => import("./components/History/CertificateHistoryModule"));
 import HabeasDataModal from "./components/Shared/HabeasDataModal";
+import FirstLoginPasswordModal from "./components/Shared/FirstLoginPasswordModal";
 
 import {
   loadActiveSession,
@@ -271,11 +272,12 @@ const App = () => {
   // Estado para modal preventivo de inactividad (countdown en segundos cuando quedan <= 2 min)
   const [inactivityWarningSeconds, setInactivityWarningSeconds] = useState(null);
 
-  // Estado para modal obligatorio de Tratamiento de Datos Personales / Habeas Data
+  // Estados para modales obligatorios de Primer Inicio de Sesión
   const [showHabeasDataModal, setShowHabeasDataModal] = useState(false);
-  const [habeasUserName, setHabeasUserName] = useState("");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [firstLoginUserName, setFirstLoginUserName] = useState("");
 
-  const checkHabeasDataStatus = useCallback((targetUserData) => {
+  const checkFirstLoginFlow = useCallback((targetUserData) => {
     try {
       let data = targetUserData;
       if (!data) {
@@ -287,20 +289,38 @@ const App = () => {
       if (data) {
         const userId = data.cedula || data.id;
         if (userId) {
-          const accepted = localStorage.getItem(`habeas_data_accepted_${userId}`);
-          if (!accepted) {
-            const fullName = [data.nombre, data.apellidos || data.apellido]
-              .filter(Boolean)
-              .join(" ");
-            setHabeasUserName(fullName || "");
+          const fullName = [data.nombre, data.apellidos || data.apellido]
+            .filter(Boolean)
+            .join(" ");
+          setFirstLoginUserName(fullName || "");
+
+          const isTermsAccepted =
+            Boolean(data.terminos_aceptados) ||
+            localStorage.getItem(`habeas_data_accepted_${userId}`) === "true";
+
+          const isPasswordChanged =
+            Boolean(data.clave_cambiada) ||
+            localStorage.getItem(`password_changed_${userId}`) === "true";
+
+          // Paso 1: Si no ha aceptado términos, abrir Habeas Data
+          if (!isTermsAccepted) {
             setShowHabeasDataModal(true);
+            setShowPasswordModal(false);
+            return;
+          }
+
+          // Paso 2: Si ya aceptó términos pero no ha cambiado la clave, abrir modal de cambio de clave
+          if (!isPasswordChanged) {
+            setShowHabeasDataModal(false);
+            setShowPasswordModal(true);
             return;
           }
         }
       }
       setShowHabeasDataModal(false);
+      setShowPasswordModal(false);
     } catch (e) {
-      console.warn("Aviso al verificar Habeas Data:", e);
+      console.warn("Aviso al verificar flujo de primer ingreso:", e);
     }
   }, []);
 
@@ -309,20 +329,50 @@ const App = () => {
       const raw =
         localStorage.getItem("activeUserData") ||
         sessionStorage.getItem("activeUserData");
+      let userId = null;
       if (raw) {
         const data = JSON.parse(raw);
-        const userId = data.cedula || data.id;
-        if (userId) {
-          localStorage.setItem(
-            `habeas_data_accepted_${userId}`,
-            new Date().toISOString()
-          );
-        }
+        userId = data.cedula || data.id;
+        data.terminos_aceptados = true;
+        localStorage.setItem("activeUserData", JSON.stringify(data));
+      }
+      if (userId) {
+        localStorage.setItem(`habeas_data_accepted_${userId}`, "true");
+      }
+
+      setShowHabeasDataModal(false);
+
+      // Inmediatamente después de aceptar términos, verificar si debe cambiar la clave
+      const isPasswordChanged =
+        userId && localStorage.getItem(`password_changed_${userId}`) === "true";
+
+      if (!isPasswordChanged) {
+        setShowPasswordModal(true);
       }
     } catch (e) {
       console.warn("Aviso al guardar aceptación de Habeas Data:", e);
+      setShowHabeasDataModal(false);
     }
-    setShowHabeasDataModal(false);
+  }, []);
+
+  const handlePasswordChangedSuccess = useCallback(() => {
+    try {
+      const raw =
+        localStorage.getItem("activeUserData") ||
+        sessionStorage.getItem("activeUserData");
+      if (raw) {
+        const data = JSON.parse(raw);
+        const userId = data.cedula || data.id;
+        data.clave_cambiada = true;
+        localStorage.setItem("activeUserData", JSON.stringify(data));
+        if (userId) {
+          localStorage.setItem(`password_changed_${userId}`, "true");
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso al registrar cambio de clave:", e);
+    }
+    setShowPasswordModal(false);
   }, []);
 
   const handleKeepSessionActive = useCallback(() => {
@@ -361,7 +411,7 @@ const App = () => {
         navigate("/login", { replace: true });
       } else {
         setUserRole(session.userRole);
-        checkHabeasDataStatus();
+        checkFirstLoginFlow();
         // Si el usuario ingresa a la raíz "/" o a "/login" teniendo sesión activa válida:
         if (location.pathname === "/" || location.pathname === "/login") {
           const safePage = sanitizeSessionPage(session.currentPage, session.userRole);
@@ -497,7 +547,7 @@ const App = () => {
         : rawTarget;
     saveActiveSession(role, target, userData, token);
     setUserRole(role);
-    checkHabeasDataStatus(userData);
+    checkFirstLoginFlow(userData);
     navigate(target, { replace: true });
   };
 
@@ -505,6 +555,7 @@ const App = () => {
     performFullLogout();
     setUserRole(null);
     setShowHabeasDataModal(false);
+    setShowPasswordModal(false);
     navigate("/login", { replace: true });
   };
 
@@ -723,8 +774,15 @@ const App = () => {
       {/* Modal de Aceptación Obligatoria de Tratamiento de Datos / Habeas Data */}
       <HabeasDataModal
         isOpen={showHabeasDataModal}
-        userName={habeasUserName}
+        userName={firstLoginUserName}
         onAccept={handleAcceptHabeasData}
+      />
+
+      {/* Modal Obligatorio de Cambio de Contraseña Inicial en Primer Inicio de Sesión */}
+      <FirstLoginPasswordModal
+        isOpen={showPasswordModal}
+        userName={firstLoginUserName}
+        onSuccess={handlePasswordChangedSuccess}
       />
     </>
   );
