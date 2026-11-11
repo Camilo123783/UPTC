@@ -962,7 +962,7 @@ const DashboardHome = ({ userRole, onNavigate }) => {
   return (
     <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-gray-200 dark:border-zinc-800 transition-colors">
       <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-6 tracking-tight">
-        Dashboarddd
+        Tablero
       </h2>
       {getRoleSpecificContent(userRole)}
     </div>
