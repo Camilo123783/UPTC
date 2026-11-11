@@ -42,13 +42,19 @@ CREATE TABLE IF NOT EXISTS `servicio` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Tablas de Roles y Usuarios
+CREATE TABLE IF NOT EXISTS `rol` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `nombrerol` VARCHAR(60) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `superadmin` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `cedula` BIGINT NOT NULL UNIQUE,
   `nombre` VARCHAR(120) NOT NULL,
   `apellidos` VARCHAR(120) NOT NULL,
   `correo_institucional` VARCHAR(180) NOT NULL UNIQUE,
-  `contrasena` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `rol_id` INT DEFAULT 5,
   `activo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -59,7 +65,8 @@ CREATE TABLE IF NOT EXISTS `administrador` (
   `nombre` VARCHAR(120) NOT NULL,
   `apellidos` VARCHAR(120) NOT NULL,
   `correo_institucional` VARCHAR(180) NOT NULL UNIQUE,
-  `contrasena` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `rol_id` INT DEFAULT 4,
   `activo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -70,11 +77,9 @@ CREATE TABLE IF NOT EXISTS `docente` (
   `nombre` VARCHAR(120) NOT NULL,
   `apellidos` VARCHAR(120) NOT NULL,
   `correo_institucional` VARCHAR(180) NOT NULL UNIQUE,
-  `contrasena` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `rol_id` INT DEFAULT 2,
   `programa_id` INT DEFAULT NULL,
-  `telefono` VARCHAR(50) DEFAULT NULL,
-  `especialidad` VARCHAR(180) DEFAULT NULL,
-  `biografia` TEXT DEFAULT NULL,
   `foto_perfil` LONGTEXT DEFAULT NULL,
   `foto_firma` LONGTEXT DEFAULT NULL,
   `activo` TINYINT(1) NOT NULL DEFAULT 1,
@@ -88,7 +93,8 @@ CREATE TABLE IF NOT EXISTS `auditor` (
   `nombre` VARCHAR(120) NOT NULL,
   `apellidos` VARCHAR(120) NOT NULL,
   `correo_institucional` VARCHAR(180) NOT NULL UNIQUE,
-  `contrasena` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `rol_id` INT DEFAULT 3,
   `institucion_id` INT DEFAULT NULL,
   `activo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,8 +108,10 @@ CREATE TABLE IF NOT EXISTS `estudiante` (
   `apellidos` VARCHAR(120) NOT NULL,
   `codigo` VARCHAR(50) DEFAULT NULL,
   `correo_institucional` VARCHAR(180) NOT NULL UNIQUE,
-  `contrasena` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `rol_id` INT DEFAULT 1,
   `programa_id` INT DEFAULT NULL,
+  `semestre_actual` INT DEFAULT 1,
   `activo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT `fk_estudiante_programa` FOREIGN KEY (`programa_id`) REFERENCES `programa` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
@@ -169,10 +177,11 @@ CREATE TABLE IF NOT EXISTS `practica` (
   `estado` VARCHAR(40) NOT NULL DEFAULT 'Activa',
   `motivo_cancelacion` TEXT DEFAULT NULL,
   `descripcion` TEXT DEFAULT NULL,
-  `horario` JSON DEFAULT NULL,
+  `horario` TEXT DEFAULT NULL,
   `rubrica_criterios` JSON DEFAULT NULL,
   `creado_por_cedula` BIGINT DEFAULT NULL,
   `creado_por_rol` VARCHAR(40) DEFAULT 'admin',
+  `creador_nombre` VARCHAR(220) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX `idx_practica_estado_fechas` (`estado`, `fecha_inicio`, `fecha_fin`),
   INDEX `idx_practica_docente` (`docente_cedula`),
@@ -205,8 +214,11 @@ CREATE TABLE IF NOT EXISTS `asistencia_estudiante` (
   `estudiante_cedula` BIGINT NOT NULL,
   `auditor_cedula` BIGINT DEFAULT NULL,
   `fecha` DATE NOT NULL,
+  `turno` VARCHAR(40) DEFAULT 'Mañana',
+  `estado` VARCHAR(40) DEFAULT 'Presente',
   `asistio` TINYINT(1) NOT NULL DEFAULT 1,
   `horas` INT NOT NULL DEFAULT 8,
+  `observaciones` TEXT DEFAULT NULL,
   `observacion` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY `uk_asistencia_diaria` (`practica_id`, `estudiante_cedula`, `fecha`),
@@ -218,6 +230,7 @@ CREATE TABLE IF NOT EXISTS `reporte_auditor` (
   `practica_id` INT NOT NULL,
   `estudiante_cedula` BIGINT NOT NULL,
   `auditor_cedula` BIGINT NOT NULL,
+  `docente_cedula` BIGINT DEFAULT NULL,
   `conocimiento_teorico` INT DEFAULT 5,
   `habilidades_practicas` INT DEFAULT 5,
   `actitud_etica` INT DEFAULT 5,
@@ -227,6 +240,7 @@ CREATE TABLE IF NOT EXISTS `reporte_auditor` (
   `nota_sugerida` DECIMAL(3,1) DEFAULT NULL,
   `concepto` VARCHAR(80) DEFAULT 'Favorable',
   `observaciones` TEXT DEFAULT NULL,
+  `leido_por_docente` TINYINT(1) NOT NULL DEFAULT 0,
   `fecha_reporte` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `uk_reporte_auditor` (`practica_id`, `estudiante_cedula`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -237,9 +251,13 @@ CREATE TABLE IF NOT EXISTS `observacion_practica` (
   `autor_cedula` BIGINT DEFAULT NULL,
   `autor_rol` VARCHAR(40) NOT NULL DEFAULT 'docente',
   `autor_nombre` VARCHAR(180) DEFAULT NULL,
+  `docente_cedula` BIGINT DEFAULT NULL,
+  `auditor_cedula` BIGINT DEFAULT NULL,
   `estudiante_cedula` BIGINT DEFAULT NULL,
+  `titulo` VARCHAR(220) DEFAULT NULL,
   `tipo` VARCHAR(60) DEFAULT 'Seguimiento',
   `observacion` TEXT NOT NULL,
+  `leido` TINYINT(1) NOT NULL DEFAULT 0,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX `idx_obs_practica` (`practica_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -315,7 +333,8 @@ CREATE TABLE IF NOT EXISTS `historial_practica` (
   `estado` VARCHAR(40) NOT NULL,
   `motivo_cancelacion` TEXT DEFAULT NULL,
   `descripcion` TEXT DEFAULT NULL,
-  `horario` JSON DEFAULT NULL,
+  `horario` TEXT DEFAULT NULL,
+  `rubrica_criterios` JSON DEFAULT NULL,
   `programa_id` INT DEFAULT NULL,
   `programa_nombre` VARCHAR(180) DEFAULT NULL,
   `asignatura_id` INT DEFAULT NULL,

@@ -300,7 +300,7 @@ const AuthForgotPassword = ({ onNavigate }) => {
             id="newPassword"
             type="password"
             label="Nueva Contraseña"
-            placeholder="Mínimo 4 caracteres"
+            placeholder="Mínimo 6 caracteres"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             disabled={isSending}

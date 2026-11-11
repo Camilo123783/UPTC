@@ -64,9 +64,11 @@ const DocentStudentCommunication = () => {
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
+    const hasRecent = Array.isArray(messages) && messages.some((m) => Number(m?.elapsed_seconds ?? 0) < 310);
+    if (!hasRecent) return undefined;
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [messages]);
 
   const messagesEndRef = useRef(null);
 
@@ -102,7 +104,6 @@ const DocentStudentCommunication = () => {
 
   // 0. Eliminar Mensaje (Límite estricto de 5 minutos)
   const handleDeleteMessage = async (msg) => {
-    if (!msg || !msg.id) return;
     if (!msg || !msg.id) return;
     const diffMinutes = getMessageElapsedSeconds(msg, Date.now()) / 60;
 

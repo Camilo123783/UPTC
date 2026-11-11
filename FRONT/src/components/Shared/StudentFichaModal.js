@@ -165,8 +165,7 @@ const StudentFichaModal = ({
   const notaSugerida = student.nota_sugerida !== null && student.nota_sugerida !== undefined ? Number(student.nota_sugerida) : null;
   const conceptoAuditor = student.concepto || student.report_concepto || null;
 
-  const token = typeof window !== "undefined" ? (localStorage.getItem("authToken") || sessionStorage.getItem("authToken")) : null;
-  const photoUrl = `${BACKEND_URL}/api/student/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  const photoUrl = `${BACKEND_URL}/api/student/photo/${cedula}`;
 
   const modalContent = (
     <div

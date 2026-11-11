@@ -177,32 +177,14 @@ const DashboardLayout = ({
           (userRole === "student" || userData.role === "student") &&
           cedula
         ) {
-          const token =
-            localStorage.getItem("authToken") ||
-            sessionStorage.getItem("authToken") ||
-            localStorage.getItem("token") ||
-            sessionStorage.getItem("token");
-          setPhotoUrl(
-            `${BACKEND_URL}/api/student/photo/${cedula}?v=${Date.now()}${
-              token ? `&token=${encodeURIComponent(token)}` : ""
-            }`,
-          );
+          setPhotoUrl(`${BACKEND_URL}/api/student/photo/${cedula}`);
           setPhotoError(false);
           setPhotoLoading(true);
         } else if (
           (userRole === "docent" || userData.role === "docent") &&
           cedula
         ) {
-          const token =
-            localStorage.getItem("authToken") ||
-            sessionStorage.getItem("authToken") ||
-            localStorage.getItem("token") ||
-            sessionStorage.getItem("token");
-          setPhotoUrl(
-            `${BACKEND_URL}/api/docent/photo/${cedula}?v=${Date.now()}${
-              token ? `&token=${encodeURIComponent(token)}` : ""
-            }`,
-          );
+          setPhotoUrl(`${BACKEND_URL}/api/docent/photo/${cedula}`);
           setPhotoError(false);
           setPhotoLoading(true);
         } else {
@@ -559,22 +541,6 @@ const DashboardLayout = ({
           strokeLinejoin="round"
           d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
         />{" "}
-      </svg>
-    ),
-    "Solicitudes de Certificados": (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth="1.5"
-        stroke="currentColor"
-        className="w-5 h-5"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M11.35 3.836A1.873 1.873 0 0 1 12 5.25c0 .416-.085.82-.25 1.193L9.423 17.593a2.25 2.25 0 0 0 1.11 2.641 2.25 2.25 0 0 0 3.021-.603 2.25 2.25 0 0 0-.603-3.021L10.95 12.953M8.625 7.5a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12 12.75a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Z"
-        />
       </svg>
     ),
     Certificaciones: (

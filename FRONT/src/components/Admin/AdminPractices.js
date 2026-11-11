@@ -21,59 +21,62 @@ import {
   Clock,
   Flag,
   AlertTriangle,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { BACKEND_URL } from "../../config/api";
 import { notifyDataChanged, useDataSync } from "../../utils/dataSync";
 import { SkeletonCardGrid } from "../Shared/Skeleton";
-import { PracticeScheduleEditor, PracticeScheduleViewer } from "../Shared/PracticeSchedule";
-import { RubricCriteriaSelector, RubricCriteriaViewer } from "../Shared/PracticeRubric";
+import {
+  PracticeScheduleEditor,
+  PracticeScheduleViewer,
+} from "../Shared/PracticeSchedule";
+import {
+  RubricCriteriaSelector,
+  RubricCriteriaViewer,
+} from "../Shared/PracticeRubric";
 import DocentAvatar from "../Shared/DocentAvatar";
-import { parseRubricCriteriaIds, DEFAULT_RUBRIC_CRITERIA_IDS } from "../../utils/evaluationRubric";
+import {
+  parseRubricCriteriaIds,
+  DEFAULT_RUBRIC_CRITERIA_IDS,
+} from "../../utils/evaluationRubric";
 
 const API_BASE_URL = BACKEND_URL;
 
 const ESTADOS_PRACTICA = [
-  { value: "Activa", label: "Activa", color: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800" },
-  { value: "Planificada", label: "Planificada", color: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800" },
-  { value: "Finalizada", label: "Finalizada", color: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800" },
-  { value: "Cancelada", label: "Cancelada", color: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800" },
+  {
+    value: "Activa",
+    label: "Activa",
+    color:
+      "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  {
+    value: "Planificada",
+    label: "Planificada",
+    color:
+      "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
+  },
+  {
+    value: "Finalizada",
+    label: "Finalizada",
+    color:
+      "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+  },
+  {
+    value: "Cancelada",
+    label: "Cancelada",
+    color:
+      "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+  },
 ];
-
-const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-const parseHorarioAHoras = (horarioStr) => {
-  const map = {};
-  if (!horarioStr || typeof horarioStr !== "string") return map;
-  DIAS_SEMANA.forEach((dia) => {
-    const regex = new RegExp(`${dia}(?:[\\s\\(:–-]+(\\d{1,2}:\\d{2})\\s*(?:-|a|al|hasta|–)\\s*(\\d{1,2}:\\d{2})\\)?)?`, "i");
-    const m = horarioStr.match(regex);
-    if (m) {
-      map[dia] = {
-        inicio: m[1] || "07:00",
-        fin: m[2] || "13:00",
-      };
-    }
-  });
-  return map;
-};
-
-const formatHorarioDesdeDias = (diasMap) => {
-  return DIAS_SEMANA
-    .filter((dia) => !!diasMap[dia])
-    .map((dia) => {
-      const { inicio, fin } = diasMap[dia];
-      return `${dia} (${inicio || "07:00"} - ${fin || "13:00"})`;
-    })
-    .join(", ");
-};
 
 const getRemainingCertDays = (fechaFin) => {
   if (!fechaFin) return 30;
   try {
     const fStr = typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "";
     if (!fStr) return 30;
-    const finDate = new Date(fStr);
+    const finDate = /^\d{4}-\d{2}-\d{2}$/.test(fStr)
+      ? new Date(`${fStr}T00:00:00`)
+      : new Date(fStr);
     const hoy = new Date();
     finDate.setHours(0, 0, 0, 0);
     hoy.setHours(0, 0, 0, 0);
@@ -97,8 +100,16 @@ const formatReadableDate = (dateStr) => {
   try {
     const parts = dateStr.substring(0, 10).split("-");
     if (parts.length === 3) {
-      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-      return d.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+      const d = new Date(
+        parseInt(parts[0], 10),
+        parseInt(parts[1], 10) - 1,
+        parseInt(parts[2], 10),
+      );
+      return d.toLocaleDateString("es-CO", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
     }
   } catch (e) {}
   return dateStr;
@@ -108,8 +119,16 @@ const formatReadableDate = (dateStr) => {
 const calculateLifecycleStatus = (currentStatus, fechaInicio, fechaFin) => {
   if (currentStatus === "Cancelada") return "Cancelada";
   const todayStr = getTodayIso();
-  const fFin = fechaFin ? (typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "") : "";
-  const fIni = fechaInicio ? (typeof fechaInicio === "string" ? fechaInicio.substring(0, 10) : "") : "";
+  const fFin = fechaFin
+    ? typeof fechaFin === "string"
+      ? fechaFin.substring(0, 10)
+      : ""
+    : "";
+  const fIni = fechaInicio
+    ? typeof fechaInicio === "string"
+      ? fechaInicio.substring(0, 10)
+      : ""
+    : "";
 
   // 1. Si llegó o superó la fecha final -> 'Finalizada'
   if (fFin && todayStr >= fFin) {
@@ -129,8 +148,11 @@ const calculateLifecycleStatus = (currentStatus, fechaInicio, fechaFin) => {
 const isPracticeStarted = (practice) => {
   if (!practice) return false;
   const estado = practice.estado || "";
-  if (estado === "Activa" || estado === "Finalizada" || estado === "En Curso") return true;
-  const fIni = practice.fecha_inicio ? String(practice.fecha_inicio).substring(0, 10) : "";
+  if (estado === "Activa" || estado === "Finalizada" || estado === "En Curso")
+    return true;
+  const fIni = practice.fecha_inicio
+    ? String(practice.fecha_inicio).substring(0, 10)
+    : "";
   const todayStr = getTodayIso();
   if (fIni && todayStr >= fIni) return true;
   return false;
@@ -289,29 +311,38 @@ const AdminPractices = () => {
     if (isModalOpen) {
       sessionStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ isModalOpen, isEditing, formData })
+        JSON.stringify({ isModalOpen, isEditing, formData }),
       );
     }
   }, [isModalOpen, isEditing, formData]);
 
-
   // ─── Filtrar Docentes, Auditores y Estudiantes ───
-  const docents = useMemo(() => users.filter((u) => u.Rol === "docent"), [users]);
-  const auditors = useMemo(() => users.filter((u) => u.Rol === "auditor"), [users]);
-  const students = useMemo(() => users.filter((u) => u.Rol === "student"), [users]);
+  const docents = useMemo(
+    () => users.filter((u) => u.Rol === "docent"),
+    [users],
+  );
+  const auditors = useMemo(
+    () => users.filter((u) => u.Rol === "auditor"),
+    [users],
+  );
+  const students = useMemo(
+    () => users.filter((u) => u.Rol === "student"),
+    [users],
+  );
 
   // ─── Cargar Datos del Servidor ───
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      const [practRes, progRes, asigRes, instRes, servRes, usersRes] = await Promise.allSettled([
-        fetch(`${API_BASE_URL}/api/admin/practices`),
-        fetch(`${API_BASE_URL}/api/admin/programas`),
-        fetch(`${API_BASE_URL}/api/admin/asignaturas`),
-        fetch(`${API_BASE_URL}/api/admin/instituciones`),
-        fetch(`${API_BASE_URL}/api/admin/servicios`),
-        fetch(`${API_BASE_URL}/api/admin/users`),
-      ]);
+      const [practRes, progRes, asigRes, instRes, servRes, usersRes] =
+        await Promise.allSettled([
+          fetch(`${API_BASE_URL}/api/admin/practices`),
+          fetch(`${API_BASE_URL}/api/admin/programas`),
+          fetch(`${API_BASE_URL}/api/admin/asignaturas`),
+          fetch(`${API_BASE_URL}/api/admin/instituciones`),
+          fetch(`${API_BASE_URL}/api/admin/servicios`),
+          fetch(`${API_BASE_URL}/api/admin/users`),
+        ]);
 
       if (practRes.status === "fulfilled" && practRes.value.ok) {
         setPractices(await practRes.value.json());
@@ -356,14 +387,16 @@ const AdminPractices = () => {
   // ─── Total de estudiantes registrados en el programa seleccionado ───
   const totalStudentsInProgram = useMemo(() => {
     if (!formData.programa_id) return 0;
-    return students.filter((st) => String(st.programa_id) === String(formData.programa_id)).length;
+    return students.filter(
+      (st) => String(st.programa_id) === String(formData.programa_id),
+    ).length;
   }, [students, formData.programa_id]);
 
   // ─── Asignaturas filtradas según el Programa seleccionado en el modal ───
   const availableAsignaturas = useMemo(() => {
     if (!formData.programa_id) return [];
     return asignaturas.filter(
-      (a) => String(a.programa_id) === String(formData.programa_id)
+      (a) => String(a.programa_id) === String(formData.programa_id),
     );
   }, [asignaturas, formData.programa_id]);
 
@@ -371,11 +404,18 @@ const AdminPractices = () => {
   const availableDocents = useMemo(() => {
     if (!formData.programa_id) return [];
     const filtered = docents.filter(
-      (d) => String(d.programa_id) === String(formData.programa_id)
+      (d) => String(d.programa_id) === String(formData.programa_id),
     );
     // Si estamos editando y ya había un docente asignado previamente, conservarlo para no desconfigurar
-    if (formData.docente_cedula && !filtered.some((d) => String(d.Cédula) === String(formData.docente_cedula))) {
-      const assignedDoc = docents.find((d) => String(d.Cédula) === String(formData.docente_cedula));
+    if (
+      formData.docente_cedula &&
+      !filtered.some(
+        (d) => String(d.Cédula) === String(formData.docente_cedula),
+      )
+    ) {
+      const assignedDoc = docents.find(
+        (d) => String(d.Cédula) === String(formData.docente_cedula),
+      );
       if (assignedDoc) {
         filtered.push(assignedDoc);
       }
@@ -387,7 +427,7 @@ const AdminPractices = () => {
   const availableServicios = useMemo(() => {
     if (!formData.institucion_id) return servicios;
     return servicios.filter(
-      (s) => String(s.institucion_id) === String(formData.institucion_id)
+      (s) => String(s.institucion_id) === String(formData.institucion_id),
     );
   }, [servicios, formData.institucion_id]);
 
@@ -395,14 +435,18 @@ const AdminPractices = () => {
   const availableAuditors = useMemo(() => {
     if (!formData.institucion_id) return [];
     const instAuditors = auditors.filter(
-      (au) => String(au.institucion_id) === String(formData.institucion_id)
+      (au) => String(au.institucion_id) === String(formData.institucion_id),
     );
     // Si estamos editando y el auditor ya asignado pertenece a otra institución, conservarlo visible
     if (
       formData.auditor_cedula &&
-      !instAuditors.some((au) => String(au.Cédula) === String(formData.auditor_cedula))
+      !instAuditors.some(
+        (au) => String(au.Cédula) === String(formData.auditor_cedula),
+      )
     ) {
-      const assigned = auditors.find((au) => String(au.Cédula) === String(formData.auditor_cedula));
+      const assigned = auditors.find(
+        (au) => String(au.Cédula) === String(formData.auditor_cedula),
+      );
       if (assigned) instAuditors.push(assigned);
     }
     return instAuditors;
@@ -427,14 +471,23 @@ const AdminPractices = () => {
   // ─── Estudiantes seleccionados en el formulario con sus datos completos ───
   const selectedStudentsDetails = useMemo(() => {
     const selectedSet = new Set(formData.estudiantes.map(String));
-    return students.filter((st) => selectedSet.has(String(st.Cédula || st.id_user_table)));
+    return students.filter((st) =>
+      selectedSet.has(String(st.Cédula || st.id_user_table)),
+    );
   }, [students, formData.estudiantes]);
 
   // ─── Limpieza automática de datos inconsistentes (ej. procedentes de borradores antiguos) ───
   useEffect(() => {
-    if (formData.programa_id && formData.docente_cedula && docents.length > 0 && !isEditing) {
+    if (
+      formData.programa_id &&
+      formData.docente_cedula &&
+      docents.length > 0 &&
+      !isEditing
+    ) {
       const match = docents.some(
-        (d) => String(d.Cédula) === String(formData.docente_cedula) && String(d.programa_id) === String(formData.programa_id)
+        (d) =>
+          String(d.Cédula) === String(formData.docente_cedula) &&
+          String(d.programa_id) === String(formData.programa_id),
       );
       if (!match) {
         setFormData((prev) => ({ ...prev, docente_cedula: "" }));
@@ -443,13 +496,22 @@ const AdminPractices = () => {
   }, [formData.programa_id, docents, isEditing]);
 
   useEffect(() => {
-    if (formData.programa_id && formData.estudiantes.length > 0 && students.length > 0 && !isEditing) {
+    if (
+      formData.programa_id &&
+      formData.estudiantes.length > 0 &&
+      students.length > 0 &&
+      !isEditing
+    ) {
       const validStudentCedulas = new Set(
         students
-          .filter((st) => String(st.programa_id) === String(formData.programa_id))
-          .map((st) => String(st.Cédula || st.id_user_table))
+          .filter(
+            (st) => String(st.programa_id) === String(formData.programa_id),
+          )
+          .map((st) => String(st.Cédula || st.id_user_table)),
       );
-      const filtered = formData.estudiantes.filter((c) => validStudentCedulas.has(String(c)));
+      const filtered = formData.estudiantes.filter((c) =>
+        validStudentCedulas.has(String(c)),
+      );
       if (filtered.length !== formData.estudiantes.length) {
         setFormData((prev) => ({ ...prev, estudiantes: filtered }));
       }
@@ -470,7 +532,9 @@ const AdminPractices = () => {
         if (value) {
           // Si el docente asignado no pertenece al nuevo programa seleccionado, limpiarlo
           const docBelongs = docents.some(
-            (d) => String(d.Cédula) === String(prev.docente_cedula) && String(d.programa_id) === String(value)
+            (d) =>
+              String(d.Cédula) === String(prev.docente_cedula) &&
+              String(d.programa_id) === String(value),
           );
           if (!docBelongs) {
             updated.docente_cedula = "";
@@ -480,13 +544,15 @@ const AdminPractices = () => {
           const validStudentCedulas = new Set(
             students
               .filter((st) => String(st.programa_id) === String(value))
-              .map((st) => String(st.Cédula || st.id_user_table))
+              .map((st) => String(st.Cédula || st.id_user_table)),
           );
           const remainingStudents = (prev.estudiantes || []).filter((c) =>
-            validStudentCedulas.has(String(c))
+            validStudentCedulas.has(String(c)),
           );
           if (remainingStudents.length !== (prev.estudiantes || []).length) {
-            toast.info("Se han actualizado los estudiantes asignados para coincidir con el programa seleccionado.");
+            toast.info(
+              "Se han actualizado los estudiantes asignados para coincidir con el programa seleccionado.",
+            );
           }
           updated.estudiantes = remainingStudents;
         } else {
@@ -514,8 +580,13 @@ const AdminPractices = () => {
   const handleAddStudent = (cedula) => {
     const cedulaStr = String(cedula);
     if (!formData.estudiantes.includes(cedulaStr)) {
-      if (formData.cupos && formData.estudiantes.length >= parseInt(formData.cupos, 10)) {
-        toast.warning(`Has alcanzado el límite máximo de ${formData.cupos} cupos para esta práctica.`);
+      if (
+        formData.cupos &&
+        formData.estudiantes.length >= parseInt(formData.cupos, 10)
+      ) {
+        toast.warning(
+          `Has alcanzado el límite máximo de ${formData.cupos} cupos para esta práctica.`,
+        );
         return;
       }
       setFormData((prev) => ({
@@ -552,26 +623,40 @@ const AdminPractices = () => {
       toast.info(
         practice.estado === "Finalizada"
           ? `La rotación está finalizada y ya no se puede editar. Quedan ${remaining} días para emitir certificados.`
-          : "La práctica está cancelada y su expediente no admite edición."
+          : "La práctica está cancelada y su expediente no admite edición.",
       );
       return;
     }
 
     setIsEditing(true);
     setScheduleDays(parseHorarioAHoras(practice.horario || ""));
-    const fIni = practice.fecha_inicio ? practice.fecha_inicio.substring(0, 10) : "";
+    const fIni = practice.fecha_inicio
+      ? practice.fecha_inicio.substring(0, 10)
+      : "";
     const fFin = practice.fecha_fin ? practice.fecha_fin.substring(0, 10) : "";
-    const computedEstado = calculateLifecycleStatus(practice.estado || "Planificada", fIni, fFin);
+    const computedEstado = calculateLifecycleStatus(
+      practice.estado || "Planificada",
+      fIni,
+      fFin,
+    );
 
     setFormData({
       id: practice.id,
       titulo: practice.titulo || "",
       programa_id: practice.programa_id ? String(practice.programa_id) : "",
-      asignatura_id: practice.asignatura_id ? String(practice.asignatura_id) : "",
-      institucion_id: practice.institucion_id ? String(practice.institucion_id) : "",
+      asignatura_id: practice.asignatura_id
+        ? String(practice.asignatura_id)
+        : "",
+      institucion_id: practice.institucion_id
+        ? String(practice.institucion_id)
+        : "",
       servicio_id: practice.servicio_id ? String(practice.servicio_id) : "",
-      docente_cedula: practice.docente_cedula ? String(practice.docente_cedula) : "",
-      auditor_cedula: practice.auditor_cedula ? String(practice.auditor_cedula) : "",
+      docente_cedula: practice.docente_cedula
+        ? String(practice.docente_cedula)
+        : "",
+      auditor_cedula: practice.auditor_cedula
+        ? String(practice.auditor_cedula)
+        : "",
       periodo: practice.periodo || "2024-1",
       fecha_inicio: fIni,
       fecha_fin: fFin,
@@ -606,7 +691,9 @@ const AdminPractices = () => {
     e.preventDefault();
 
     if (!formData.titulo || !formData.titulo.trim()) {
-      toast.error("El título o nombre de la práctica formativa es obligatorio.");
+      toast.error(
+        "El título o nombre de la práctica formativa es obligatorio.",
+      );
       return;
     }
 
@@ -621,12 +708,16 @@ const AdminPractices = () => {
     }
 
     if (!formData.institucion_id) {
-      toast.error("Debes seleccionar la institución de salud para la práctica.");
+      toast.error(
+        "Debes seleccionar la institución de salud para la práctica.",
+      );
       return;
     }
 
     if (!formData.servicio_id) {
-      toast.error("Debes seleccionar el servicio hospitalario correspondiente.");
+      toast.error(
+        "Debes seleccionar el servicio hospitalario correspondiente.",
+      );
       return;
     }
 
@@ -636,7 +727,9 @@ const AdminPractices = () => {
     }
 
     if (!formData.auditor_cedula) {
-      toast.error("Debes asignar un auditor de salud responsable de la práctica.");
+      toast.error(
+        "Debes asignar un auditor de salud responsable de la práctica.",
+      );
       return;
     }
 
@@ -656,7 +749,9 @@ const AdminPractices = () => {
     }
 
     if (formData.fecha_fin < formData.fecha_inicio) {
-      toast.error("La fecha de finalización no puede ser anterior a la fecha de inicio.");
+      toast.error(
+        "La fecha de finalización no puede ser anterior a la fecha de inicio.",
+      );
       return;
     }
 
@@ -671,23 +766,29 @@ const AdminPractices = () => {
     }
 
     if (!formData.horario || !formData.horario.trim()) {
-      toast.error("El horario de la práctica es obligatorio. Configura los días y horas de rotación.");
+      toast.error(
+        "El horario de la práctica es obligatorio. Configura los días y horas de rotación.",
+      );
       return;
     }
 
     const selectedRubric = formData.rubrica_criterios || [];
     if (selectedRubric.length !== 10) {
       toast.error(
-        `Debes seleccionar exactamente 10 criterios de evaluación en la rúbrica (actualmente tienes ${selectedRubric.length}/10).`
+        `Debes seleccionar exactamente 10 criterios de evaluación en la rúbrica (actualmente tienes ${selectedRubric.length}/10).`,
       );
       return;
     }
 
     // Validar docente asignado si fue seleccionado
     if (formData.docente_cedula && formData.programa_id) {
-      const doc = docents.find((d) => String(d.Cédula) === String(formData.docente_cedula));
+      const doc = docents.find(
+        (d) => String(d.Cédula) === String(formData.docente_cedula),
+      );
       if (doc && String(doc.programa_id) !== String(formData.programa_id)) {
-        toast.error("El docente asignado no pertenece al programa académico seleccionado.");
+        toast.error(
+          "El docente asignado no pertenece al programa académico seleccionado.",
+        );
         return;
       }
     }
@@ -696,23 +797,40 @@ const AdminPractices = () => {
     if (formData.estudiantes.length > 0 && formData.programa_id) {
       const invalidSt = students.filter(
         (st) =>
-          formData.estudiantes.map(String).includes(String(st.Cédula || st.id_user_table)) &&
-          String(st.programa_id) !== String(formData.programa_id)
+          formData.estudiantes
+            .map(String)
+            .includes(String(st.Cédula || st.id_user_table)) &&
+          String(st.programa_id) !== String(formData.programa_id),
       );
       if (invalidSt.length > 0) {
-        toast.error("Uno o más estudiantes asignados no pertenecen al programa académico seleccionado.");
+        toast.error(
+          "Uno o más estudiantes asignados no pertenecen al programa académico seleccionado.",
+        );
         return;
       }
     }
 
     // Sincronizar automáticamente el estado según fechas (Finalizada si llegó o pasó fecha_fin, Activa si llegó fecha_inicio, etc.)
-    const finalEstado = calculateLifecycleStatus(formData.estado, formData.fecha_inicio, formData.fecha_fin);
+    const finalEstado = calculateLifecycleStatus(
+      formData.estado,
+      formData.fecha_inicio,
+      formData.fecha_fin,
+    );
 
-    if (finalEstado === "Cancelada" && (!formData.motivo_cancelacion || !formData.motivo_cancelacion.trim())) {
-      toast.error("Es obligatorio justificar y especificar el motivo por el cual se cancela la práctica formativa.");
+    if (
+      finalEstado === "Cancelada" &&
+      (!formData.motivo_cancelacion || !formData.motivo_cancelacion.trim())
+    ) {
+      toast.error(
+        "Es obligatorio justificar y especificar el motivo por el cual se cancela la práctica formativa.",
+      );
       return;
     }
-    const payload = { ...formData, estado: finalEstado, rubrica_criterios: selectedRubric };
+    const payload = {
+      ...formData,
+      estado: finalEstado,
+      rubrica_criterios: selectedRubric,
+    };
 
     setIsSaving(true);
     try {
@@ -736,7 +854,7 @@ const AdminPractices = () => {
       toast.success(
         isEditing
           ? `Práctica "${formData.titulo}" actualizada con éxito.`
-          : `Práctica "${formData.titulo}" creada con éxito.`
+          : `Práctica "${formData.titulo}" creada con éxito.`,
       );
 
       // Limpiar borrador al guardar exitosamente
@@ -761,16 +879,21 @@ const AdminPractices = () => {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/practices/${deletingPractice.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/practices/${deletingPractice.id}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const resData = await response.json();
       if (!response.ok) {
         throw new Error(resData.message || "Error al eliminar la práctica.");
       }
 
-      toast.success(`Práctica "${deletingPractice.titulo}" eliminada correctamente.`);
+      toast.success(
+        `Práctica "${deletingPractice.titulo}" eliminada correctamente.`,
+      );
       setDeletingPractice(null);
       await fetchAllData();
       notifyDataChanged("practice", "delete", { id: deletingPractice.id });
@@ -791,9 +914,17 @@ const AdminPractices = () => {
       // Filtro por Estado
       if (filterEstado !== "Todos" && p.estado !== filterEstado) return false;
       // Filtro por Programa
-      if (filterPrograma !== "Todos" && String(p.programa_id) !== String(filterPrograma)) return false;
+      if (
+        filterPrograma !== "Todos" &&
+        String(p.programa_id) !== String(filterPrograma)
+      )
+        return false;
       // Filtro por Institución
-      if (filterInstitucion !== "Todas" && String(p.institucion_id) !== String(filterInstitucion)) return false;
+      if (
+        filterInstitucion !== "Todas" &&
+        String(p.institucion_id) !== String(filterInstitucion)
+      )
+        return false;
       // Búsqueda en texto
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
@@ -804,9 +935,10 @@ const AdminPractices = () => {
         const aud = (p.auditor_nombre || "").toLowerCase();
         const prog = (p.programa_nombre || "").toLowerCase();
         const asig = (p.asignatura_nombre || "").toLowerCase();
-        const estMatch = (p.estudiantes || []).some((e) =>
-          (e.nombre_completo || "").toLowerCase().includes(query) ||
-          String(e.cedula || "").includes(query)
+        const estMatch = (p.estudiantes || []).some(
+          (e) =>
+            (e.nombre_completo || "").toLowerCase().includes(query) ||
+            String(e.cedula || "").includes(query),
         );
 
         return (
@@ -831,7 +963,6 @@ const AdminPractices = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-
       {/* ─── ENCABEZADO ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
         <div>
@@ -844,7 +975,9 @@ const AdminPractices = () => {
                 Gestión y Creación de Prácticas
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Parametriza escenarios clínicos, asocia programas, asignaturas, entidades de salud, servicios, docentes, auditores y estudiantes.
+                Parametriza escenarios clínicos, asocia programas, asignaturas,
+                entidades de salud, servicios, docentes, auditores y
+                estudiantes.
               </p>
             </div>
           </div>
@@ -884,13 +1017,16 @@ const AdminPractices = () => {
             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
           >
             <option value="Todos">
-              Todos los Estados ({practices.filter((p) => p.estado !== "Cancelada").length})
+              Todos los Estados (
+              {practices.filter((p) => p.estado !== "Cancelada").length})
             </option>
-            {ESTADOS_PRACTICA.filter((est) => est.value !== "Cancelada").map((est) => (
-              <option key={est.value} value={est.value}>
-                {est.label}
-              </option>
-            ))}
+            {ESTADOS_PRACTICA.filter((est) => est.value !== "Cancelada").map(
+              (est) => (
+                <option key={est.value} value={est.value}>
+                  {est.label}
+                </option>
+              ),
+            )}
           </select>
         </div>
 
@@ -937,9 +1073,14 @@ const AdminPractices = () => {
       ) : filteredPractices.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800">
           <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">No se encontraron prácticas formativas</h3>
+          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+            No se encontraron prácticas formativas
+          </h3>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 max-w-md mx-auto">
-            {searchTerm || filterEstado !== "Todos" || filterPrograma !== "Todos" || filterInstitucion !== "Todas"
+            {searchTerm ||
+            filterEstado !== "Todos" ||
+            filterPrograma !== "Todos" ||
+            filterInstitucion !== "Todas"
               ? "Prueba cambiando los filtros de búsqueda seleccionados."
               : "Aún no se han creado prácticas en el sistema. Haz clic en '+ Nueva Práctica Formativa' para configurar la primera."}
           </p>
@@ -962,7 +1103,7 @@ const AdminPractices = () => {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <span
                     className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getBadgeStyle(
-                      p.estado
+                      p.estado,
                     )}`}
                   >
                     ● {p.estado}
@@ -992,7 +1133,9 @@ const AdminPractices = () => {
                         {p.creador_nombre || p.docente_nombre || "Docente"}
                       </span>
                       {p.creado_por_cedula && (
-                        <span className="opacity-75 font-normal text-[11px]">(C.C. {p.creado_por_cedula})</span>
+                        <span className="opacity-75 font-normal text-[11px]">
+                          (C.C. {p.creado_por_cedula})
+                        </span>
                       )}
                     </span>
                   ) : (
@@ -1016,7 +1159,10 @@ const AdminPractices = () => {
 
                 {p.horario && (
                   <div className="mb-4">
-                    <PracticeScheduleViewer horario={p.horario} variant="card" />
+                    <PracticeScheduleViewer
+                      horario={p.horario}
+                      variant="card"
+                    />
                   </div>
                 )}
 
@@ -1034,28 +1180,32 @@ const AdminPractices = () => {
                   <div className="flex items-center gap-2">
                     <Landmark className="w-4 h-4 text-gray-500 shrink-0" />
                     <span className="truncate">
-                      <strong>Entidad:</strong> {p.institucion_nombre || "Sin asignar"}
+                      <strong>Entidad:</strong>{" "}
+                      {p.institucion_nombre || "Sin asignar"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-gray-500 shrink-0" />
                     <span className="truncate">
-                      <strong>Servicio:</strong> {p.servicio_nombre || "Sin asignar"}
+                      <strong>Servicio:</strong>{" "}
+                      {p.servicio_nombre || "Sin asignar"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-gray-500 shrink-0" />
                     <span className="truncate">
-                      <strong>Programa:</strong> {p.programa_nombre || "General"}
+                      <strong>Programa:</strong>{" "}
+                      {p.programa_nombre || "General"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Book className="w-4 h-4 text-gray-500 shrink-0" />
                     <span className="truncate">
-                      <strong>Asignatura:</strong> {p.asignatura_nombre || "Sin asignar"}
+                      <strong>Asignatura:</strong>{" "}
+                      {p.asignatura_nombre || "Sin asignar"}
                     </span>
                   </div>
 
@@ -1066,14 +1216,16 @@ const AdminPractices = () => {
                       size="xs"
                     />
                     <span className="truncate">
-                      <strong>Docente:</strong> {p.docente_nombre?.trim() || "Sin docente"}
+                      <strong>Docente:</strong>{" "}
+                      {p.docente_nombre?.trim() || "Sin docente"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-gray-500 shrink-0" />
                     <span className="truncate">
-                      <strong>Auditor:</strong> {p.auditor_nombre?.trim() || "Sin auditor"}
+                      <strong>Auditor:</strong>{" "}
+                      {p.auditor_nombre?.trim() || "Sin auditor"}
                     </span>
                   </div>
                 </div>
@@ -1084,7 +1236,10 @@ const AdminPractices = () => {
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-zinc-800 pt-3 mb-2.5">
                   <span className="inline-flex items-center gap-1">
                     <GraduationCap className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span><strong>{p.total_estudiantes}</strong> / {p.cupos || 10} cupos</span>
+                    <span>
+                      <strong>{p.total_estudiantes}</strong> / {p.cupos || 10}{" "}
+                      cupos
+                    </span>
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-gray-500" />
@@ -1093,24 +1248,26 @@ const AdminPractices = () => {
                 </div>
 
                 {/* Aviso oficial si la práctica está Finalizada (plazo de 30 días para certificados y bloqueo de edición) */}
-                {p.estado === "Finalizada" && (() => {
-                  const remaining = getRemainingCertDays(p.fecha_fin);
-                  return (
-                    <div className="mb-3 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/70 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
-                      <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
-                      <div className="space-y-0.5 leading-tight">
-                        <strong className="block font-bold">
-                          {remaining > 0
-                            ? `Quedan ${remaining} días para emitir certificados.`
-                            : "Plazo de 30 días para emisión de certificados cumplido."}
-                        </strong>
-                        <span className="text-[11px] opacity-80 block">
-                          Esta rotación está finalizada y ya no se puede editar.
-                        </span>
+                {p.estado === "Finalizada" &&
+                  (() => {
+                    const remaining = getRemainingCertDays(p.fecha_fin);
+                    return (
+                      <div className="mb-3 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/70 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
+                        <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                        <div className="space-y-0.5 leading-tight">
+                          <strong className="block font-bold">
+                            {remaining > 0
+                              ? `Quedan ${remaining} días para emitir certificados.`
+                              : "Plazo de 30 días para emisión de certificados cumplido."}
+                          </strong>
+                          <span className="text-[11px] opacity-80 block">
+                            Esta rotación está finalizada y ya no se puede
+                            editar.
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
 
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -1155,847 +1312,1036 @@ const AdminPractices = () => {
       )}
 
       {/* ─── MODAL DE CREACIÓN / EDICIÓN COMPLETA ─── */}
-      {isModalOpen && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
-          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-        >
-          <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 my-8 overflow-hidden max-h-[90vh] flex flex-col">
-            {/* Header Modal */}
-            <div className="px-6 py-5 bg-gradient-to-r from-blue-700 to-indigo-750 text-white flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <FileEdit className="w-6 h-6 text-white shrink-0" />
-                <div>
-                  <h3 className="text-xl font-bold">
-                    {isEditing ? "Editar Práctica Formativa" : "Crear Nueva Práctica Formativa"}
-                  </h3>
-                  <p className="text-xs text-blue-100 mt-0.5">
-                    Asocia todos los requerimientos académicos, asistenciales y estudiantes.
-                  </p>
-                  {isEditing && (
-                    <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white/20 text-white text-[11px] font-semibold">
-                      <span>Creada por:</span>
-                      <strong>
-                        {formData.creado_por_rol === "docent" ? (
-                          <span className="inline-flex items-center gap-1">
-                            <UserCheck className="w-3 h-3" />
-                            Docente: {formData.creador_nombre || formData.docente_nombre || "Docente"}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1">
-                            <Shield className="w-3 h-3" />
-                            Administrador ({formData.creador_nombre || "UPTC"})
-                          </span>
-                        )}
-                      </strong>
-                    </div>
-                  )}
+      {isModalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+            style={{
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 my-8 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Header Modal */}
+              <div className="px-6 py-5 bg-gradient-to-r from-blue-700 to-indigo-750 text-white flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <FileEdit className="w-6 h-6 text-white shrink-0" />
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      {isEditing
+                        ? "Editar Práctica Formativa"
+                        : "Crear Nueva Práctica Formativa"}
+                    </h3>
+                    <p className="text-xs text-blue-100 mt-0.5">
+                      Asocia todos los requerimientos académicos, asistenciales
+                      y estudiantes.
+                    </p>
+                    {isEditing && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white/20 text-white text-[11px] font-semibold">
+                        <span>Creada por:</span>
+                        <strong>
+                          {formData.creado_por_rol === "docent" ? (
+                            <span className="inline-flex items-center gap-1">
+                              <UserCheck className="w-3 h-3" />
+                              Docente:{" "}
+                              {formData.creador_nombre ||
+                                formData.docente_nombre ||
+                                "Docente"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <Shield className="w-3 h-3" />
+                              Administrador ({formData.creador_nombre || "UPTC"}
+                              )
+                            </span>
+                          )}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={handleCloseModal}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
+
+              {/* Body Modal (Scrollable) */}
+              <form
+                onSubmit={handleSubmitPractice}
+                className="p-6 overflow-y-auto space-y-6 flex-grow bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+                {/* 1. Datos Principales */}
+                <div>
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
+                    <span>1.</span> Datos Generales de la Práctica
+                  </h4>
 
-            {/* Body Modal (Scrollable) */}
-            <form onSubmit={handleSubmitPractice} className="p-6 overflow-y-auto space-y-6 flex-grow bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">
-              {/* 1. Datos Principales */}
-              <div>
-                <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
-                  <span>1.</span> Datos Generales de la Práctica
-                </h4>
-
-                {/* Banner informativo de Fecha del Sistema / Hoy */}
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50/70 dark:from-blue-950/40 dark:to-indigo-950/30 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl mb-4 shadow-sm">
-                  <div className="flex items-center gap-2.5 text-blue-950 dark:text-blue-200">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                        Fecha Actual del Sistema
+                  {/* Banner informativo de Fecha del Sistema / Hoy */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50/70 dark:from-blue-950/40 dark:to-indigo-950/30 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl mb-4 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-blue-950 dark:text-blue-200">
+                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                        <Calendar className="w-4 h-4" />
                       </div>
-                      <div className="text-sm font-bold">
-                        {todayFormattedText}
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                          Fecha Actual del Sistema
+                        </div>
+                        <div className="text-sm font-bold">
+                          {todayFormattedText}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white dark:bg-zinc-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-zinc-700 shadow-sm">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Hoy: {todayShortText}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Título / Nombre de la Práctica *
-                    </label>
-                    <input
-                      type="text"
-                      name="titulo"
-                      required
-                      placeholder="Ej: Rotación en Pediatría y Urgencias Infantiles"
-                      value={formData.titulo}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white dark:bg-zinc-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-zinc-700 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Hoy: {todayShortText}
+                      </span>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Periodo Académico
-                    </label>
-                    <input
-                      type="text"
-                      name="periodo"
-                      placeholder="Ej: 2024-1"
-                      value={formData.periodo}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Estado
-                    </label>
-                    <select
-                      name="estado"
-                      value={formData.estado}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    >
-                      {ESTADOS_PRACTICA.map((e) => (
-                        <option key={e.value} value={e.value} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {e.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {formData.estado === "Cancelada" && (
-                    <div className="md:col-span-2 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-1.5">
-                      <label className="block text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
-                        <AlertTriangle className="w-4 h-4 text-rose-500" />
-                        <span>Justificación / Motivo de Cancelación * (Obligatorio)</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Título / Nombre de la Práctica *
                       </label>
-                      <textarea
-                        name="motivo_cancelacion"
+                      <input
+                        type="text"
+                        name="titulo"
                         required
-                        rows="2"
-                        placeholder="Escribe la justificación institucional detallada por la cual se cancela esta práctica formativa..."
-                        value={formData.motivo_cancelacion || ""}
+                        placeholder="Ej: Rotación en Pediatría y Urgencias Infantiles"
+                        value={formData.titulo}
                         onChange={handleInputChange}
-                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-rose-300 dark:border-rose-800 rounded-xl bg-white dark:bg-zinc-800 text-rose-950 dark:text-rose-100 placeholder-rose-400 focus:ring-2 focus:ring-rose-500 outline-none shadow-sm"
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
                       />
                     </div>
-                  )}
 
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">
-                      <span>Fecha de Inicio *</span>
-                      <span className="text-[11px] font-normal text-blue-600 dark:text-blue-400">
-                        (Hoy: {todayShortText})
-                      </span>
-                    </label>
-                    <input
-                      type="date"
-                      name="fecha_inicio"
-                      value={formData.fecha_inicio}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Fecha de Finalización
-                    </label>
-                    <input
-                      type="date"
-                      name="fecha_fin"
-                      value={formData.fecha_fin}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
-                  </div>
-
-                  {/* Alerta contextual cuando Estado es Planificada */}
-                  {formData.estado === "Planificada" && (
-                    <div className="md:col-span-2">
-                      <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/70 bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 flex items-start gap-3 text-xs leading-relaxed">
-                        <Clock className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="block text-blue-800 dark:text-blue-300 font-bold mb-0.5">
-                            Práctica en Estado Planificada
-                          </strong>
-                          La práctica comenzará próximamente ({formData.fecha_inicio ? formatReadableDate(formData.fecha_inicio) : "fecha por definir"}). Al llegar la fecha de inicio pasará automáticamente a <strong>"Activa"</strong>.
-                        </div>
-                      </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Periodo Académico
+                      </label>
+                      <input
+                        type="text"
+                        name="periodo"
+                        placeholder="Ej: 2024-1"
+                        value={formData.periodo}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
                     </div>
-                  )}
 
-                  {/* Alerta contextual cuando Estado es Finalizada */}
-                  {formData.estado === "Finalizada" && (
-                    <div className="md:col-span-2">
-                      <div className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/70 bg-purple-50/80 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 flex items-start gap-3 text-xs leading-relaxed">
-                        <Flag className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="block text-purple-800 dark:text-purple-300 font-bold mb-0.5">
-                            Práctica en Estado Finalizada
-                          </strong>
-                          La fecha final de esta rotación ({formData.fecha_fin ? formatReadableDate(formData.fecha_fin) : "alcanzada"}) ha llegado o ha sido superada. La práctica quedará registrada como <strong>"Finalizada"</strong> en el sistema institucional, habilitando la expedición de certificados oficiales.
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Horas Formativas Totales
-                    </label>
-                    <input
-                      type="number"
-                      name="horas_totales"
-                      min="1"
-                      value={formData.horas_totales}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Cupos Máximos
-                    </label>
-                    <input
-                      type="number"
-                      name="cupos"
-                      min="1"
-                      value={formData.cupos}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Descripción / Objetivos Formativos
-                    </label>
-                    <textarea
-                      name="descripcion"
-                      rows="2"
-                      placeholder="Breve descripción de las competencias, rotaciones o alcances de la práctica..."
-                      value={formData.descripcion}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
-                  </div>
-
-                  {/* Horario de la Práctica (Organizador por Días y Reloj) */}
-                  <div className="md:col-span-2">
-                    <PracticeScheduleEditor
-                      value={formData.horario || ""}
-                      onChange={(nuevoHorario) =>
-                        setFormData((f) => ({ ...f, horario: nuevoHorario }))
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Área Académica (Programa y Asignatura en Cascada) */}
-              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
-                  <span>2.</span> Área Académica Vinculada
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Programa Académico
-                    </label>
-                    <select
-                      name="programa_id"
-                      value={formData.programa_id}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">-- Seleccionar Programa --</option>
-                      {programas.map((p) => (
-                        <option key={p.id} value={p.id} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {p.nombreprograma}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Asignatura (Filtrada por programa)
-                    </label>
-                    <select
-                      name="asignatura_id"
-                      value={formData.asignatura_id}
-                      onChange={handleInputChange}
-                      disabled={!formData.programa_id}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800/60"
-                    >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                        {!formData.programa_id
-                          ? "-- Primero elige un programa --"
-                          : "-- Seleccionar Asignatura --"}
-                      </option>
-                      {availableAsignaturas.map((a) => (
-                        <option key={a.id_asignatura_table || a.id} value={a.id_asignatura_table || a.id} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {a.Nombre} {a.Codigo ? `(${a.Codigo})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Escenario Asistencial (Institución y Servicio en Cascada) */}
-              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
-                  <span>3.</span> Escenario de Práctica Asistencial
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Institución / Entidad de Salud (Hospital o Clínica)
-                    </label>
-                    <select
-                      name="institucion_id"
-                      value={formData.institucion_id}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">-- Seleccionar Institución --</option>
-                      {instituciones.map((i) => (
-                        <option key={i.id} value={i.id} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {i.nombreinstitucion}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Servicio Hospitalario (Filtrado por institución)
-                    </label>
-                    <select
-                      name="servicio_id"
-                      value={formData.servicio_id}
-                      onChange={handleInputChange}
-                      disabled={!formData.institucion_id}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800/60"
-                    >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                        {!formData.institucion_id
-                          ? "-- Primero elige una institución --"
-                          : "-- Seleccionar Servicio --"}
-                      </option>
-                      {availableServicios.map((s) => (
-                        <option key={s.id_servicio_table || s.id} value={s.id_servicio_table || s.id} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {s.Nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Responsables Asignados */}
-              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
-                  <span>4.</span> Docente y Auditor Responsables
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">
-                      <span>Docente Asistencial / Tutor *</span>
-                      {selectedProgramName && (
-                        <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                          (Filtrado: {selectedProgramName})
-                        </span>
-                      )}
-                    </label>
-                    <select
-                      name="docente_cedula"
-                      value={formData.docente_cedula}
-                      onChange={handleInputChange}
-                      disabled={!formData.programa_id}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800/60"
-                    >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                        {!formData.programa_id
-                          ? "-- Primero elige un programa académico --"
-                          : availableDocents.length === 0
-                          ? `-- No hay docentes registrados en ${selectedProgramName} --`
-                          : "-- Seleccionar Docente --"}
-                      </option>
-                      {availableDocents.map((d) => (
-                        <option key={d.Cédula || d.id_user_table} value={d.Cédula} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {d.Nombre} {d.Apellidos} ({d.Cédula}) - {d.Carrera || selectedProgramName || "UPTC"}
-                        </option>
-                      ))}
-                    </select>
-                    {!formData.programa_id && (
-                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 inline-flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span>Selecciona el programa en el paso 2 para habilitar los docentes correspondientes.</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                      Auditor de Salud
-                    </label>
-                    <select
-                      name="auditor_cedula"
-                      value={formData.auditor_cedula}
-                      onChange={handleInputChange}
-                      disabled={!formData.institucion_id}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      <option value="" className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                        {!formData.institucion_id
-                          ? "-- Primero elige una institución --"
-                          : availableAuditors.length === 0
-                            ? "-- Esta institución no tiene auditores registrados --"
-                            : "-- Seleccionar Auditor --"}
-                      </option>
-                      {availableAuditors.map((au) => (
-                        <option key={au.Cédula || au.id_user_table} value={au.Cédula} className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white">
-                          {au.Nombre} {au.Apellidos} ({au.Cédula})
-                        </option>
-                      ))}
-                    </select>
-                    {formData.institucion_id && availableAuditors.length === 0 && (
-                      <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span>Registra un auditor vinculado a esta institución en Gestión de Usuarios.</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 5. Asignación de Estudiantes (Multiselección) */}
-              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                      <span>5.</span> Estudiantes Asignados ({formData.estudiantes.length} / {formData.cupos || 10})
-                    </h4>
-                    {selectedProgramName && (
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                        Listando exclusivamente estudiantes del programa de <strong>{selectedProgramName}</strong>.
-                      </p>
-                    )}
-                  </div>
-                  {formData.estudiantes.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, estudiantes: [] }))}
-                      className="text-xs text-rose-500 hover:text-rose-700 font-semibold"
-                    >
-                      Quitar todos
-                    </button>
-                  )}
-                </div>
-
-                {/* Chips de Estudiantes Seleccionados */}
-                {selectedStudentsDetails.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl max-h-36 overflow-y-auto">
-                    {selectedStudentsDetails.map((st) => (
-                      <span
-                        key={st.Cédula || st.id_user_table}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-zinc-800 text-blue-900 dark:text-blue-200 text-xs font-semibold rounded-lg shadow-sm border border-blue-200 dark:border-zinc-700"
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Estado
+                      </label>
+                      <select
+                        name="estado"
+                        value={formData.estado}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
                       >
-                        <span className="inline-flex items-center gap-1">
-                          <GraduationCap className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span>{st.Nombre} {st.Apellidos} ({st.Cédula})</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveStudent(st.Cédula || st.id_user_table)}
-                          className="text-rose-500 hover:text-rose-700 font-bold ml-1 inline-flex items-center"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 italic mb-3">
-                    No hay estudiantes vinculados a esta práctica todavía. Selecciona abajo los estudiantes que deseas asociar.
-                  </p>
-                )}
-
-                {/* Si no se ha elegido programa, mostrar advertencia amigable */}
-                {!formData.programa_id ? (
-                  <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                    <span>
-                      Debes seleccionar primero un <strong>Programa Académico</strong> en la sección 2 para ver y asignar a los estudiantes de dicha carrera.
-                    </span>
-                  </div>
-                ) : (
-                  /* Buscador y selector para añadir estudiantes filtrados por programa */
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>
-                        Estudiantes de <strong className="text-blue-600 dark:text-blue-400">{selectedProgramName}</strong>:
-                      </span>
-                      <span>
-                        {selectableStudents.length} disponible(s) para asociar
-                      </span>
+                        {ESTADOS_PRACTICA.map((e) => (
+                          <option
+                            key={e.value}
+                            value={e.value}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {e.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <input
-                      type="text"
-                      placeholder={`Buscar estudiante de ${selectedProgramName} por nombre o cédula...`}
-                      value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
-                    />
+                    {formData.estado === "Cancelada" && (
+                      <div className="md:col-span-2 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-1.5">
+                        <label className="block text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-rose-500" />
+                          <span>
+                            Justificación / Motivo de Cancelación *
+                            (Obligatorio)
+                          </span>
+                        </label>
+                        <textarea
+                          name="motivo_cancelacion"
+                          required
+                          rows="2"
+                          placeholder="Escribe la justificación institucional detallada por la cual se cancela esta práctica formativa..."
+                          value={formData.motivo_cancelacion || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-rose-300 dark:border-rose-800 rounded-xl bg-white dark:bg-zinc-800 text-rose-950 dark:text-rose-100 placeholder-rose-400 focus:ring-2 focus:ring-rose-500 outline-none shadow-sm"
+                        />
+                      </div>
+                    )}
 
-                    {/* Lista de estudiantes disponibles */}
-                    <div className="border border-gray-200 dark:border-zinc-800 rounded-xl max-h-40 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800 bg-gray-50 dark:bg-zinc-800/40">
-                      {selectableStudents.length === 0 ? (
-                        <p className="text-xs text-gray-400 p-3 text-center">
-                          {studentSearch.trim()
-                            ? "No hay más estudiantes que coincidan con la búsqueda."
-                            : totalStudentsInProgram === 0
-                            ? `No hay estudiantes registrados en el programa de ${selectedProgramName}.`
-                            : `Todos los estudiantes (${totalStudentsInProgram}) de ${selectedProgramName} ya han sido asignados.`}
-                        </p>
-                      ) : (
-                        selectableStudents.slice(0, 15).map((st) => (
-                          <div
-                            key={st.Cédula || st.id_user_table}
-                            className="flex items-center justify-between p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-700/50 transition"
-                          >
-                            <div className="text-xs">
-                              <span className="font-bold text-gray-900 dark:text-white">
-                                {st.Nombre} {st.Apellidos}
-                              </span>
-                              <span className="text-gray-500 dark:text-gray-400 ml-2">
-                                C.C. {st.Cédula} · {st.Carrera || selectedProgramName}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleAddStudent(st.Cédula || st.id_user_table)}
-                              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md transition"
-                            >
-                              + Asignar
-                            </button>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">
+                        <span>Fecha de Inicio *</span>
+                        <span className="text-[11px] font-normal text-blue-600 dark:text-blue-400">
+                          (Hoy: {todayShortText})
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        name="fecha_inicio"
+                        value={formData.fecha_inicio}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Fecha de Finalización
+                      </label>
+                      <input
+                        type="date"
+                        name="fecha_fin"
+                        value={formData.fecha_fin}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
+                    </div>
+
+                    {/* Alerta contextual cuando Estado es Planificada */}
+                    {formData.estado === "Planificada" && (
+                      <div className="md:col-span-2">
+                        <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/70 bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 flex items-start gap-3 text-xs leading-relaxed">
+                          <Clock className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="block text-blue-800 dark:text-blue-300 font-bold mb-0.5">
+                              Práctica en Estado Planificada
+                            </strong>
+                            La práctica comenzará próximamente (
+                            {formData.fecha_inicio
+                              ? formatReadableDate(formData.fecha_inicio)
+                              : "fecha por definir"}
+                            ). Al llegar la fecha de inicio pasará
+                            automáticamente a <strong>"Activa"</strong>.
                           </div>
-                        ))
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Alerta contextual cuando Estado es Finalizada */}
+                    {formData.estado === "Finalizada" && (
+                      <div className="md:col-span-2">
+                        <div className="p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/70 bg-purple-50/80 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 flex items-start gap-3 text-xs leading-relaxed">
+                          <Flag className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="block text-purple-800 dark:text-purple-300 font-bold mb-0.5">
+                              Práctica en Estado Finalizada
+                            </strong>
+                            La fecha final de esta rotación (
+                            {formData.fecha_fin
+                              ? formatReadableDate(formData.fecha_fin)
+                              : "alcanzada"}
+                            ) ha llegado o ha sido superada. La práctica quedará
+                            registrada como <strong>"Finalizada"</strong> en el
+                            sistema institucional, habilitando la expedición de
+                            certificados oficiales.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Horas Formativas Totales
+                      </label>
+                      <input
+                        type="number"
+                        name="horas_totales"
+                        min="1"
+                        value={formData.horas_totales}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Cupos Máximos
+                      </label>
+                      <input
+                        type="number"
+                        name="cupos"
+                        min="1"
+                        value={formData.cupos}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Descripción / Objetivos Formativos
+                      </label>
+                      <textarea
+                        name="descripcion"
+                        rows="2"
+                        placeholder="Breve descripción de las competencias, rotaciones o alcances de la práctica..."
+                        value={formData.descripcion}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
+                    </div>
+
+                    {/* Horario de la Práctica (Organizador por Días y Reloj) */}
+                    <div className="md:col-span-2">
+                      <PracticeScheduleEditor
+                        value={formData.horario || ""}
+                        onChange={(nuevoHorario) =>
+                          setFormData((f) => ({ ...f, horario: nuevoHorario }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Área Académica (Programa y Asignatura en Cascada) */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
+                    <span>2.</span> Área Académica Vinculada
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Programa Académico
+                      </label>
+                      <select
+                        name="programa_id"
+                        value={formData.programa_id}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      >
+                        <option
+                          value=""
+                          className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          -- Seleccionar Programa --
+                        </option>
+                        {programas.map((p) => (
+                          <option
+                            key={p.id}
+                            value={p.id}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {p.nombreprograma}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Asignatura (Filtrada por programa)
+                      </label>
+                      <select
+                        name="asignatura_id"
+                        value={formData.asignatura_id}
+                        onChange={handleInputChange}
+                        disabled={!formData.programa_id}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800/60"
+                      >
+                        <option
+                          value=""
+                          className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          {!formData.programa_id
+                            ? "-- Primero elige un programa --"
+                            : "-- Seleccionar Asignatura --"}
+                        </option>
+                        {availableAsignaturas.map((a) => (
+                          <option
+                            key={a.id_asignatura_table || a.id}
+                            value={a.id_asignatura_table || a.id}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {a.Nombre} {a.Codigo ? `(${a.Codigo})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Escenario Asistencial (Institución y Servicio en Cascada) */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
+                    <span>3.</span> Escenario de Práctica Asistencial
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Institución / Entidad de Salud (Hospital o Clínica)
+                      </label>
+                      <select
+                        name="institucion_id"
+                        value={formData.institucion_id}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      >
+                        <option
+                          value=""
+                          className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          -- Seleccionar Institución --
+                        </option>
+                        {instituciones.map((i) => (
+                          <option
+                            key={i.id}
+                            value={i.id}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {i.nombreinstitucion}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Servicio Hospitalario (Filtrado por institución)
+                      </label>
+                      <select
+                        name="servicio_id"
+                        value={formData.servicio_id}
+                        onChange={handleInputChange}
+                        disabled={!formData.institucion_id}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800/60"
+                      >
+                        <option
+                          value=""
+                          className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          {!formData.institucion_id
+                            ? "-- Primero elige una institución --"
+                            : "-- Seleccionar Servicio --"}
+                        </option>
+                        {availableServicios.map((s) => (
+                          <option
+                            key={s.id_servicio_table || s.id}
+                            value={s.id_servicio_table || s.id}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {s.Nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Responsables Asignados */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
+                    <span>4.</span> Docente y Auditor Responsables
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 flex items-center justify-between">
+                        <span>Docente Asistencial / Tutor *</span>
+                        {selectedProgramName && (
+                          <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                            (Filtrado: {selectedProgramName})
+                          </span>
+                        )}
+                      </label>
+                      <select
+                        name="docente_cedula"
+                        value={formData.docente_cedula}
+                        onChange={handleInputChange}
+                        disabled={!formData.programa_id}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800/60"
+                      >
+                        <option
+                          value=""
+                          className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          {!formData.programa_id
+                            ? "-- Primero elige un programa académico --"
+                            : availableDocents.length === 0
+                              ? `-- No hay docentes registrados en ${selectedProgramName} --`
+                              : "-- Seleccionar Docente --"}
+                        </option>
+                        {availableDocents.map((d) => (
+                          <option
+                            key={d.Cédula || d.id_user_table}
+                            value={d.Cédula}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {d.Nombre} {d.Apellidos} ({d.Cédula}) -{" "}
+                            {d.Carrera || selectedProgramName || "UPTC"}
+                          </option>
+                        ))}
+                      </select>
+                      {!formData.programa_id && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 inline-flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            Selecciona el programa en el paso 2 para habilitar
+                            los docentes correspondientes.
+                          </span>
+                        </p>
                       )}
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Auditor de Salud
+                      </label>
+                      <select
+                        name="auditor_cedula"
+                        value={formData.auditor_cedula}
+                        onChange={handleInputChange}
+                        disabled={!formData.institucion_id}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <option
+                          value=""
+                          className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                        >
+                          {!formData.institucion_id
+                            ? "-- Primero elige una institución --"
+                            : availableAuditors.length === 0
+                              ? "-- Esta institución no tiene auditores registrados --"
+                              : "-- Seleccionar Auditor --"}
+                        </option>
+                        {availableAuditors.map((au) => (
+                          <option
+                            key={au.Cédula || au.id_user_table}
+                            value={au.Cédula}
+                            className="bg-white text-gray-900 dark:bg-zinc-800 dark:text-white"
+                          >
+                            {au.Nombre} {au.Apellidos} ({au.Cédula})
+                          </option>
+                        ))}
+                      </select>
+                      {formData.institucion_id &&
+                        availableAuditors.length === 0 && (
+                          <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              Registra un auditor vinculado a esta institución
+                              en Gestión de Usuarios.
+                            </span>
+                          </p>
+                        )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Asignación de Estudiantes (Multiselección) */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                        <span>5.</span> Estudiantes Asignados (
+                        {formData.estudiantes.length} / {formData.cupos || 10})
+                      </h4>
+                      {selectedProgramName && (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                          Listando exclusivamente estudiantes del programa de{" "}
+                          <strong>{selectedProgramName}</strong>.
+                        </p>
+                      )}
+                    </div>
+                    {formData.estudiantes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, estudiantes: [] }))
+                        }
+                        className="text-xs text-rose-500 hover:text-rose-700 font-semibold"
+                      >
+                        Quitar todos
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Chips de Estudiantes Seleccionados */}
+                  {selectedStudentsDetails.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl max-h-36 overflow-y-auto">
+                      {selectedStudentsDetails.map((st) => (
+                        <span
+                          key={st.Cédula || st.id_user_table}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-zinc-800 text-blue-900 dark:text-blue-200 text-xs font-semibold rounded-lg shadow-sm border border-blue-200 dark:border-zinc-700"
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            <GraduationCap className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <span>
+                              {st.Nombre} {st.Apellidos} ({st.Cédula})
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRemoveStudent(st.Cédula || st.id_user_table)
+                            }
+                            className="text-rose-500 hover:text-rose-700 font-bold ml-1 inline-flex items-center"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic mb-3">
+                      No hay estudiantes vinculados a esta práctica todavía.
+                      Selecciona abajo los estudiantes que deseas asociar.
+                    </p>
+                  )}
+
+                  {/* Si no se ha elegido programa, mostrar advertencia amigable */}
+                  {!formData.programa_id ? (
+                    <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      <span>
+                        Debes seleccionar primero un{" "}
+                        <strong>Programa Académico</strong> en la sección 2 para
+                        ver y asignar a los estudiantes de dicha carrera.
+                      </span>
+                    </div>
+                  ) : (
+                    /* Buscador y selector para añadir estudiantes filtrados por programa */
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>
+                          Estudiantes de{" "}
+                          <strong className="text-blue-600 dark:text-blue-400">
+                            {selectedProgramName}
+                          </strong>
+                          :
+                        </span>
+                        <span>
+                          {selectableStudents.length} disponible(s) para asociar
+                        </span>
+                      </div>
+
+                      <input
+                        type="text"
+                        placeholder={`Buscar estudiante de ${selectedProgramName} por nombre o cédula...`}
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm"
+                      />
+
+                      {/* Lista de estudiantes disponibles */}
+                      <div className="border border-gray-200 dark:border-zinc-800 rounded-xl max-h-40 overflow-y-auto divide-y divide-gray-100 dark:divide-zinc-800 bg-gray-50 dark:bg-zinc-800/40">
+                        {selectableStudents.length === 0 ? (
+                          <p className="text-xs text-gray-400 p-3 text-center">
+                            {studentSearch.trim()
+                              ? "No hay más estudiantes que coincidan con la búsqueda."
+                              : totalStudentsInProgram === 0
+                                ? `No hay estudiantes registrados en el programa de ${selectedProgramName}.`
+                                : `Todos los estudiantes (${totalStudentsInProgram}) de ${selectedProgramName} ya han sido asignados.`}
+                          </p>
+                        ) : (
+                          selectableStudents.slice(0, 15).map((st) => (
+                            <div
+                              key={st.Cédula || st.id_user_table}
+                              className="flex items-center justify-between p-2.5 hover:bg-blue-50 dark:hover:bg-zinc-700/50 transition"
+                            >
+                              <div className="text-xs">
+                                <span className="font-bold text-gray-900 dark:text-white">
+                                  {st.Nombre} {st.Apellidos}
+                                </span>
+                                <span className="text-gray-500 dark:text-gray-400 ml-2">
+                                  C.C. {st.Cédula} ·{" "}
+                                  {st.Carrera || selectedProgramName}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleAddStudent(
+                                    st.Cédula || st.id_user_table,
+                                  )
+                                }
+                                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md transition"
+                              >
+                                + Asignar
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 6. Rúbrica de Evaluación Formativa UPTC (10 de 25 Criterios) */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
+                  <RubricCriteriaSelector
+                    selectedCriteria={formData.rubrica_criterios || []}
+                    selectedCriteriaIds={formData.rubrica_criterios || []}
+                    onChange={(criterios) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        rubrica_criterios: criterios,
+                      }))
+                    }
+                    isLocked={isEditing && isPracticeStarted(formData)}
+                    lockedReason={
+                      isEditing && isPracticeStarted(formData)
+                        ? "La práctica ya ha comenzado o se encuentra activa/finalizada. La rúbrica de evaluación seleccionada no se puede modificar una vez iniciada la práctica."
+                        : ""
+                    }
+                  />
+                </div>
+
+                {/* Botones de Acción */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-800 flex justify-end gap-3 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-5 py-2.5 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-sm shadow-md transition disabled:opacity-50"
+                  >
+                    {isSaving
+                      ? "Guardando..."
+                      : isEditing
+                        ? "Actualizar Práctica"
+                        : "Crear Práctica"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* ─── MODAL DE FICHA DETALLADA ─── */}
+      {viewingPractice &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+            style={{
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getBadgeStyle(viewingPractice.estado)}`}
+                  >
+                    ● {viewingPractice.estado}
+                  </span>
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">
+                    {viewingPractice.titulo}
+                  </h3>
+                  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      Creada por:
+                    </span>
+                    {viewingPractice.creado_por_rol === "docent" ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>
+                          Docente:{" "}
+                          {viewingPractice.creador_nombre ||
+                            viewingPractice.docente_nombre ||
+                            "Docente"}
+                        </span>
+                        {viewingPractice.creado_por_cedula &&
+                          ` (C.C. ${viewingPractice.creado_por_cedula})`}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>
+                          Administrador:{" "}
+                          {viewingPractice.creador_nombre ||
+                            "Administrador UPTC"}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Periodo Académico: {viewingPractice.periodo || "2024-1"}
+                  </p>
+
+                  {/* Aviso oficial de 30 días para emitir certificados en rotación finalizada */}
+                  {viewingPractice.estado === "Finalizada" &&
+                    (() => {
+                      const remaining = getRemainingCertDays(
+                        viewingPractice.fecha_fin,
+                      );
+                      return (
+                        <div className="mt-2.5 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
+                          <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
+                          <div>
+                            <strong className="block font-bold">
+                              {remaining > 0
+                                ? `Quedan ${remaining} días para emitir certificados.`
+                                : "Plazo de 30 días para emisión de certificados cumplido."}
+                            </strong>
+                            <span className="text-[11px] opacity-80 block">
+                              Esta rotación está finalizada y ya no se puede
+                              editar.
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                </div>
+                <button
+                  onClick={() => setViewingPractice(null)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                {viewingPractice.descripcion && (
+                  <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
+                      Descripción
+                    </strong>
+                    <p>{viewingPractice.descripcion}</p>
                   </div>
                 )}
+
+                {viewingPractice.horario && (
+                  <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-900/60">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <strong className="text-xs text-blue-800 dark:text-blue-300 uppercase font-black tracking-wide">
+                        Horario Oficial de la Práctica (Días y Horas)
+                      </strong>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 whitespace-pre-line leading-relaxed">
+                      {viewingPractice.horario}
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
+                      Escenario Asistencial
+                    </strong>
+                    <p>
+                      <strong>Entidad:</strong>{" "}
+                      {viewingPractice.institucion_nombre || "N/A"}
+                    </p>
+                    <p>
+                      <strong>Servicio:</strong>{" "}
+                      {viewingPractice.servicio_nombre || "N/A"}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
+                      Área Académica
+                    </strong>
+                    <p>
+                      <strong>Programa:</strong>{" "}
+                      {viewingPractice.programa_nombre || "N/A"}
+                    </p>
+                    <p>
+                      <strong>Asignatura:</strong>{" "}
+                      {viewingPractice.asignatura_nombre || "N/A"}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl flex items-center gap-3">
+                    <DocentAvatar
+                      cedula={viewingPractice.docente_cedula}
+                      name={viewingPractice.docente_nombre}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-0.5">
+                        Docente Asistencial
+                      </strong>
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">
+                        {viewingPractice.docente_nombre || "Sin asignar"}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {viewingPractice.docente_correo ||
+                          `Cédula: ${viewingPractice.docente_cedula || "N/A"}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
+                      Auditor de Salud
+                    </strong>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {viewingPractice.auditor_nombre || "Sin asignar"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {viewingPractice.auditor_correo ||
+                        `Cédula: ${viewingPractice.auditor_cedula || "N/A"}`}
+                    </p>
+                  </div>
+
+                  {/* Origen y Creador de la Práctica */}
+                  <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl sm:col-span-2">
+                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
+                      Origen / Creado por
+                    </strong>
+                    {viewingPractice.creado_por_rol === "docent" ? (
+                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 font-semibold">
+                        <UserCheck className="w-4 h-4 shrink-0" />
+                        <span>
+                          Registrada por Docente:{" "}
+                          {viewingPractice.creador_nombre ||
+                            viewingPractice.docente_nombre ||
+                            "Docente"}
+                          {viewingPractice.creado_por_cedula &&
+                            ` (C.C. ${viewingPractice.creado_por_cedula})`}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-300 font-semibold">
+                        <Shield className="w-4 h-4 shrink-0" />
+                        <span>
+                          Registrada por Administrador:{" "}
+                          {viewingPractice.creador_nombre ||
+                            "Administrador UPTC"}
+                          {viewingPractice.creado_por_cedula &&
+                            ` (C.C. ${viewingPractice.creado_por_cedula})`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista de Estudiantes */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-gray-800 dark:text-white mb-3">
+                    Estudiantes Inscritos ({viewingPractice.total_estudiantes} /{" "}
+                    {viewingPractice.cupos || 10})
+                  </h4>
+                  {viewingPractice.estudiantes &&
+                  viewingPractice.estudiantes.length > 0 ? (
+                    <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-xs">
+                        <thead className="bg-gray-100 dark:bg-zinc-800">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left font-bold text-gray-600 dark:text-gray-300">
+                              Cédula
+                            </th>
+                            <th className="px-4 py-2.5 text-left font-bold text-gray-600 dark:text-gray-300">
+                              Estudiante
+                            </th>
+                            <th className="px-4 py-2.5 text-left font-bold text-gray-600 dark:text-gray-300">
+                              Correo
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                          {viewingPractice.estudiantes.map((st) => (
+                            <tr
+                              key={st.cedula}
+                              className="hover:bg-gray-50 dark:hover:bg-zinc-800/50"
+                            >
+                              <td className="px-4 py-2.5 font-mono text-gray-500">
+                                {st.cedula}
+                              </td>
+                              <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-white">
+                                {st.nombre_completo}
+                              </td>
+                              <td className="px-4 py-2.5 text-gray-500">
+                                {st.correo || "N/A"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl">
+                      No hay estudiantes inscritos en esta práctica aún.
+                    </p>
+                  )}
+                </div>
+
+                {/* Rúbrica Oficial de Evaluación de la Práctica (10 Criterios) */}
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-zinc-800">
+                  <RubricCriteriaViewer
+                    criteriaIds={viewingPractice.rubrica_criterios}
+                    variant="detailed"
+                    title="Rúbrica Oficial de Evaluación (10 Criterios Formativos UPTC)"
+                    subtitle="Configuración oficial de los criterios seleccionados para evaluar a los estudiantes en esta rotación."
+                  />
+                </div>
               </div>
 
-              {/* 6. Rúbrica de Evaluación Formativa UPTC (10 de 25 Criterios) */}
-              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800">
-                <RubricCriteriaSelector
-                  selectedCriteria={formData.rubrica_criterios || []}
-                  selectedCriteriaIds={formData.rubrica_criterios || []}
-                  onChange={(criterios) =>
-                    setFormData((prev) => ({ ...prev, rubrica_criterios: criterios }))
-                  }
-                  isLocked={isEditing && isPracticeStarted(formData)}
-                  lockedReason={
-                    isEditing && isPracticeStarted(formData)
-                      ? "La práctica ya ha comenzado o se encuentra activa/finalizada. La rúbrica de evaluación seleccionada no se puede modificar una vez iniciada la práctica."
-                      : ""
-                  }
-                />
-              </div>
-
-              {/* Botones de Acción */}
-              <div className="pt-4 border-t border-gray-200 dark:border-zinc-800 flex justify-end gap-3 flex-shrink-0">
+              <div className="mt-8 flex justify-end">
                 <button
-                  type="button"
-                  onClick={handleCloseModal}
+                  onClick={() => setViewingPractice(null)}
+                  className="px-5 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-white font-semibold rounded-xl text-sm transition"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* ─── MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ─── */}
+      {deletingPractice &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+            style={{
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-zinc-800 text-center">
+              <Trash2 className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+              <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">
+                ¿Eliminar Práctica Formativa?
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 font-semibold">
+                "{deletingPractice.titulo}"
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Esta acción desvinculará a los{" "}
+                {deletingPractice.total_estudiantes} estudiantes asignados y
+                eliminará el registro de la base de datos.
+              </p>
+
+              <div className="flex justify-center gap-3 mt-6">
+                <button
+                  onClick={() => setDeletingPractice(null)}
+                  disabled={isDeleting}
                   className="px-5 py-2.5 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
                 >
                   Cancelar
                 </button>
                 <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-sm shadow-md transition disabled:opacity-50"
+                  onClick={handleConfirmDeletePractice}
+                  disabled={isDeleting}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-md transition disabled:opacity-50"
                 >
-                  {isSaving ? "Guardando..." : isEditing ? "Actualizar Práctica" : "Crear Práctica"}
+                  {isDeleting ? "Eliminando..." : "Sí, Eliminar"}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ─── MODAL DE FICHA DETALLADA ─── */}
-      {viewingPractice && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
-          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-        >
-          <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 rounded-3xl shadow-2xl border border-gray-200 dark:border-zinc-800 p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getBadgeStyle(viewingPractice.estado)}`}>
-                  ● {viewingPractice.estado}
-                </span>
-                <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">
-                  {viewingPractice.titulo}
-                </h3>
-                <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    Creada por:
-                  </span>
-                  {viewingPractice.creado_por_rol === "docent" ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>Docente: {viewingPractice.creador_nombre || viewingPractice.docente_nombre || "Docente"}</span>
-                      {viewingPractice.creado_por_cedula && ` (C.C. ${viewingPractice.creado_por_cedula})`}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
-                      <Shield className="w-3.5 h-3.5" />
-                      <span>Administrador: {viewingPractice.creador_nombre || "Administrador UPTC"}</span>
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Periodo Académico: {viewingPractice.periodo || "2024-1"}
-                </p>
-
-                {/* Aviso oficial de 30 días para emitir certificados en rotación finalizada */}
-                {viewingPractice.estado === "Finalizada" && (() => {
-                  const remaining = getRemainingCertDays(viewingPractice.fecha_fin);
-                  return (
-                    <div className="mt-2.5 p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/80 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2 shadow-xs">
-                      <Clock className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400 mt-0.5" />
-                      <div>
-                        <strong className="block font-bold">
-                          {remaining > 0
-                            ? `Quedan ${remaining} días para emitir certificados.`
-                            : "Plazo de 30 días para emisión de certificados cumplido."}
-                        </strong>
-                        <span className="text-[11px] opacity-80 block">
-                          Esta rotación está finalizada y ya no se puede editar.
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-              <button
-                onClick={() => setViewingPractice(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
-
-            <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
-              {viewingPractice.descripcion && (
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
-                  <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
-                    Descripción
-                  </strong>
-                  <p>{viewingPractice.descripcion}</p>
-                </div>
-              )}
-
-              {viewingPractice.horario && (
-                <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-900/60">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <strong className="text-xs text-blue-800 dark:text-blue-300 uppercase font-black tracking-wide">
-                      Horario Oficial de la Práctica (Días y Horas)
-                    </strong>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 whitespace-pre-line leading-relaxed">
-                    {viewingPractice.horario}
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
-                  <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
-                    Escenario Asistencial
-                  </strong>
-                  <p><strong>Entidad:</strong> {viewingPractice.institucion_nombre || "N/A"}</p>
-                  <p><strong>Servicio:</strong> {viewingPractice.servicio_nombre || "N/A"}</p>
-                </div>
-
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
-                  <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
-                    Área Académica
-                  </strong>
-                  <p><strong>Programa:</strong> {viewingPractice.programa_nombre || "N/A"}</p>
-                  <p><strong>Asignatura:</strong> {viewingPractice.asignatura_nombre || "N/A"}</p>
-                </div>
-
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl flex items-center gap-3">
-                  <DocentAvatar
-                    cedula={viewingPractice.docente_cedula}
-                    name={viewingPractice.docente_nombre}
-                    size="md"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-0.5">
-                      Docente Asistencial
-                    </strong>
-                    <p className="font-semibold text-gray-900 dark:text-white truncate">{viewingPractice.docente_nombre || "Sin asignar"}</p>
-                    <p className="text-xs text-gray-500 truncate">{viewingPractice.docente_correo || `Cédula: ${viewingPractice.docente_cedula || "N/A"}`}</p>
-                  </div>
-                </div>
-
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl">
-                  <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
-                    Auditor de Salud
-                  </strong>
-                  <p className="font-semibold text-gray-900 dark:text-white">{viewingPractice.auditor_nombre || "Sin asignar"}</p>
-                  <p className="text-xs text-gray-500">{viewingPractice.auditor_correo || `Cédula: ${viewingPractice.auditor_cedula || "N/A"}`}</p>
-                </div>
-
-                {/* Origen y Creador de la Práctica */}
-                <div className="p-3.5 bg-gray-50 dark:bg-zinc-800 rounded-xl sm:col-span-2">
-                  <strong className="block text-xs text-gray-500 dark:text-gray-400 uppercase font-bold mb-1">
-                    Origen / Creado por
-                  </strong>
-                  {viewingPractice.creado_por_rol === "docent" ? (
-                    <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 font-semibold">
-                      <UserCheck className="w-4 h-4 shrink-0" />
-                      <span>
-                        Registrada por Docente: {viewingPractice.creador_nombre || viewingPractice.docente_nombre || "Docente"}
-                        {viewingPractice.creado_por_cedula && ` (C.C. ${viewingPractice.creado_por_cedula})`}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-300 font-semibold">
-                      <Shield className="w-4 h-4 shrink-0" />
-                      <span>
-                        Registrada por Administrador: {viewingPractice.creador_nombre || "Administrador UPTC"}
-                        {viewingPractice.creado_por_cedula && ` (C.C. ${viewingPractice.creado_por_cedula})`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Lista de Estudiantes */}
-              <div className="mt-6">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-gray-800 dark:text-white mb-3">
-                  Estudiantes Inscritos ({viewingPractice.total_estudiantes} / {viewingPractice.cupos || 10})
-                </h4>
-                {viewingPractice.estudiantes && viewingPractice.estudiantes.length > 0 ? (
-                  <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-xs">
-                      <thead className="bg-gray-100 dark:bg-zinc-800">
-                        <tr>
-                          <th className="px-4 py-2.5 text-left font-bold text-gray-600 dark:text-gray-300">Cédula</th>
-                          <th className="px-4 py-2.5 text-left font-bold text-gray-600 dark:text-gray-300">Estudiante</th>
-                          <th className="px-4 py-2.5 text-left font-bold text-gray-600 dark:text-gray-300">Correo</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                        {viewingPractice.estudiantes.map((st) => (
-                          <tr key={st.cedula} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
-                            <td className="px-4 py-2.5 font-mono text-gray-500">{st.cedula}</td>
-                            <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-white">{st.nombre_completo}</td>
-                            <td className="px-4 py-2.5 text-gray-500">{st.correo || "N/A"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 italic p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl">
-                    No hay estudiantes inscritos en esta práctica aún.
-                  </p>
-                )}
-              </div>
-
-              {/* Rúbrica Oficial de Evaluación de la Práctica (10 Criterios) */}
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-zinc-800">
-                <RubricCriteriaViewer
-                  criteriaIds={viewingPractice.rubrica_criterios}
-                  variant="detailed"
-                  title="Rúbrica Oficial de Evaluación (10 Criterios Formativos UPTC)"
-                  subtitle="Configuración oficial de los criterios seleccionados para evaluar a los estudiantes en esta rotación."
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-end">
-              <button
-                onClick={() => setViewingPractice(null)}
-                className="px-5 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-white font-semibold rounded-xl text-sm transition"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ─── MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ─── */}
-      {deletingPractice && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
-          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-        >
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-zinc-800 text-center">
-            <Trash2 className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-            <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">
-              ¿Eliminar Práctica Formativa?
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 font-semibold">
-              "{deletingPractice.titulo}"
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Esta acción desvinculará a los {deletingPractice.total_estudiantes} estudiantes asignados y eliminará el registro de la base de datos.
-            </p>
-
-            <div className="flex justify-center gap-3 mt-6">
-              <button
-                onClick={() => setDeletingPractice(null)}
-                disabled={isDeleting}
-                className="px-5 py-2.5 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmDeletePractice}
-                disabled={isDeleting}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-md transition disabled:opacity-50"
-              >
-                {isDeleting ? "Eliminando..." : "Sí, Eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

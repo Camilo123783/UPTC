@@ -225,10 +225,12 @@ const DashboardHome = ({ userRole, onNavigate }) => {
     try {
       let studentCedula = null;
       try {
-        const stored = sessionStorage.getItem("userData");
+        const stored =
+          sessionStorage.getItem("userData") ||
+          localStorage.getItem("userData");
         if (stored) {
           const parsed = JSON.parse(stored);
-          studentCedula = parsed.cedula || parsed.Cédula || null;
+          studentCedula = parsed.cedula || parsed.Cédula || parsed.id || null;
         }
       } catch (e) {
         console.warn("No se pudo leer sesión de estudiante:", e);

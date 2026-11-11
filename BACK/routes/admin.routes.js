@@ -83,8 +83,8 @@ const ROLE_TABLES_MAP = [
   {
     tableName: "docente",
     roleName: "docent",
-    dataTable: null,
-    dataCedulaCol: null,
+    dataTable: "datos_docente",
+    dataCedulaCol: "cedula_docente",
     nameCol: "nombre",
     apellidoCol: "apellidos",
     emailCol: "T1.correo_institucional",
@@ -1252,7 +1252,11 @@ router.get("/users/:cedula", async (req, res, next) => {
     // 2. Docente
     if (table === "docente") {
       const doc = await queryDB(
-        `SELECT cedula, nombre, apellidos, correo_institucional, programa_id, COALESCE(activo, 1) AS activo FROM docente WHERE id = ?`,
+        `SELECT d.cedula, d.nombre, d.apellidos, d.correo_institucional, d.programa_id, COALESCE(d.activo, 1) AS activo,
+                dd.biografia, dd.direccion, dd.telefono, dd.correo_personal, dd.nombre_familiar, dd.telefono_familiar
+         FROM docente d
+         LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+         WHERE d.id = ?`,
         [id]
       );
       return res.status(200).json({ success: true, role: "docente", user: { ...doc[0], Rol: "docent" } });
@@ -1506,6 +1510,52 @@ router.put("/users/:cedula", async (req, res, next) => {
           targetCedula,
         ]
       );
+
+      const hasExtraDocFields =
+        biografia !== undefined ||
+        direccion !== undefined ||
+        telefono !== undefined ||
+        correo_personal !== undefined ||
+        nombre_familiar !== undefined ||
+        telefono_familiar !== undefined;
+
+      if (hasExtraDocFields) {
+        const existingDocDatos = await queryDB(
+          `SELECT cedula_docente FROM datos_docente WHERE cedula_docente = ? LIMIT 1`,
+          [targetCedula]
+        );
+        if (existingDocDatos.length > 0) {
+          const setClauses = [];
+          const setParams = [];
+          if (biografia !== undefined) { setClauses.push("biografia = ?"); setParams.push(biografia || null); }
+          if (direccion !== undefined) { setClauses.push("direccion = ?"); setParams.push(direccion || null); }
+          if (telefono !== undefined) { setClauses.push("telefono = ?"); setParams.push(telefono || null); }
+          if (correo_personal !== undefined) { setClauses.push("correo_personal = ?"); setParams.push(correo_personal || null); }
+          if (nombre_familiar !== undefined) { setClauses.push("nombre_familiar = ?"); setParams.push(nombre_familiar || null); }
+          if (telefono_familiar !== undefined) { setClauses.push("telefono_familiar = ?"); setParams.push(telefono_familiar || null); }
+          if (setClauses.length > 0) {
+            await queryDB(
+              `UPDATE datos_docente SET ${setClauses.join(", ")} WHERE cedula_docente = ?`,
+              [...setParams, targetCedula]
+            ).catch((e) => console.log("Nota al actualizar datos_docente:", e.message));
+          }
+        } else {
+          await queryDB(
+            `INSERT INTO datos_docente (cedula_docente, biografia, direccion, telefono, correo_personal, nombre_familiar, telefono_familiar)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              targetCedula,
+              biografia || null,
+              direccion || null,
+              telefono || null,
+              correo_personal || null,
+              nombre_familiar || null,
+              telefono_familiar || null,
+            ]
+          ).catch((e) => console.log("Nota al insertar datos_docente:", e.message));
+        }
+      }
+
       invalidateUserAuthCache(targetCedula);
       console.log(`✅ Docente ${targetCedula} actualizado.`);
       return res.status(200).json({ success: true, message: "Usuario actualizado exitosamente." });

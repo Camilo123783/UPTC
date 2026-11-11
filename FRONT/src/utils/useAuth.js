@@ -1,7 +1,7 @@
 // /src/utils/useAuth.js
 import { useState, useEffect, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
-import axios from "./axiosConfig";
+import { clearActiveSession } from "./sessionManager";
 
 const TOKEN_KEY = "authToken"; // Clave para guardar el token en localStorage
 const USERDATA_KEY = "userData"; // Clave usada en sessionStorage
@@ -36,12 +36,9 @@ export const useAuth = () => {
 
         // Verificar expiración
         if (decoded.exp * 1000 < Date.now()) {
-          localStorage.removeItem(TOKEN_KEY);
+          clearActiveSession();
           setUser(null);
         } else {
-          // Armamos el usuario con prioridad:
-          // 1. Datos del token
-          // 2. Datos de sessionStorage (respaldo)
           setUser({
             id: decoded.id || decoded.cedula || sessionUser?.cedula || null,
             cedula: decoded.cedula || decoded.id || sessionUser?.cedula || null,
@@ -53,19 +50,11 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error("Error decodificando el token:", error);
-        localStorage.removeItem(TOKEN_KEY);
+        clearActiveSession();
         setUser(null);
       }
-    } else if (sessionUser) {
-      // Si no hay token pero sí datos en sesión
-      setUser({
-        id: sessionUser.cedula || null,
-        cedula: sessionUser.cedula || null,
-        name: sessionUser.nombre || "",
-        apellidos: sessionUser.apellidos || "",
-        email: sessionUser.email || "",
-        role: sessionUser.role || "student",
-      });
+    } else {
+      setUser(null);
     }
 
     setIsLoading(false);
@@ -77,8 +66,7 @@ export const useAuth = () => {
 
   // Cerrar sesión
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USERDATA_KEY);
+    clearActiveSession();
     setUser(null);
   };
 
@@ -100,4 +88,3 @@ export const useAuth = () => {
     isAuditor: hasRole("auditor"),
   };
 };
-

@@ -163,10 +163,7 @@ const DocentFichaModal = ({
   const hospital = docent.institucion_nombre || practiceInfo.institucion_nombre || null;
   const servicio = docent.servicio_nombre || practiceInfo.servicio_nombre || null;
 
-  const token = typeof window !== "undefined"
-    ? localStorage.getItem("authToken") || sessionStorage.getItem("authToken")
-    : null;
-  const photoUrl = `${BACKEND_URL}/api/docent/photo/${cedula}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+  const photoUrl = `${BACKEND_URL}/api/docent/photo/${cedula}`;
   const hasSignature = details?.has_signature || Boolean(docent.foto_firma || docent.has_signature);
 
   const modalContent = (

@@ -3,14 +3,28 @@
 // ============================================================
 "use strict";
 
+const crypto = require("crypto");
+
 // Mapa en memoria para almacenar { identifier -> { code, expiresAt, cedula, userTable, verified } }
 const codeStore = new Map();
+const MAX_CODE_STORE_SIZE = 5000;
 
 /**
  * Almacena un código de 6 dígitos para un identificador.
  * Expiración por defecto: 15 minutos con límite de 5 intentos fallidos.
  */
 function saveResetCode(identifier, code, cedula, userTable, userEmail) {
+  if (codeStore.size >= MAX_CODE_STORE_SIZE) {
+    const now = Date.now();
+    for (const [k, v] of codeStore.entries()) {
+      if (now > v.expiresAt) codeStore.delete(k);
+    }
+    while (codeStore.size >= MAX_CODE_STORE_SIZE) {
+      const oldestKey = codeStore.keys().next().value;
+      if (!oldestKey) break;
+      codeStore.delete(oldestKey);
+    }
+  }
   const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutos
   const cleanIdentifier = identifier !== undefined && identifier !== null ? String(identifier).toLowerCase().trim() : "";
   const cleanCedula = cedula !== undefined && cedula !== null ? String(cedula).toLowerCase().trim() : "";
@@ -56,7 +70,14 @@ function verifyResetCode(identifier, code) {
     };
   }
 
-  if (entry.code !== String(code || "").trim()) {
+  const expectedBuf = Buffer.from(String(entry.code || "").trim(), "utf8");
+  const candidateBuf = Buffer.from(String(code || "").trim(), "utf8");
+  const codesMatch =
+    expectedBuf.length > 0 &&
+    expectedBuf.length === candidateBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, candidateBuf);
+
+  if (!codesMatch) {
     entry.attempts = (entry.attempts || 0) + 1;
     const remaining = 5 - entry.attempts;
 

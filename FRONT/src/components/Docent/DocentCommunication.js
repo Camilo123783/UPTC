@@ -69,9 +69,11 @@ const DocentCommunication = () => {
 
   // Contador en vivo para el tiempo límite de 5 minutos de eliminación
   useEffect(() => {
+    const hasRecent = Array.isArray(messages) && messages.some((m) => Number(m?.elapsed_seconds ?? 0) < 310);
+    if (!hasRecent) return undefined;
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [messages]);
 
   // Helper para calcular segundos transcurridos desde la creación del mensaje (inmune a zona horaria)
   const getMessageElapsedSeconds = useCallback((msg, nowMs = Date.now()) => {
@@ -105,7 +107,6 @@ const DocentCommunication = () => {
 
   // 0. Eliminar Mensaje (Límite estricto de 5 minutos)
   const handleDeleteMessage = async (msg) => {
-    if (!msg || !msg.id) return;
     if (!msg || !msg.id) return;
     const diffMinutes = getMessageElapsedSeconds(msg, Date.now()) / 60;
 

@@ -75,7 +75,7 @@ app.use(
           return callback(null, true);
         }
 
-        // Permitir subdominios de Vercel si se habilita o si coincide con el proyecto configurado en FRONTEND_URL
+        // Permitir subdominios de Vercel si se habilita explícitamente o si coincide con el proyecto configurado en FRONTEND_URL
         if (hostname.endsWith(".vercel.app")) {
           const configuredVercelHost = allowedOrigins
             .map((o) => {
@@ -87,11 +87,15 @@ app.use(
             })
             .find((h) => h.endsWith(".vercel.app"));
 
+          const projectPrefix = configuredVercelHost
+            ? configuredVercelHost.replace(/\.vercel\.app$/, "")
+            : "";
+
           if (
             process.env.ALLOW_VERCEL_PREVIEWS === "true" ||
-            !configuredVercelHost ||
-            hostname === configuredVercelHost ||
-            hostname.startsWith(configuredVercelHost.replace(".vercel.app", ""))
+            (configuredVercelHost &&
+              (hostname === configuredVercelHost ||
+                hostname.startsWith(`${projectPrefix}-`)))
           ) {
             return callback(null, true);
           }

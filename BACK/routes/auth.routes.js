@@ -20,6 +20,7 @@ const {
   verifyResetCode,
   clearResetCode,
 } = require("../config/resetCodeStore");
+const { invalidateUserAuthCache } = require("../middleware/auth");
 
 function resolveAssetUrl(rawUrl, fallbackUrl = "") {
   if (!rawUrl) return fallbackUrl;
@@ -127,10 +128,32 @@ async function verifyAndMigratePassword(tableName, user, inputPassword) {
 // ──────────────────────────────────────────────
 async function authenticateUser(tableName, cedula, password, roleName) {
   const cleanCedula = String(cedula).trim();
-  const rows = await queryDB(
-    `SELECT * FROM ${tableName} WHERE cedula = ? LIMIT 1`,
-    [cleanCedula]
-  );
+  let selectQuery = `SELECT * FROM ${tableName} WHERE cedula = ? LIMIT 1`;
+
+  if (tableName === "docente") {
+    selectQuery = `
+      SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, d.password,
+             d.rol_id, d.programa_id, d.activo, d.created_at,
+             (COALESCE(dd.foto_perfil, d.foto_perfil) IS NOT NULL) AS has_photo_blob,
+             (COALESCE(dd.foto_firma, d.foto_firma) IS NOT NULL) AS has_signature_blob
+      FROM docente d
+      LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
+      WHERE d.cedula = ?
+      LIMIT 1
+    `;
+  } else if (tableName === "estudiante") {
+    selectQuery = `
+      SELECT e.id, e.cedula, e.nombre, e.apellidos, e.codigo, e.correo_institucional, e.password,
+             e.rol_id, e.programa_id, e.semestre_actual, e.activo, e.created_at,
+             (de.foto_perfil IS NOT NULL) AS has_photo_blob
+      FROM estudiante e
+      LEFT JOIN datos_estudiante de ON de.cedula_estudiante = e.cedula
+      WHERE e.cedula = ?
+      LIMIT 1
+    `;
+  }
+
+  const rows = await queryDB(selectQuery, [cleanCedula]);
 
   if (rows.length === 0) return null;
 
@@ -157,9 +180,14 @@ async function authenticateUser(tableName, cedula, password, roleName) {
   delete user.password;
 
   // Optimización crítica de payload para login ultrarrápido y evitar QuotaExceededError en el frontend:
-  // Si el usuario tiene foto_perfil o foto_firma en base64 de varios megabytes,
-  // se reemplaza por la URL del endpoint y un indicador booleano.
-  if (user.foto_perfil) {
+  const hasPhoto = Boolean(user.foto_perfil || Number(user.has_photo_blob) === 1);
+  const hasSignature = Boolean(user.foto_firma || Number(user.has_signature_blob) === 1);
+  delete user.has_photo_blob;
+  delete user.has_signature_blob;
+  delete user.foto_perfil;
+  delete user.foto_firma;
+
+  if (hasPhoto) {
     user.has_photo = true;
     user.foto_url =
       roleName === "docent"
@@ -167,11 +195,9 @@ async function authenticateUser(tableName, cedula, password, roleName) {
         : roleName === "student"
         ? `/api/student/photo/${user.cedula}`
         : null;
-    delete user.foto_perfil;
   }
-  if (user.foto_firma) {
+  if (hasSignature) {
     user.has_signature = true;
-    delete user.foto_firma;
   }
 
   if (!user.apellidos && user.apellido) {
@@ -344,15 +370,37 @@ router.post("/auth/forgot-password", async (req, res, next) => {
       }
     }
 
-    // 4. Buscar en docente (con programa)
+    // 4. Buscar en docente (con programa y datos_docente)
     if (!foundUser) {
       const sqlDocente = isEmail
-        ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`
+        ? `SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, d.programa_id, d.activo,
+                  p.nombreprograma, dd.correo_personal
+           FROM docente d
+           LEFT JOIN programa p ON d.programa_id = p.id
+           LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+           WHERE d.correo_institucional = ? OR dd.correo_personal = ?
+           LIMIT 1`
         : isNumericCedula
-        ? `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.cedula = ? OR d.correo_institucional = ? LIMIT 1`
-        : `SELECT d.*, p.nombreprograma FROM docente d LEFT JOIN programa p ON d.programa_id = p.id WHERE d.correo_institucional = ? LIMIT 1`;
+        ? `SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, d.programa_id, d.activo,
+                  p.nombreprograma, dd.correo_personal
+           FROM docente d
+           LEFT JOIN programa p ON d.programa_id = p.id
+           LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+           WHERE d.cedula = ?
+           LIMIT 1`
+        : `SELECT d.id, d.cedula, d.nombre, d.apellidos, d.correo_institucional, d.programa_id, d.activo,
+                  p.nombreprograma, dd.correo_personal
+           FROM docente d
+           LEFT JOIN programa p ON d.programa_id = p.id
+           LEFT JOIN datos_docente dd ON d.cedula = dd.cedula_docente
+           WHERE d.correo_institucional = ? OR dd.correo_personal = ?
+           LIMIT 1`;
 
-      const paramsDocente = isEmail ? [identifier] : isNumericCedula ? [identifier, identifier] : [identifier];
+      const paramsDocente = isEmail
+        ? [identifier, identifier]
+        : isNumericCedula
+        ? [identifier]
+        : [identifier, identifier];
       const docentes = await queryDB(sqlDocente, paramsDocente);
       if (docentes.length > 0) {
         foundUser = docentes[0];
@@ -569,8 +617,9 @@ router.post("/auth/reset-password", async (req, res, next) => {
       [hashedPassword, entry.cedula]
     );
 
-    // Eliminar el código usado en todas las llaves asociadas
+    // Eliminar el código usado en todas las llaves asociadas e invalidar caché de sesión
     clearResetCode(identifier);
+    invalidateUserAuthCache(entry.cedula);
 
     console.log(`✅ Contraseña actualizada con éxito en DB para cédula ${entry.cedula} (${entry.userTable})`);
 
@@ -691,6 +740,17 @@ router.post("/auth/change-password", async (req, res, next) => {
       (currentPassword === undefined || currentPassword === null || String(currentPassword) === "");
 
     if (!isAdminResettingOtherUser) {
+      if (userTable !== "superadmin") {
+        const isUserActive =
+          userFound.activo === undefined || userFound.activo === null || Number(userFound.activo) === 1;
+        if (!isUserActive) {
+          return res.status(403).json({
+            success: false,
+            isDeactivated: true,
+            message: "Tu cuenta se encuentra desactivada. Contacta al administrador.",
+          });
+        }
+      }
       if (!currentPassword) {
         return res.status(400).json({
           success: false,
@@ -710,11 +770,13 @@ router.post("/auth/change-password", async (req, res, next) => {
     // 3. Hashear la nueva contraseña
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // 4. Actualizar en la BD
+    // 4. Actualizar en la BD e invalidar códigos/caché previos
     await queryDB(
       `UPDATE ${userTable} SET password = ? WHERE cedula = ?`,
       [hashedNewPassword, cedula]
     );
+    clearResetCode(cedula);
+    invalidateUserAuthCache(cedula);
 
     console.log(`✅ Contraseña actualizada para usuario ${cedula} (${userTable})`);
     return res.status(200).json({
@@ -764,7 +826,7 @@ router.get("/institution-settings", async (req, res) => {
         director_nombre: row.director_nombre || row.representante || "Dirección de Escuela",
         representante: row.director_nombre || row.representante || "Dirección de Escuela",
         logo_institucion: finalLogo,
-        logo_facultad: row.logo_facultad || "",
+        logo_facultad: resolveAssetUrl(row.logo_facultad || "", ""),
         fondo_institucion: finalLoginBg,
         logoPreview: finalLogo,
         logo_url: finalLogo,

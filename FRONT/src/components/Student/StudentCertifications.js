@@ -276,11 +276,11 @@ const StudentCertifications = () => {
     );
   }, [requests]);
 
-  // Mapas por ID de práctica
+  // Mapas por ID de práctica (conservando siempre la solicitud más reciente por práctica)
   const certificateRequestsByPracticeId = useMemo(() => {
     const map = {};
     certificateRequests.forEach((r) => {
-      if (r.practica_id) map[r.practica_id] = r;
+      if (r.practica_id && !map[r.practica_id]) map[r.practica_id] = r;
     });
     return map;
   }, [certificateRequests]);
@@ -288,7 +288,7 @@ const StudentCertifications = () => {
   const reportRequestsByPracticeId = useMemo(() => {
     const map = {};
     reportRequests.forEach((r) => {
-      if (r.practica_id) map[r.practica_id] = r;
+      if (r.practica_id && !map[r.practica_id]) map[r.practica_id] = r;
     });
     return map;
   }, [reportRequests]);
@@ -333,13 +333,10 @@ const StudentCertifications = () => {
         }
       }
     }
-    if (practice.estado === "Cancelada") {
-      toast.error("La práctica está cancelada. Por normativa institucional, no es posible tramitar certificados ni reportes de prácticas canceladas.");
-      return;
-    }
-
     if (practice.estado === "Finalizada" && practice.fecha_fin) {
-      const diffDays = Math.floor((Date.now() - new Date(practice.fecha_fin).getTime()) / (1000 * 60 * 60 * 24));
+      const fStr = String(practice.fecha_fin).slice(0, 10);
+      const endDate = /^\d{4}-\d{2}-\d{2}$/.test(fStr) ? new Date(`${fStr}T23:59:59`) : new Date(practice.fecha_fin);
+      const diffDays = Math.floor((Date.now() - endDate.getTime()) / (1000 * 60 * 60 * 24));
       if (diffDays > 30) {
         toast.error(`El plazo máximo reglamentario de 30 días posteriores a la finalización de la práctica ha expirado (${diffDays} días transcurridos). Ya no se admiten trámites de certificación para esta práctica.`);
         return;
@@ -399,24 +396,6 @@ const StudentCertifications = () => {
         Number(selectedPracticeForRequest.calificacion) < 3.0)
     ) {
       toast.error("No puedes solicitar el certificado porque no aprobaste la práctica formativa (la nota mínima aprobatoria es 3.0).");
-      return;
-    }
-    const hasGrade =
-      selectedPracticeForRequest.calificacion !== null &&
-      selectedPracticeForRequest.calificacion !== undefined &&
-      selectedPracticeForRequest.calificacion !== "" &&
-      Number(selectedPracticeForRequest.calificacion) > 0;
-
-    if (!isReport && !hasGrade) {
-      toast.warning(
-        "Aún no tienes una nota final registrada en esta práctica. Por normativa institucional, no es posible tramitar un Certificado Oficial sin calificación. Por favor solicita un Reporte de Práctica."
-      );
-      setRequestCategory("reporte");
-      setRequestFormData((prev) => ({
-        ...prev,
-        tipo_certificado: "Constancia de Práctica Formativa Vigente / En Curso",
-        motivo: "Trámite Institucional / EPS",
-      }));
       return;
     }
 
@@ -781,7 +760,9 @@ const StudentCertifications = () => {
                   pr.calificacion !== undefined &&
                   pr.calificacion !== "" &&
                   Number(pr.calificacion) > 0;
-                const pendingReq = certificateRequestsByPracticeId[pr.id];
+                const latestCertReq = certificateRequestsByPracticeId[pr.id];
+                const pendingReq = latestCertReq?.estado === "Pendiente" ? latestCertReq : null;
+                const isCertRejected = latestCertReq?.estado === "Rechazado";
                 const alreadyEmitted = issuedCertificatesByPracticeId[pr.id];
                 const isFinalizada = pr.estado === "Finalizada";
                 const isApproved = hasGrade && Number(pr.calificacion) >= 3.0;
@@ -929,13 +910,20 @@ const StudentCertifications = () => {
                           </span>
                         </div>
                       ) : canRequestCertificate ? (
-                        <button
-                          onClick={() => handleOpenRequestModal(pr, "certificado")}
-                          className="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition duration-150"
-                        >
-                          <Award className="w-4 h-4" />
-                          <span>Solicitar Certificado Oficial al Docente</span>
-                        </button>
+                        <div className="space-y-2">
+                          {isCertRejected && (
+                            <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-[11px] text-rose-700 dark:text-rose-300">
+                              Solicitud anterior rechazada{latestCertReq?.respuesta_docente ? `: "${latestCertReq.respuesta_docente}"` : "."} Puedes enviar una nueva solicitud.
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleOpenRequestModal(pr, "certificado")}
+                            className="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition duration-150"
+                          >
+                            <Award className="w-4 h-4" />
+                            <span>Solicitar Certificado Oficial al Docente</span>
+                          </button>
+                        </div>
                       ) : (
                         <div className="text-center py-1">
                           <span className="text-[11px] font-semibold text-gray-400">
@@ -977,7 +965,11 @@ const StudentCertifications = () => {
                               : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
                           }`}
                         >
-                          {req.estado === "Aprobado" ? "● Aprobado por el Docente" : "⏳ Pendiente de Respuesta"}
+                          {req.estado === "Aprobado"
+                            ? "● Aprobado por el Docente"
+                            : req.estado === "Rechazado"
+                            ? "✕ Rechazado por el Docente"
+                            : "⏳ Pendiente de Respuesta"}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           Enviada el: {new Date(req.fecha_solicitud).toLocaleDateString("es-CO")}
@@ -1230,7 +1222,11 @@ const StudentCertifications = () => {
                               : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300"
                           }`}
                         >
-                          {req.estado === "Aprobado" ? "● Aprobado por el Docente" : "⏳ Pendiente de Respuesta"}
+                          {req.estado === "Aprobado"
+                            ? "● Aprobado por el Docente"
+                            : req.estado === "Rechazado"
+                            ? "✕ Rechazado por el Docente"
+                            : "⏳ Pendiente de Respuesta"}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           Enviada el: {new Date(req.fecha_solicitud).toLocaleDateString("es-CO")}
@@ -1462,16 +1458,6 @@ const StudentCertifications = () => {
                         ? "No puedes solicitar el Certificado Oficial porque esta práctica formativa aún no ha finalizado. En su lugar, te recomendamos solicitar un Reporte de Práctica para certificar tus horas y avance actual."
                         : "Esta práctica no cuenta con nota definitiva aprobatoria (≥ 3.0). En su lugar, te recomendamos solicitar un Reporte de Práctica."}
                     </p>
-                    {false && (
-                      <div><div>
-                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    <span>Calificación Pendiente en esta Práctica</span>
-                  </div>
-                  <p className="leading-relaxed text-gray-700 dark:text-zinc-300 text-[11px]">
-                    Esta práctica aún no cuenta con nota definitiva registrada por el docente. No es posible tramitar un Certificado de Aprobación sin nota.
-                      </p></div>)}
-                  <p className="hidden">
-                  </p>
                   <button
                     type="button"
                     onClick={() => {

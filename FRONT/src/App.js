@@ -27,7 +27,6 @@ const AdminPractices = React.lazy(() => import("./components/Admin/AdminPractice
 const AdminReports = React.lazy(() => import("./components/Admin/AdminReports"));
 const AdminUserManagement = React.lazy(() => import("./components/Admin/AdminUserManagement"));
 
-const AuditorReports = React.lazy(() => import("./components/Auditor/AuditorReports"));
 const AuditorUserViewer = React.lazy(() => import("./components/Auditor/AuditorUserViewer"));
 const AuditorHoursCompliance = React.lazy(() => import("./components/Auditor/AuditorHoursCompliance"));
 const AuditorCommunication = React.lazy(() => import("./components/Auditor/AuditorCommunication"));

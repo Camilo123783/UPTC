@@ -53,18 +53,6 @@ const formatDateReadable = (dateStr) => {
 const HistoryModule = ({ userRole }) => {
   const { isDark } = useTheme();
 
-  if (false && userRole === "superadmin") {
-    return (
-      <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
-        <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acceso No Autorizado</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-          El rol Superadministrador no tiene acceso al módulo de historial.
-        </p>
-      </div>
-    );
-  }
-
   const [historyList, setHistoryList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +60,6 @@ const HistoryModule = ({ userRole }) => {
   const [periodFilter, setPeriodFilter] = useState("Todos");
   const [selectedPractice, setSelectedPractice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   // Obtener token para peticiones
   const getAuthHeaders = () => {
@@ -112,33 +99,7 @@ const HistoryModule = ({ userRole }) => {
 
   useEffect(() => {
     if (userRole !== "superadmin") fetchHistory();
-  }, [fetchHistory]);
-
-  // Sincronización manual para administradores
-  const handleSyncHistory = async () => {
-    setIsSyncing(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/history/sync`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Error en la sincronización.");
-      }
-
-      toast.success("Historial sincronizado con éxito.");
-      await fetchHistory();
-    } catch (err) {
-      toast.error(err.message || "Error al sincronizar historial.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  }, [fetchHistory, userRole]);
 
   // Períodos únicos disponibles para el filtro
   const availablePeriods = useMemo(() => {

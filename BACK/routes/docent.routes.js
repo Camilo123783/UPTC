@@ -73,6 +73,28 @@ const cpUploadDocent = uploadDocent.fields(
 // Caché ultrarrápida en memoria RAM para fotos de perfil de docentes (< 1ms)
 const docentPhotoMemoryCache = new Map();
 
+function detectSafeImageMime(buf) {
+  if (!buf || buf.length < 4) return "image/jpeg";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return "image/webp";
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif";
+  return "image/jpeg";
+}
+
+function parseEndOfDayColombia(dateVal) {
+  if (!dateVal) return null;
+  const isoDate =
+    dateVal instanceof Date
+      ? dateVal.toISOString().slice(0, 10)
+      : String(dateVal).trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    const fallback = new Date(dateVal);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+  return new Date(`${isoDate}T23:59:59-05:00`);
+}
+
 /**
  * Convierte un Buffer binario o cadena Base64 a un data URL estándar para renderizado inmediato en el navegador.
  */
@@ -141,11 +163,15 @@ async function ensureDatosDocenteTable() {
 router.get("/photo/:docentId", async (req, res, next) => {
   try {
     const { docentId } = req.params;
-    const docentKey = String(docentId).trim();
+    const docentKey = String(docentId || "").trim();
+    if (!/^\d{1,20}$/.test(docentKey)) {
+      return res.status(400).json({ success: false, message: "Identificador de docente no válido." });
+    }
 
     // Encabezados universales CORS para imágenes
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("X-Content-Type-Options", "nosniff");
 
     const ifNoneMatch = req.headers["if-none-match"];
 
@@ -191,7 +217,6 @@ router.get("/photo/:docentId", async (req, res, next) => {
       if (rawFoto.startsWith("data:")) {
         const matches = rawFoto.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
         if (matches) {
-          mimeType = matches[1];
           fileBuffer = Buffer.from(matches[2], "base64");
         } else {
           fileBuffer = Buffer.from(rawFoto, "base64");
@@ -200,19 +225,21 @@ router.get("/photo/:docentId", async (req, res, next) => {
         fileBuffer = Buffer.from(rawFoto, "base64");
       }
     } else if (Buffer.isBuffer(rawFoto)) {
-      fileBuffer = rawFoto;
-      if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x4e && fileBuffer[3] === 0x47) {
-        mimeType = "image/png";
-      } else if (fileBuffer[0] === 0xff && fileBuffer[1] === 0xd8) {
-        mimeType = "image/jpeg";
-      } else if (fileBuffer[0] === 0x52 && fileBuffer[1] === 0x49 && fileBuffer[2] === 0x46 && fileBuffer[3] === 0x46) {
-        mimeType = "image/webp";
+      const strCheck = rawFoto.toString("utf8", 0, 40);
+      if (strCheck.startsWith("data:")) {
+        const fullStr = rawFoto.toString("utf8");
+        const matches = fullStr.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        fileBuffer = matches ? Buffer.from(matches[2], "base64") : rawFoto;
+      } else {
+        fileBuffer = rawFoto;
       }
     }
 
     if (!fileBuffer || fileBuffer.length === 0) {
       return res.status(404).json({ success: false, message: "Foto vacía o ilegible." });
     }
+
+    mimeType = detectSafeImageMime(fileBuffer);
 
     const etag = `W/"docent-photo-${docentKey}-${fileBuffer.length}"`;
 
@@ -337,7 +364,7 @@ router.get("/signature/:docentId", async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      signature: rows[0].foto_firma,
+      signature: bufferToDataUrl(rows[0].foto_firma, "image/png"),
     });
   } catch (err) {
     next(err);
@@ -714,6 +741,7 @@ router.get(
       }
 
       res.setHeader("Content-Type", mimeType);
+      res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader(
         "Content-Disposition",
         `${isInline ? "inline" : "attachment"}; filename="${col}_${docentId}.${fileExt}"`
@@ -759,6 +787,42 @@ router.put("/profile", requireRole("docent", "admin", "superadmin"), async (req,
 
     values.push(docentId);
     await queryDB(`UPDATE docente SET ${updates.join(", ")} WHERE cedula = ?`, values);
+
+    // Sincronizar también en datos_docente para evitar lecturas obsoletas en COALESCE(dd.foto_*, d.foto_*)
+    try {
+      await ensureDatosDocenteTable();
+      const ddCols = ["cedula_docente"];
+      const ddVals = [docentId];
+      const ddUpdates = [];
+
+      const toBuf = (val) => {
+        if (!val) return null;
+        if (Buffer.isBuffer(val)) return val;
+        const s = String(val).trim();
+        const m = s.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        return Buffer.from(m ? m[2] : s, "base64");
+      };
+
+      if (foto_perfil !== undefined) {
+        ddCols.push("foto_perfil");
+        ddVals.push(toBuf(foto_perfil));
+        ddUpdates.push("foto_perfil = VALUES(foto_perfil)");
+      }
+      if (foto_firma !== undefined) {
+        ddCols.push("foto_firma");
+        ddVals.push(toBuf(foto_firma));
+        ddUpdates.push("foto_firma = VALUES(foto_firma)");
+      }
+      if (ddUpdates.length > 0) {
+        const ph = ddCols.map(() => "?").join(", ");
+        await queryDB(
+          `INSERT INTO datos_docente (${ddCols.join(", ")}) VALUES (${ph}) ON DUPLICATE KEY UPDATE ${ddUpdates.join(", ")}`,
+          ddVals
+        );
+      }
+    } catch (syncErr) {
+      console.warn("⚠️ Aviso al sincronizar datos_docente en PUT /profile:", syncErr.message);
+    }
 
     // Invalidar caché de foto en memoria RAM
     docentPhotoMemoryCache.delete(String(docentId).trim());
@@ -1008,7 +1072,7 @@ router.get(["/practices", "/practices/:docentId"], async (req, res, next) => {
         ra.fecha_reporte AS auditor_fecha_reporte
       FROM observacion_practica o
       LEFT JOIN docente d ON o.docente_cedula = d.cedula
-      LEFT JOIN auditor au ON (o.auditor_cedula = au.cedula OR (o.autor_rol = 'auditor' AND o.autor_cedula = au.cedula))
+      LEFT JOIN auditor au ON COALESCE(o.auditor_cedula, IF(o.autor_rol = 'auditor', o.autor_cedula, NULL)) = au.cedula
       LEFT JOIN estudiante e ON o.estudiante_cedula = e.cedula
       LEFT JOIN reporte_auditor ra ON (ra.practica_id = o.practica_id AND ra.estudiante_cedula = o.estudiante_cedula)
       WHERE o.practica_id IN (${placeholders})
@@ -2657,9 +2721,9 @@ router.get(["/dashboard-stats", "/dashboard-stats/:docentId"], async (req, res, 
         FROM solicitud_certificado sc
         LEFT JOIN practica pr ON sc.practica_id = pr.id
         LEFT JOIN estudiante e ON sc.estudiante_cedula = e.cedula
-        WHERE sc.docente_cedula = ? AND sc.estado = 'Pendiente'
+        WHERE (sc.docente_cedula = ? OR pr.docente_cedula = ?) AND sc.estado = 'Pendiente'
         ORDER BY sc.fecha_solicitud DESC
-      `, [docentId]);
+      `, [docentId, docentId]);
       pendingCertificates = certRows.length;
       certRows.forEach((cr) => {
         tasks.unshift(`Revisar solicitud de certificado (${cr.tipo_certificado}) de ${cr.estudiante_nombre?.trim() || "Estudiante"} para "${cr.practica_titulo || "Práctica"}".`);
@@ -2733,7 +2797,7 @@ router.get(["/certificate-requests", "/certificate-requests/:docentId"], async (
         e.correo_institucional AS estudiante_correo,
         prog.nombreprograma AS estudiante_carrera,
         pe.calificacion AS estudiante_calificacion,
-        d.foto_firma AS docente_foto_firma
+        COALESCE(dd.foto_firma, d.foto_firma) AS docente_foto_firma
       FROM solicitud_certificado sc
       LEFT JOIN practica pr ON sc.practica_id = pr.id
       LEFT JOIN servicio s ON pr.servicio_id = s.id
@@ -2741,13 +2805,19 @@ router.get(["/certificate-requests", "/certificate-requests/:docentId"], async (
       LEFT JOIN estudiante e ON sc.estudiante_cedula = e.cedula
       LEFT JOIN programa prog ON e.programa_id = prog.id
       LEFT JOIN practica_estudiante pe ON pe.practica_id = sc.practica_id AND pe.estudiante_cedula = sc.estudiante_cedula
-      LEFT JOIN docente d ON d.cedula = sc.docente_cedula OR d.cedula = pr.docente_cedula
+      LEFT JOIN docente d ON COALESCE(sc.docente_cedula, pr.docente_cedula) = d.cedula
+      LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
       WHERE sc.docente_cedula = ? OR pr.docente_cedula = ?
       ORDER BY sc.fecha_solicitud DESC
     `, [docentId, docentId]);
 
-    console.log(`✅ Solicitudes de certificado para docente ${docentId}: ${rows.length} encontrada(s).`);
-    res.status(200).json(rows);
+    const normalizedRows = rows.map((r) => ({
+      ...r,
+      docente_foto_firma: bufferToDataUrl(r.docente_foto_firma, "image/png"),
+    }));
+
+    console.log(`✅ Solicitudes de certificado para docente ${docentId}: ${normalizedRows.length} encontrada(s).`);
+    res.status(200).json(normalizedRows);
   } catch (err) {
     next(err);
   }
@@ -2867,9 +2937,9 @@ const handleRespondRequest = async (req, res, next) => {
 
       // 2. Si la práctica está finalizada: máximo 30 días posteriores
       if (sol.practica_estado === "Finalizada" && sol.practica_fecha_fin) {
-        const endDate = new Date(sol.practica_fecha_fin);
+        const endDate = parseEndOfDayColombia(sol.practica_fecha_fin);
         const now = new Date();
-        const diffDays = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
+        const diffDays = endDate ? (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24) : 0;
         if (diffDays > 30) {
           return res.status(400).json({
             success: false,
@@ -3022,7 +3092,7 @@ router.get("/practices/:practiceId/messages", async (req, res, next) => {
         ra.fecha_reporte AS auditor_fecha_reporte
       FROM observacion_practica op
       LEFT JOIN estudiante e ON op.estudiante_cedula = e.cedula
-      LEFT JOIN auditor au ON (op.auditor_cedula = au.cedula OR (op.autor_rol = 'auditor' AND op.autor_cedula = au.cedula))
+      LEFT JOIN auditor au ON COALESCE(op.auditor_cedula, IF(op.autor_rol = 'auditor', op.autor_cedula, NULL)) = au.cedula
       LEFT JOIN docente d ON op.docente_cedula = d.cedula
       LEFT JOIN reporte_auditor ra ON (ra.practica_id = op.practica_id AND ra.estudiante_cedula = op.estudiante_cedula)
       WHERE op.practica_id = ?
@@ -3225,7 +3295,7 @@ router.get("/all-messages", async (req, res, next) => {
       INNER JOIN practica pr ON op.practica_id = pr.id
       LEFT JOIN institucion i ON pr.institucion_id = i.id
       LEFT JOIN estudiante e ON op.estudiante_cedula = e.cedula
-      LEFT JOIN auditor au ON (op.auditor_cedula = au.cedula OR (op.autor_rol = 'auditor' AND op.autor_cedula = au.cedula))
+      LEFT JOIN auditor au ON COALESCE(op.auditor_cedula, IF(op.autor_rol = 'auditor', op.autor_cedula, NULL)) = au.cedula
       LEFT JOIN docente d ON op.docente_cedula = d.cedula
       WHERE pr.docente_cedula = ? OR op.docente_cedula = ?
       ORDER BY op.created_at DESC

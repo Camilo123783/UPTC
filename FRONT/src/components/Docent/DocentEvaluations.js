@@ -38,10 +38,12 @@ const DocentEvaluations = () => {
     try {
       let docentCedula = null;
       try {
-        const stored = sessionStorage.getItem("userData");
+        const stored =
+          sessionStorage.getItem("userData") ||
+          localStorage.getItem("userData");
         if (stored) {
           const parsed = JSON.parse(stored);
-          docentCedula = parsed.cedula || parsed.Cédula || null;
+          docentCedula = parsed.cedula || parsed.Cédula || parsed.id || null;
         }
       } catch (e) {
         console.warn("No se pudo leer sesión de docente:", e);
@@ -59,6 +61,7 @@ const DocentEvaluations = () => {
           cedula: st.cedula,
           practiceId: st.practiceId,
           student: st.fullName || `${st.name} ${st.lastName}`.trim(),
+          tiene_foto: st.tiene_foto ?? st.has_photo,
           practice: st.practiceName,
           service: st.service,
           status: st.evaluationStatus || (st.score !== null ? "Completada" : "Pendiente"),

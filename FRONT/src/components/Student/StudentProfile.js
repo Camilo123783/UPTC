@@ -92,11 +92,7 @@ const normalizePhotoUrl = (rawUrl, cedula) => {
       path = rawUrl.substring(rawUrl.indexOf("/api/student/photo/"));
     }
   }
-  const token = getAuthToken();
-  const sep = path.includes("?") ? "&" : "?";
-  const tokenParam = token ? `${sep}token=${encodeURIComponent(token)}` : "";
-  const sepV = tokenParam ? "&" : path.includes("?") ? "&" : "?";
-  return `${BACKEND_URL}${path}${tokenParam}`;
+  return `${BACKEND_URL}${path}`;
 };
 
 /**
@@ -456,9 +452,17 @@ const StudentProfile = () => {
           ...prev.documents,
           [docKey]: { name: file.name, file },
         },
-        documentsInDB: { ...prev.documentsInDB, [docKey]: false },
       }));
     }
+  };
+
+  const closePreviewModal = () => {
+    setPreviewModal((prev) => {
+      if (prev.url && prev.url.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.url);
+      }
+      return { isOpen: false, title: "", url: "" };
+    });
   };
 
   // Previsualizar o descargar documento
@@ -469,6 +473,9 @@ const StudentProfile = () => {
     // Archivo local nuevo seleccionado
     const localFile = profile.documents[docKey]?.file;
     if (localFile) {
+      if (previewModal.url && previewModal.url.startsWith("blob:")) {
+        URL.revokeObjectURL(previewModal.url);
+      }
       const url = URL.createObjectURL(localFile);
       setPreviewModal({
         isOpen: true,
@@ -481,7 +488,9 @@ const StudentProfile = () => {
     // Archivo ya registrado en el servidor
     if (profile.documentsInDB[docKey]) {
       const token = getAuthToken();
-      const currentCedula = String(profile.studentId || getStudentCedula() || "").trim();
+      const currentCedula = String(
+        profile.studentId || getStudentCedula() || "",
+      ).trim();
       const downloadUrl = `${API_URL}/student/download/${currentCedula}/${docConfig.dbColumn}?token=${encodeURIComponent(token)}`;
       window.open(downloadUrl, "_blank");
     }
@@ -492,7 +501,9 @@ const StudentProfile = () => {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const currentCedula = String(profile.studentId || getStudentCedula() || "").trim();
+    const currentCedula = String(
+      profile.studentId || getStudentCedula() || "",
+    ).trim();
 
     if (!currentCedula) {
       return setErrorMessage("No se pudo verificar la cédula del estudiante.");
@@ -1207,17 +1218,20 @@ const StudentProfile = () => {
                 <span>{successMessage}</span>
               </div>
             )}
-            {!errorMessage && !successMessage && (
-              missingDocs.length > 0 ? (
+            {!errorMessage &&
+              !successMessage &&
+              (missingDocs.length > 0 ? (
                 <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                  Soportes pendientes ({missingDocs.length} de {DOCUMENT_CONFIGS.length}): {missingDocs.map((d) => d.title).join(", ")}.
+                  Soportes pendientes ({missingDocs.length} de{" "}
+                  {DOCUMENT_CONFIGS.length}):{" "}
+                  {missingDocs.map((d) => d.title).join(", ")}.
                 </p>
               ) : (
                 <p className="text-xs text-gray-500 dark:text-zinc-400">
-                  Asegúrate de adjuntar los soportes requeridos antes de guardar.
+                  Asegúrate de adjuntar los soportes requeridos antes de
+                  guardar.
                 </p>
-              )
-            )}
+              ))}
           </div>
 
           <button
@@ -1249,7 +1263,10 @@ const StudentProfile = () => {
         createPortal(
           <div
             className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
-            style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+            style={{
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
           >
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-4xl h-[85vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col">
               <div className="p-3.5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-950">
@@ -1268,9 +1285,7 @@ const StudentProfile = () => {
                 </a>
                 <button
                   type="button"
-                  onClick={() =>
-                    setPreviewModal({ isOpen: false, title: "", url: "" })
-                  }
+                  onClick={closePreviewModal}
                   className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />

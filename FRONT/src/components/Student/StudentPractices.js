@@ -74,7 +74,7 @@ const getRemainingCertDays = (fechaFin) => {
   try {
     const fStr = typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "";
     if (!fStr) return 30;
-    const finDate = new Date(fStr);
+    const finDate = /^\d{4}-\d{2}-\d{2}$/.test(fStr) ? new Date(`${fStr}T00:00:00`) : new Date(fStr);
     const hoy = new Date();
     finDate.setHours(0, 0, 0, 0);
     hoy.setHours(0, 0, 0, 0);

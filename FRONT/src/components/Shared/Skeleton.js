@@ -76,26 +76,36 @@ export const SkeletonAvatar = ({ size = "md", className = "" }) => {
 /**
  * Skeleton para tarjetas de métricas o indicadores numéricos superiores
  */
-export const SkeletonStatsRow = ({ count = 4, className = "" }) => (
-  <div
-    className={`grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-${count} gap-4 ${className}`}
-    aria-hidden="true"
-  >
-    {Array.from({ length: count }).map((_, i) => (
-      <div
-        key={i}
-        className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex items-center justify-between"
-      >
-        <div className="space-y-2 flex-1 mr-3">
-          <Skeleton className="w-20 h-3" />
-          <Skeleton className="w-14 h-7" />
-          <Skeleton className="w-28 h-2.5" />
+export const SkeletonStatsRow = ({ count = 4, className = "" }) => {
+  const lgColsClass =
+    count === 1
+      ? "lg:grid-cols-1"
+      : count === 2
+      ? "lg:grid-cols-2"
+      : count === 3
+      ? "lg:grid-cols-3"
+      : "lg:grid-cols-4";
+  return (
+    <div
+      className={`grid grid-cols-2 sm:grid-cols-2 ${lgColsClass} gap-4 ${className}`}
+      aria-hidden="true"
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex items-center justify-between"
+        >
+          <div className="space-y-2 flex-1 mr-3">
+            <Skeleton className="w-20 h-3" />
+            <Skeleton className="w-14 h-7" />
+            <Skeleton className="w-28 h-2.5" />
+          </div>
+          <Skeleton variant="rounded" className="w-10 h-10 shrink-0" />
         </div>
-        <Skeleton variant="rounded" className="w-10 h-10 shrink-0" />
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
 
 /**
  * Skeleton individual de tarjeta de práctica o certificación
@@ -144,13 +154,14 @@ export const SkeletonCard = ({ className = "" }) => (
 /**
  * Grid completo de tarjetas skeleton (para Historial, Prácticas, Certificados)
  */
-export const SkeletonCardGrid = ({ count = 6, cols = 3, className = "" }) => {
+export const SkeletonCardGrid = ({ count = 6, cols = 3, columns, className = "" }) => {
   const gridColsClass =
-    cols === 4
+    columns ||
+    (cols === 4
       ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
       : cols === 2
       ? "grid-cols-1 md:grid-cols-2"
-      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3");
 
   return (
     <div className={`grid ${gridColsClass} gap-5 ${className}`} aria-hidden="true">

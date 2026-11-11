@@ -60,8 +60,9 @@ export const sanitizeSessionPage = (page, role = null) => {
   ) {
     return "dashboard";
   }
+  const normRole = role ? String(role).trim().toLowerCase() : null;
   if (
-    role === "superadmin" &&
+    normRole === "superadmin" &&
     (trimmed === "history" ||
       trimmed === "/history" ||
       trimmed === "/admin/history" ||
@@ -72,6 +73,18 @@ export const sanitizeSessionPage = (page, role = null) => {
       trimmed.startsWith("/docent") ||
       trimmed.startsWith("/auditor"))
   ) {
+    return "dashboard";
+  }
+  if (normRole === "student" && (trimmed.startsWith("/admin") || trimmed.startsWith("/docent") || trimmed.startsWith("/auditor"))) {
+    return "dashboard";
+  }
+  if (normRole === "docent" && (trimmed.startsWith("/admin") || trimmed.startsWith("/student") || trimmed.startsWith("/auditor"))) {
+    return "dashboard";
+  }
+  if (normRole === "auditor" && (trimmed.startsWith("/admin") || trimmed.startsWith("/student") || trimmed.startsWith("/docent"))) {
+    return "dashboard";
+  }
+  if (normRole === "admin" && (trimmed.startsWith("/student") || trimmed.startsWith("/docent") || trimmed.startsWith("/auditor"))) {
     return "dashboard";
   }
   return trimmed;
@@ -298,7 +311,8 @@ export const loadActiveSession = () => {
     return { expiredDueToInactivity: true };
   }
 
-  // Verificar si el token JWT expiró
+  // Verificar si el token JWT expiró y validar rol real del JWT contra alteraciones en localStorage
+  let verifiedRole = userRole;
   try {
     const base64Url = token.split(".")[1];
     if (base64Url) {
@@ -315,14 +329,19 @@ export const loadActiveSession = () => {
         clearActiveSession();
         return { expiredDueToInactivity: true, expiredDueToToken: true };
       }
+      if (decoded && decoded.role) {
+        verifiedRole = String(decoded.role).trim().toLowerCase();
+      }
     }
   } catch (e) {}
 
+  const finalPage = sanitizeSessionPage(rawPage, verifiedRole);
+
   // Sincronizar hacia sessionStorage y localStorage para mantener coherencia entre pestañas
   try {
-    if (userRole) {
-      if (!sessionStorage.getItem(KEYS.USER_ROLE)) sessionStorage.setItem(KEYS.USER_ROLE, userRole);
-      if (!localStorage.getItem(KEYS.USER_ROLE)) safeSetLocalStorage(KEYS.USER_ROLE, userRole);
+    if (verifiedRole) {
+      if (sessionStorage.getItem(KEYS.USER_ROLE) !== verifiedRole) sessionStorage.setItem(KEYS.USER_ROLE, verifiedRole);
+      if (localStorage.getItem(KEYS.USER_ROLE) !== verifiedRole) safeSetLocalStorage(KEYS.USER_ROLE, verifiedRole);
     }
     if (token) {
       if (!sessionStorage.getItem(KEYS.AUTH_TOKEN)) sessionStorage.setItem(KEYS.AUTH_TOKEN, token);
@@ -335,14 +354,14 @@ export const loadActiveSession = () => {
     if (userDataStr && !sessionStorage.getItem(KEYS.USER_DATA)) {
       sessionStorage.setItem(KEYS.USER_DATA, userDataStr);
     }
-    if (currentPage && !sessionStorage.getItem(KEYS.CURRENT_PAGE)) {
-      sessionStorage.setItem(KEYS.CURRENT_PAGE, currentPage);
+    if (finalPage && !sessionStorage.getItem(KEYS.CURRENT_PAGE)) {
+      sessionStorage.setItem(KEYS.CURRENT_PAGE, finalPage);
     }
   } catch (e) {}
 
   return {
-    userRole,
-    currentPage: currentPage || "dashboard",
+    userRole: verifiedRole,
+    currentPage: finalPage || "dashboard",
     expiredDueToInactivity: false,
   };
 };

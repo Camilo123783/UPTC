@@ -84,40 +84,12 @@ const ESTADOS_PRACTICA_DOCENTE = [
   { value: "Cancelada", label: "Cancelada" },
 ];
 
-const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-const parseHorarioAHoras = (horarioStr) => {
-  const map = {};
-  if (!horarioStr || typeof horarioStr !== "string") return map;
-  DIAS_SEMANA.forEach((dia) => {
-    const regex = new RegExp(`${dia}(?:[\\s\\(:–-]+(\\d{1,2}:\\d{2})\\s*(?:-|a|al|hasta|–)\\s*(\\d{1,2}:\\d{2})\\)?)?`, "i");
-    const m = horarioStr.match(regex);
-    if (m) {
-      map[dia] = {
-        inicio: m[1] || "07:00",
-        fin: m[2] || "13:00",
-      };
-    }
-  });
-  return map;
-};
-
-const formatHorarioDesdeDias = (diasMap) => {
-  return DIAS_SEMANA
-    .filter((dia) => !!diasMap[dia])
-    .map((dia) => {
-      const { inicio, fin } = diasMap[dia];
-      return `${dia} (${inicio || "07:00"} - ${fin || "13:00"})`;
-    })
-    .join(", ");
-};
-
 const getRemainingCertDays = (fechaFin) => {
   if (!fechaFin) return 30;
   try {
     const fStr = typeof fechaFin === "string" ? fechaFin.substring(0, 10) : "";
     if (!fStr) return 30;
-    const finDate = new Date(fStr);
+    const finDate = /^\d{4}-\d{2}-\d{2}$/.test(fStr) ? new Date(`${fStr}T00:00:00`) : new Date(fStr);
     const hoy = new Date();
     finDate.setHours(0, 0, 0, 0);
     hoy.setHours(0, 0, 0, 0);
@@ -307,38 +279,6 @@ const DocentPractices = () => {
   const [practiceFormError, setPracticeFormError] = useState("");
   const [practiceFormSuccess, setPracticeFormSuccess] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
-  const [scheduleDays, setScheduleDays] = useState(() => {
-    return parseHorarioAHoras(initialPracticeForm.horario || "");
-  });
-
-  const handleToggleScheduleDay = (dia) => {
-    setScheduleDays((prev) => {
-      const next = { ...prev };
-      if (next[dia]) {
-        delete next[dia];
-      } else {
-        next[dia] = { inicio: "07:00", fin: "13:00" };
-      }
-      const formatted = formatHorarioDesdeDias(next);
-      setPracticeFormData((f) => ({ ...f, horario: formatted }));
-      return next;
-    });
-  };
-
-  const handleScheduleTimeChange = (dia, field, value) => {
-    setScheduleDays((prev) => {
-      const next = {
-        ...prev,
-        [dia]: {
-          ...(prev[dia] || { inicio: "07:00", fin: "13:00" }),
-          [field]: value,
-        },
-      };
-      const formatted = formatHorarioDesdeDias(next);
-      setPracticeFormData((f) => ({ ...f, horario: formatted }));
-      return next;
-    });
-  };
 
   // Obtener la cédula del docente de forma segura
   const getDocentCedula = useCallback(() => {
@@ -1207,7 +1147,7 @@ const DocentPractices = () => {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => navigate(`/docent/certificates?practiceId=${selectedPractice.id}`)}
+                        onClick={() => navigate(`/docent/certificate-requests?practiceId=${selectedPractice.id}`)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 rounded-xl transition border border-amber-200 dark:border-amber-800 shadow-sm"
                         title="Diseñar o emitir certificados para esta práctica"
                       >
@@ -1216,7 +1156,7 @@ const DocentPractices = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => navigate(`/docent/reports?practiceId=${selectedPractice.id}`)}
+                        onClick={() => navigate(`/docent/certificate-requests?practiceId=${selectedPractice.id}`)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 rounded-xl transition border border-emerald-200 dark:border-emerald-800 shadow-sm"
                         title="Generar reportes y consolidados de esta práctica"
                       >

@@ -168,7 +168,11 @@ const AdminUserEditModal = ({
 
     setIsResettingPassword(true);
     try {
-      const token = localStorage.getItem("authToken");
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: "POST",
         headers: {

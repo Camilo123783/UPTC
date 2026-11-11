@@ -398,16 +398,33 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
 
     const constanciaCondition = `(hc.categoria_solicitud IS NULL OR hc.categoria_solicitud != 'constancia') AND (hc.tipo_certificado IS NULL OR hc.tipo_certificado NOT LIKE '%constancia%')`;
 
+    const normalizeSignature = (val) => {
+      if (!val) return null;
+      if (Buffer.isBuffer(val)) {
+        const strVal = val.toString("utf8").trim();
+        if (strVal.startsWith("data:image/")) return strVal;
+        let mime = "image/png";
+        if (val[0] === 0xff && val[1] === 0xd8) mime = "image/jpeg";
+        else if (val[0] === 0x52 && val[1] === 0x49) mime = "image/webp";
+        return `data:${mime};base64,${val.toString("base64")}`;
+      }
+      const str = String(val).trim();
+      if (!str) return null;
+      if (str.startsWith("data:image/")) return str;
+      return `data:image/png;base64,${str}`;
+    };
+
     if (role === "student") {
       // Estudiante: Máximo 1 año a partir de la fecha de emisión (solo certificados)
       sql = `
         SELECT 
           hc.*,
-          d.foto_firma AS docente_foto_firma,
+          COALESCE(dd.foto_firma, d.foto_firma) AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes,
           TIMESTAMPDIFF(DAY, hc.fecha_emision, NOW()) AS dias_desde_emision
         FROM historial_certificado hc
         LEFT JOIN docente d ON hc.docente_cedula = d.cedula
+        LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
         WHERE hc.estudiante_cedula = ?
           AND (hc.fecha_expiracion_estudiante IS NULL OR hc.fecha_expiracion_estudiante >= NOW())
           AND ${constanciaCondition}
@@ -457,7 +474,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       sql = `
         SELECT 
           hc.*,
-          d.foto_firma AS docente_foto_firma,
+          COALESCE(dd.foto_firma, d.foto_firma) AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes,
           CASE 
             WHEN hc.fecha_expiracion_estudiante IS NULL OR hc.fecha_expiracion_estudiante >= NOW() THEN 1 
@@ -465,6 +482,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
           END AS vigente_estudiante
         FROM historial_certificado hc
         LEFT JOIN docente d ON hc.docente_cedula = d.cedula
+        LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
         WHERE ${whereClauses.join(" AND ")}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
       `;
@@ -472,10 +490,11 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       sql = `
         SELECT 
           hc.*,
-          d.foto_firma AS docente_foto_firma,
+          COALESCE(dd.foto_firma, d.foto_firma) AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes
         FROM historial_certificado hc
         LEFT JOIN docente d ON hc.docente_cedula = d.cedula
+        LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
         WHERE hc.docente_cedula = ?
           AND ${constanciaCondition}
         ORDER BY hc.fecha_emision DESC, hc.id DESC
@@ -485,10 +504,11 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       sql = `
         SELECT 
           hc.*,
-          d.foto_firma AS docente_foto_firma,
+          COALESCE(dd.foto_firma, d.foto_firma) AS docente_foto_firma,
           DATEDIFF(hc.fecha_expiracion_estudiante, NOW()) AS dias_restantes
         FROM historial_certificado hc
         LEFT JOIN docente d ON hc.docente_cedula = d.cedula
+        LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
         WHERE (
           hc.practica_id IN (
             SELECT pr.id FROM practica pr WHERE pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1)
@@ -517,6 +537,7 @@ router.get("/certificates/list", verifyToken, async (req, res, next) => {
       }
       return {
         ...r,
+        docente_foto_firma: normalizeSignature(r.docente_foto_firma),
         metadatos: meta,
       };
     });
@@ -604,7 +625,13 @@ router.post("/certificates/register", verifyToken, requireRole("docent", "admin"
     // Regla: Práctica finalizada solo permite emitir certificados hasta 30 días después
     if (pr.estado === "Finalizada") {
       if (pr.fecha_fin) {
-        const endDate = new Date(pr.fecha_fin);
+        const isoFin =
+          pr.fecha_fin instanceof Date
+            ? pr.fecha_fin.toISOString().slice(0, 10)
+            : String(pr.fecha_fin).trim().slice(0, 10);
+        const endDate = /^\d{4}-\d{2}-\d{2}$/.test(isoFin)
+          ? new Date(`${isoFin}T23:59:59-05:00`)
+          : new Date(pr.fecha_fin);
         const now = new Date();
         const diffDays = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
         if (diffDays > 30) {

@@ -1074,7 +1074,7 @@ const DocentStudentManagement = () => {
                                   cedula={st.cedula}
                                   name={st.fullName || `${st.name} ${st.lastName}`.trim()}
                                   size="md"
-                                  hasPhoto={st.tiene_foto}
+                                  hasPhoto={st.tiene_foto ?? st.has_photo}
                                 />
                               </div>
                               <div className="min-w-0">
@@ -1221,7 +1221,7 @@ const DocentStudentManagement = () => {
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <div className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 text-center">
                   <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-zinc-400 block">Total</span>
-                  <span className="text-lg font-black text-gray-900 dark:text-white">{students.length} alumnos</span>
+                  <span className="text-lg font-black text-gray-900 dark:text-white">{assignedStudents.length} alumnos</span>
                 </div>
               </div>
             </div>
@@ -1244,7 +1244,7 @@ const DocentStudentManagement = () => {
                 onChange={(e) => setEvaluationStatusFilter(e.target.value)}
                 className="px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               >
-                <option value="Todos">Todos los Alumnos ({students.length})</option>
+                <option value="Todos">Todos los Alumnos ({assignedStudents.length})</option>
                 <option value="Pendiente">Pendientes de Nota</option>
                 <option value="Completada">Evaluados con Nota</option>
               </select>
@@ -1305,7 +1305,7 @@ const DocentStudentManagement = () => {
                               cedula={st.cedula}
                               name={st.fullName || `${st.name} ${st.lastName}`.trim()}
                               size="md"
-                              hasPhoto={st.tiene_foto}
+                              hasPhoto={st.tiene_foto ?? st.has_photo}
                             />
                           </div>
                           <div className="min-w-0">

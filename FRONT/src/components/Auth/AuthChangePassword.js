@@ -96,7 +96,9 @@ const AuthChangePassword = ({ onNavigate, isAdminChange = false }) => {
 
     if (!currentCedula || !currentName) {
       try {
-        const stored = sessionStorage.getItem("userData");
+        const stored =
+          sessionStorage.getItem("userData") ||
+          localStorage.getItem("userData");
         if (stored) {
           const parsed = JSON.parse(stored);
           currentCedula = currentCedula || parsed.cedula || parsed.id || "";
@@ -241,7 +243,11 @@ const AuthChangePassword = ({ onNavigate, isAdminChange = false }) => {
     };
 
     try {
-      const token = localStorage.getItem("authToken");
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token");
       const headers = {
         "Content-Type": "application/json",
       };

@@ -908,6 +908,9 @@ const DocentProfile = () => {
                     <button
                       type="button"
                       onClick={() => {
+                        if (previewModal.url && previewModal.url.startsWith("blob:")) {
+                          URL.revokeObjectURL(previewModal.url);
+                        }
                         const url = URL.createObjectURL(localFile);
                         setPreviewModal({
                           isOpen: true,
@@ -1210,9 +1213,12 @@ const DocentProfile = () => {
                   </a>
                   <button
                     type="button"
-                    onClick={() =>
-                      setPreviewModal({ isOpen: false, title: "", url: "", downloadUrl: "", isImage: false })
-                    }
+                    onClick={() => {
+                      if (previewModal.url && previewModal.url.startsWith("blob:")) {
+                        URL.revokeObjectURL(previewModal.url);
+                      }
+                      setPreviewModal({ isOpen: false, title: "", url: "", downloadUrl: "", isImage: false });
+                    }}
                     className="p-1.5 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg transition cursor-pointer"
                     title="Cerrar"
                   >

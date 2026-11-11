@@ -31,6 +31,110 @@ function getMimeTypeFromBuffer(buffer) {
   return "image/jpeg";
 }
 
+function normalizeSignatureDataUrl(val) {
+  if (!val) return null;
+  if (Buffer.isBuffer(val)) {
+    const strVal = val.toString("utf8").trim();
+    if (strVal.startsWith("data:image/")) return strVal;
+    const mime = getMimeTypeFromBuffer(val);
+    return `data:${mime};base64,${val.toString("base64")}`;
+  }
+  const str = String(val).trim();
+  if (!str) return null;
+  if (str.startsWith("data:image/")) return str;
+  return `data:image/png;base64,${str}`;
+}
+
+function parseEndOfDayColombia(dateVal) {
+  if (!dateVal) return null;
+  const isoDate =
+    dateVal instanceof Date
+      ? dateVal.toISOString().slice(0, 10)
+      : String(dateVal).trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    const fallback = new Date(dateVal);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+  return new Date(`${isoDate}T23:59:59-05:00`);
+}
+
+/**
+ * Helper anti-IDOR asíncrono que verifica si el usuario autenticado puede consultar
+ * o gestionar datos de un estudiante (el propio estudiante, su docente/auditor asignado, o admin/superadmin).
+ */
+async function checkStudentRelationship(req, res, targetStudentId) {
+  const role = req.user?.role;
+  const callerCedula = String(req.user?.cedula || "").trim();
+  const target = String(targetStudentId || "").trim();
+
+  if (role === "admin" || role === "superadmin" || role === "administrador") {
+    return true;
+  }
+
+  if (role === "student" || role === "estudiante") {
+    if (callerCedula !== target) {
+      res.status(403).json({
+        success: false,
+        message: "Acceso denegado: solo puedes consultar y gestionar tu propia información institucional.",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  if (role === "docent" || role === "docente") {
+    const rel = await queryDB(
+      `SELECT 1 FROM practica pr
+       JOIN practica_estudiante pe ON pr.id = pe.practica_id
+       WHERE pr.docente_cedula = ? AND pe.estudiante_cedula = ?
+       UNION
+       SELECT 1 FROM historial_practica hp
+       JOIN historial_practica_estudiante hpe ON hp.id = hpe.historial_id
+       WHERE hp.docente_cedula = ? AND hpe.estudiante_cedula = ?
+       LIMIT 1`,
+      [callerCedula, target, callerCedula, target]
+    );
+    if (rel.length === 0) {
+      res.status(403).json({
+        success: false,
+        message: "Acceso denegado: no estás asignado como docente de este estudiante.",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  if (role === "auditor") {
+    const rel = await queryDB(
+      `SELECT 1 FROM practica pr
+       JOIN practica_estudiante pe ON pr.id = pe.practica_id
+       WHERE (pr.auditor_cedula = ? OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+         AND pe.estudiante_cedula = ?
+       UNION
+       SELECT 1 FROM historial_practica hp
+       JOIN historial_practica_estudiante hpe ON hp.id = hpe.historial_id
+       WHERE (hp.auditor_cedula = ? OR hp.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1))
+         AND hpe.estudiante_cedula = ?
+       LIMIT 1`,
+      [callerCedula, callerCedula, target, callerCedula, callerCedula, target]
+    );
+    if (rel.length === 0) {
+      res.status(403).json({
+        success: false,
+        message: "Acceso denegado: no estás asignado como auditor de este estudiante.",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  res.status(403).json({
+    success: false,
+    message: "Acceso denegado.",
+  });
+  return false;
+}
+
 /**
  * Middleware de autenticación y autorización para consultas del estudiante:
  * Valida estrictamente el token JWT (Bearer o query param) y previene IDOR asegurando
@@ -120,7 +224,7 @@ const cpUpload = upload.fields(
 router.get("/profile/:studentId", verifyToken, async (req, res, next) => {
   try {
     const { studentId } = req.params;
-    if (!checkStudentOwnership(req, res, studentId)) return;
+    if (!(await checkStudentRelationship(req, res, studentId))) return;
 
     const rows = await queryDB(`
       SELECT
@@ -156,7 +260,7 @@ router.get("/profile/:studentId", verifyToken, async (req, res, next) => {
 router.get("/details/:studentId", verifyToken, async (req, res, next) => {
   try {
     const { studentId } = req.params;
-    if (!checkStudentOwnership(req, res, studentId)) return;
+    if (!(await checkStudentRelationship(req, res, studentId))) return;
     const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 4004}`;
     const token = req.headers["authorization"]?.startsWith("Bearer ")
       ? req.headers["authorization"].split(" ")[1]
@@ -336,6 +440,7 @@ router.get(
       }
 
       res.setHeader("Content-Type", mimeType);
+      res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader(
         "Content-Disposition",
         `${isInline ? "inline" : "attachment"}; filename="${columnName}_${studentId}.${fileExt}"`
@@ -384,6 +489,7 @@ router.get("/photo/:studentId", async (req, res, next) => {
     // Encabezados CORS y de recursos cruzados para permitir visualización en cualquier <img>
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("X-Content-Type-Options", "nosniff");
 
     const ifNoneMatch = req.headers["if-none-match"];
 
@@ -613,6 +719,8 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
       });
     }
 
+    if (!(await checkStudentRelationship(req, res, studentId))) return;
+
     // Sincronizar estados de prácticas en tiempo real según fecha actual
     await syncPracticeStatuses();
 
@@ -671,9 +779,6 @@ router.get(["/practices", "/practices/:studentId"], verifyToken, async (req, res
       return res.status(200).json([]);
     }
 
-    const practiceIds = rows.map((r) => r.id);
-    const placeholders = practiceIds.map(() => "?").join(",");
-
     const result = rows.map((r) => {
       const hCumplidas = Number(r.horas_cumplidas || 0);
       const hAsignadas = Number(r.horas_asignadas || r.horas_totales || 120);
@@ -718,6 +823,8 @@ router.get(["/evaluations", "/evaluations/:studentId"], verifyToken, async (req,
         message: "Cédula del estudiante no especificada.",
       });
     }
+
+    if (!(await checkStudentRelationship(req, res, studentId))) return;
 
     const rows = await queryDB(`
       SELECT 
@@ -798,6 +905,8 @@ router.get(["/certificate-requests", "/certificate-requests/:studentId"], verify
       });
     }
 
+    if (!(await checkStudentRelationship(req, res, studentId))) return;
+
     const rows = await queryDB(`
       SELECT 
         sc.id,
@@ -822,19 +931,25 @@ router.get(["/certificate-requests", "/certificate-requests/:studentId"], verify
         i.nombreinstitucion AS institucion_nombre,
         CONCAT(COALESCE(d.nombre, ''), ' ', COALESCE(d.apellidos, '')) AS docente_nombre,
         d.correo_institucional AS docente_correo,
-        CASE WHEN sc.estado = 'Aprobado' THEN d.foto_firma ELSE NULL END AS docente_foto_firma
+        CASE WHEN sc.estado = 'Aprobado' THEN COALESCE(dd.foto_firma, d.foto_firma) ELSE NULL END AS docente_foto_firma
       FROM solicitud_certificado sc
       LEFT JOIN practica pr ON sc.practica_id = pr.id
       LEFT JOIN practica_estudiante pe ON sc.practica_id = pe.practica_id AND sc.estudiante_cedula = pe.estudiante_cedula
       LEFT JOIN servicio s ON pr.servicio_id = s.id
       LEFT JOIN institucion i ON pr.institucion_id = i.id
       LEFT JOIN docente d ON COALESCE(sc.docente_cedula, pr.docente_cedula) = d.cedula
+      LEFT JOIN datos_docente dd ON dd.cedula_docente = d.cedula
       WHERE sc.estudiante_cedula = ?
       ORDER BY sc.fecha_solicitud DESC
     `, [studentId]);
 
-    console.log(`✅ Solicitudes de certificado para estudiante ${studentId}: ${rows.length} encontrada(s).`);
-    res.status(200).json(rows);
+    const normalizedRows = rows.map((r) => ({
+      ...r,
+      docente_foto_firma: normalizeSignatureDataUrl(r.docente_foto_firma),
+    }));
+
+    console.log(`✅ Solicitudes de certificado para estudiante ${studentId}: ${normalizedRows.length} encontrada(s).`);
+    res.status(200).json(normalizedRows);
   } catch (err) {
     next(err);
   }
@@ -904,9 +1019,9 @@ router.post("/certificate-requests", verifyToken, requireRole("student", "admin"
 
     // Regla 2: Práctica finalizada solo permite emitir certificados hasta 30 días después
     if (prInfo.estado === "Finalizada" && prInfo.fecha_fin) {
-      const endDate = new Date(prInfo.fecha_fin);
+      const endDate = parseEndOfDayColombia(prInfo.fecha_fin);
       const now = new Date();
-      const diffDays = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
+      const diffDays = endDate ? (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24) : 0;
       if (diffDays > 30) {
         return res.status(400).json({
           success: false,
@@ -1013,7 +1128,7 @@ router.delete("/certificate-requests/:id", verifyToken, requireRole("student", "
 // GET /api/student/communication/practices
 // Prácticas activas/inscritas del estudiante con información de su docente
 // ──────────────────────────────────────────────
-router.get("/communication/practices", verifyToken, async (req, res, next) => {
+router.get("/communication/practices", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.query.studentId || req.user.cedula);
     if (!studentCedula) {
@@ -1067,7 +1182,7 @@ router.get("/communication/practices", verifyToken, async (req, res, next) => {
 // GET /api/student/communication/practices/:practiceId/messages
 // Mensajes entre el estudiante y el docente en una práctica específica
 // ──────────────────────────────────────────────
-router.get("/communication/practices/:practiceId/messages", verifyToken, async (req, res, next) => {
+router.get("/communication/practices/:practiceId/messages", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const { practiceId } = req.params;
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.query.studentId || req.user.cedula);
@@ -1078,7 +1193,7 @@ router.get("/communication/practices/:practiceId/messages", verifyToken, async (
       [practiceId, studentCedula]
     );
 
-    if (enrolledCheck.length === 0 && req.user?.role === "student") {
+    if (enrolledCheck.length === 0) {
       return res.status(403).json({
         success: false,
         message: "No tienes asignación en esta práctica formativa.",
@@ -1111,18 +1226,20 @@ router.get("/communication/practices/:practiceId/messages", verifyToken, async (
       ORDER BY med.created_at ASC, med.id ASC
     `, [practiceId, studentCedula]);
 
-    // Marcar como leídos por el estudiante los mensajes del docente
-    try {
-      await queryDB(`
-        UPDATE mensaje_estudiante_docente
-        SET leido_por_estudiante = 1
-        WHERE practica_id = ?
-          AND (estudiante_cedula = ? OR (estudiante_cedula IS NULL AND destinatario_tipo = 'todos'))
-          AND remitente_rol = 'docente'
-          AND leido_por_estudiante = 0
-      `, [practiceId, studentCedula]);
-    } catch (e) {
-      console.warn("No se pudo marcar mensajes como leídos por estudiante:", e.message);
+    // Marcar como leídos únicamente cuando es el propio estudiante quien abre el hilo
+    if (req.user?.role === "student") {
+      try {
+        await queryDB(`
+          UPDATE mensaje_estudiante_docente
+          SET leido_por_estudiante = 1
+          WHERE practica_id = ?
+            AND (estudiante_cedula = ? OR (estudiante_cedula IS NULL AND destinatario_tipo = 'todos'))
+            AND remitente_rol = 'docente'
+            AND leido_por_estudiante = 0
+        `, [practiceId, studentCedula]);
+      } catch (e) {
+        console.warn("No se pudo marcar mensajes como leídos por estudiante:", e.message);
+      }
     }
 
     res.status(200).json(messages);
@@ -1217,7 +1334,7 @@ router.post("/communication/practices/:practiceId/messages", verifyToken, requir
 // GET /api/student/communication/unread-count
 // Conteo de mensajes no leídos del docente para el estudiante
 // ──────────────────────────────────────────────
-router.get("/communication/unread-count", verifyToken, async (req, res, next) => {
+router.get("/communication/unread-count", verifyToken, requireRole("student", "admin", "superadmin"), async (req, res, next) => {
   try {
     const studentCedula = req.user.role === "student" ? req.user.cedula : (req.query.studentId || req.user.cedula);
     if (!studentCedula) {
@@ -1290,13 +1407,14 @@ router.delete("/communication/messages/:id", verifyToken, requireRole("student",
 
     const msg = msgRows[0];
 
-    // Verificar autoría
-    if (msg.remitente_rol !== "estudiante" || String(msg.remitente_cedula) !== String(studentCedula)) {
-      return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
-    }
-
-    if (msg.elapsed_seconds !== undefined && msg.elapsed_seconds !== null && Number(msg.elapsed_seconds) > 305) {
-      return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
+    // Verificar autoría (si es estudiante solo puede eliminar sus propios mensajes dentro de 5 min)
+    if (req.user.role === "student") {
+      if (msg.remitente_rol !== "estudiante" || String(msg.remitente_cedula) !== String(req.user.cedula)) {
+        return res.status(403).json({ success: false, message: "No tienes permiso para eliminar este mensaje." });
+      }
+      if (msg.elapsed_seconds !== undefined && msg.elapsed_seconds !== null && Number(msg.elapsed_seconds) > 305) {
+        return res.status(400).json({ success: false, message: "El tiempo límite de 5 minutos para eliminar este mensaje ha expirado." });
+      }
     }
     await queryDB("DELETE FROM mensaje_estudiante_docente WHERE id = ?", [id]);
 

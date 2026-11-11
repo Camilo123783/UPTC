@@ -53,7 +53,8 @@ export const RubricCriteriaSelector = ({
   selectedCriteriaIds,
   onChange,
   isLocked = false,
-  lockReason = "La práctica ya se encuentra iniciada o finalizada; los 10 criterios de evaluación no pueden modificarse.",
+  lockedReason,
+  lockReason = lockedReason || "La práctica ya se encuentra iniciada o finalizada; los 10 criterios de evaluación no pueden modificarse.",
 }) => {
   const [openCategories, setOpenCategories] = useState({
     1: true,

@@ -56,18 +56,6 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
     return String(stored).toLowerCase();
   }, [propRole, user]);
 
-  if (false && userRole === "superadmin") {
-    return (
-      <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800">
-        <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Acceso No Autorizado</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-          El rol Superadministrador no tiene acceso al módulo de historial de certificados.
-        </p>
-      </div>
-    );
-  }
-
   const [certificates, setCertificates] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -521,9 +509,6 @@ const CertificateHistoryModule = ({ userRole: propRole }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {certificates.map((cert) => {
-            const isConstancia =
-              cert.categoria_solicitud === "constancia" ||
-              (cert.tipo_certificado && cert.tipo_certificado.toLowerCase().includes("constancia"));
             const remainingDays = cert.dias_restantes !== undefined ? Number(cert.dias_restantes) : null;
             const isNearExpiry = remainingDays !== null && remainingDays <= 60 && remainingDays > 0;
 

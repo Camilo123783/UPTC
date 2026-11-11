@@ -1182,8 +1182,9 @@ router.get("/all-messages", async (req, res, next) => {
       LEFT JOIN docente d ON pr.docente_cedula = d.cedula
       WHERE op.auditor_cedula = ? OR op.autor_cedula = ?
          OR pr.auditor_cedula = ?
+         OR pr.institucion_id = (SELECT institucion_id FROM auditor WHERE cedula = ? LIMIT 1)
       ORDER BY op.created_at DESC
-    `, [auditorCedula, auditorCedula, auditorCedula]);
+    `, [auditorCedula, auditorCedula, auditorCedula, auditorCedula]);
 
     res.status(200).json(rows);
   } catch (err) {

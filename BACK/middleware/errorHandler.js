@@ -36,8 +36,9 @@ function errorHandler(err, req, res, next) {
   // Código de estado: usa el del error si existe, sino 500
   const statusCode = err.statusCode || err.status || 500;
 
-  // Log siempre en el servidor
-  console.error(`❌ [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  // Log siempre en el servidor (redactando tokens sensibles en query string)
+  const safeLogUrl = String(req.url || "").replace(/([?&]token=)[^&]+/gi, "$1[REDACTED]");
+  console.error(`❌ [${new Date().toISOString()}] ${req.method} ${safeLogUrl}`);
   console.error(`   Status: ${statusCode}`);
   console.error(`   Mensaje: ${err.message}`);
   if (isDev && err.stack) {

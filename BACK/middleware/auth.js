@@ -35,14 +35,21 @@ function invalidateUserAuthCache(cedula) {
 }
 
 async function checkUserActiveInDB(role, cedula) {
-  const normalizedRole = String(role || "").trim().toLowerCase();
+  const normalizedRole = String(role || "")
+    .trim()
+    .toLowerCase();
   // El superadministrador siempre permanece activo por regla de negocio institucional
   if (normalizedRole === "superadmin") {
     return { exists: true, active: true };
   }
 
   const table = ROLE_TO_TABLE[normalizedRole];
-  if (!table || cedula === undefined || cedula === null || String(cedula).trim() === "") {
+  if (
+    !table ||
+    cedula === undefined ||
+    cedula === null ||
+    String(cedula).trim() === ""
+  ) {
     return { exists: true, active: true };
   }
 
@@ -55,7 +62,10 @@ async function checkUserActiveInDB(role, cedula) {
   }
 
   try {
-    const rows = await queryDB(`SELECT * FROM ${table} WHERE cedula = ? LIMIT 1`, [cleanCedula]);
+    const rows = await queryDB(
+      `SELECT id, cedula, activo FROM ${table} WHERE cedula = ? LIMIT 1`,
+      [cleanCedula],
+    );
     const value =
       rows.length === 0
         ? { exists: false, active: false }
@@ -71,10 +81,16 @@ async function checkUserActiveInDB(role, cedula) {
       const oldestKey = userStatusCache.keys().next().value;
       if (oldestKey) userStatusCache.delete(oldestKey);
     }
-    userStatusCache.set(cacheKey, { value, expiresAt: now + USER_STATUS_TTL_MS });
+    userStatusCache.set(cacheKey, {
+      value,
+      expiresAt: now + USER_STATUS_TTL_MS,
+    });
     return value;
   } catch (err) {
-    console.warn(`⚠️ [AUTH] Aviso al verificar estado activo en ${table}:`, err.message);
+    console.warn(
+      `⚠️ [AUTH] Aviso al verificar estado activo en ${table}:`,
+      err.message,
+    );
     return { exists: true, active: true };
   }
 }
@@ -109,13 +125,18 @@ async function verifyToken(req, res, next) {
     if (!status.exists || !status.active) {
       return res.status(401).json({
         success: false,
-        message: "Tu cuenta ha sido desactivada o ya no se encuentra disponible. Contacta al administrador.",
+        message:
+          "Tu cuenta ha sido desactivada o ya no se encuentra disponible. Contacta al administrador.",
       });
     }
     req.user = decoded; // { cedula, role, iat, exp }
     next();
   } catch (err) {
-    if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError" || err.name === "NotBeforeError") {
+    if (
+      err.name === "TokenExpiredError" ||
+      err.name === "JsonWebTokenError" ||
+      err.name === "NotBeforeError"
+    ) {
       const message =
         err.name === "TokenExpiredError"
           ? "El token ha expirado. Inicia sesión nuevamente."
